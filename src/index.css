@@ -1,0 +1,454 @@
+/* ============================================================
+   CDRRMO GLOBAL CSS — Cabuyao City Disaster Management System
+   (ported from the original static codebase: assets/css/global.css)
+   ============================================================ */
+
+/* --- Google Fonts --- */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+/* --- CSS Variables --- */
+:root {
+  /* Brand Colors */
+  --cdrrmo-red:        #C0181B;
+  --cdrrmo-red-dark:   #8B0F11;
+  --cdrrmo-red-deep:   #5C0000;
+  --cdrrmo-navy:       #1A2A4A;
+  --cdrrmo-navy-light: #243558;
+  --cdrrmo-gold:       #E8B84B;
+  --cdrrmo-white:      #FFFFFF;
+  --cdrrmo-off-white:  #F7F5F2;
+
+  /* UI Colors */
+  --color-bg-primary:    #FFFFFF;
+  --color-bg-secondary:  #F7F5F2;
+  --color-bg-tertiary:   #EDEBE8;
+  --color-text-primary:  #1A1A1A;
+  --color-text-secondary:#5A5A5A;
+  --color-text-muted:    #9A9A9A;
+  --color-border:        #E0DDD8;
+  --color-border-focus:  #C0181B;
+
+  /* Status Colors */
+  --color-success:  #1A7A4A;
+  --color-warning:  #B87A10;
+  --color-danger:   #C0181B;
+  --color-info:     #1A3A7A;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.16);
+  --shadow-xl:  0 16px 48px rgba(0,0,0,0.20);
+
+  /* Typography */
+  --font-display: 'Poppins', sans-serif;
+  --font-body:    'Poppins', sans-serif;
+
+  /* Spacing Scale */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Border Radius */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+  --radius-xl:  24px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast:   0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow:   0.4s ease;
+}
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Typography --- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+}
+
+h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
+h2 { font-size: clamp(1.4rem, 3vw, 2rem); }
+h3 { font-size: clamp(1.15rem, 2.5vw, 1.5rem); }
+h4 { font-size: 1.125rem; }
+h5 { font-size: 1rem; }
+h6 { font-size: 0.875rem; }
+
+p { line-height: 1.7; color: var(--color-text-secondary); }
+
+a {
+  color: var(--cdrrmo-red);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover { color: var(--cdrrmo-red-dark); text-decoration: underline; }
+
+/* --- Form Elements --- */
+label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="date"],
+select,
+textarea {
+  width: 100%;
+  padding: 11px var(--space-4);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  appearance: none;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--cdrrmo-red);
+  background: var(--color-bg-primary);
+  box-shadow: 0 0 0 3px rgba(192, 24, 27, 0.12);
+}
+
+input::placeholder { color: var(--color-text-muted); font-size: 0.875rem; }
+
+/* Tidy up number fields: remove the bulky native spin buttons so the
+   control matches the rest of the form. */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide the browser's built-in password reveal / clear icons (Edge & some
+   Chromium builds) so they don't double up with our custom eye toggle. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-strong-password-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+}
+
+/* --- Buttons --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 12px var(--space-6);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--cdrrmo-red);
+  color: var(--cdrrmo-white);
+  box-shadow: 0 2px 8px rgba(192,24,27,0.3);
+}
+.btn-primary:hover {
+  background: var(--cdrrmo-red-dark);
+  box-shadow: 0 4px 16px rgba(192,24,27,0.4);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border: 1.5px solid var(--color-border);
+}
+.btn-secondary:hover {
+  background: var(--color-bg-secondary);
+  border-color: var(--cdrrmo-red);
+  color: var(--cdrrmo-red);
+}
+
+.btn-navy {
+  background: var(--cdrrmo-navy);
+  color: var(--cdrrmo-white);
+  box-shadow: 0 2px 8px rgba(26,42,74,0.3);
+}
+.btn-navy:hover {
+  background: var(--cdrrmo-navy-light);
+  box-shadow: 0 4px 16px rgba(26,42,74,0.4);
+  transform: translateY(-1px);
+}
+
+.btn-full { width: 100%; }
+.btn-sm { padding: 8px var(--space-4); font-size: 0.8125rem; }
+.btn-lg { padding: 15px var(--space-8); font-size: 1rem; }
+.btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+/* --- Cards --- */
+.card {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.card-body { padding: var(--space-6); }
+.card-header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* --- Role Tab Buttons --- */
+.role-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.role-tab {
+  flex: 1;
+  padding: 9px var(--space-3);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.role-tab:hover {
+  border-color: var(--cdrrmo-red);
+  color: var(--cdrrmo-red);
+}
+
+.role-tab.active {
+  background: var(--cdrrmo-red);
+  border-color: var(--cdrrmo-red);
+  color: var(--cdrrmo-white);
+  box-shadow: 0 2px 8px rgba(192,24,27,0.25);
+}
+
+/* --- Alerts / Status Banners --- */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.alert-danger  { background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
+.alert-success { background: #F0FDF4; border: 1px solid #86EFAC; color: #166534; }
+.alert-warning { background: #FFFBEB; border: 1px solid #FCD34D; color: #92400E; }
+.alert-info    { background: #EFF6FF; border: 1px solid #93C5FD; color: #1E40AF; }
+
+/* --- Badges --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: var(--radius-full);
+}
+
+.badge-red    { background: #FEE2E2; color: #991B1B; }
+.badge-navy   { background: #DBEAFE; color: #1E3A8A; }
+.badge-green  { background: #DCFCE7; color: #14532D; }
+.badge-gold   { background: #FEF3C7; color: #78350F; }
+
+/* --- Divider --- */
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-5) 0;
+}
+
+/* --- Checkbox & Radio --- */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid var(--color-border);
+  accent-color: var(--cdrrmo-red);
+  cursor: pointer;
+}
+
+/* --- Utility Classes --- */
+.text-center { text-align: center; }
+.text-muted  { color: var(--color-text-muted); font-size: 0.8125rem; }
+.text-sm     { font-size: 0.875rem; }
+.text-xs     { font-size: 0.75rem; }
+.text-red    { color: var(--cdrrmo-red); }
+.text-navy   { color: var(--cdrrmo-navy); }
+
+.mt-1 { margin-top: var(--space-1); }
+.mt-2 { margin-top: var(--space-2); }
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-5 { margin-top: var(--space-5); }
+.mt-6 { margin-top: var(--space-6); }
+
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-3 { margin-bottom: var(--space-3); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-5 { margin-bottom: var(--space-5); }
+.mb-6 { margin-bottom: var(--space-6); }
+
+.flex         { display: flex; }
+.flex-center  { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.gap-2        { gap: var(--space-2); }
+.gap-3        { gap: var(--space-3); }
+.gap-4        { gap: var(--space-4); }
+.w-full       { width: 100%; }
+
+/* --- Stat Boxes (used in login page) --- */
+.stat-box {
+  border: 1.5px solid rgba(255,255,255,0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  text-align: center;
+  backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.08);
+}
+
+.stat-box .stat-number {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--cdrrmo-white);
+  display: block;
+}
+
+.stat-box .stat-label {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.75);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--cdrrmo-red); }
+
+/* --- Selection --- */
+::selection { background: rgba(192,24,27,0.15); color: var(--cdrrmo-red-dark); }
+
+/* --- Focus Ring (Accessibility) --- */
+:focus-visible {
+  outline: 2px solid var(--cdrrmo-red);
+  outline-offset: 2px;
+}
+
+/* --- Responsive Helpers --- */
+@media (max-width: 768px) {
+  :root { --space-6: 20px; --space-8: 28px; }
+}
+
+/* ============================================================
+   Additions for React app (map pages & image placeholders)
+   ============================================================ */
+
+/* Generic image placeholder (used until real assets are wired up) */
+.img-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--color-bg-secondary),
+    var(--color-bg-secondary) 10px,
+    #e7ebf1 10px,
+    #e7ebf1 20px
+  );
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+/* Leaflet base sizing helper (for the map pages — Leaflet.js / OpenStreetMap) */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #aad3df;
+}

@@ -1,0 +1,70 @@
+/* Detailed weather panel (Flood Map right rail). */
+.wx { padding: 2px 0; }
+.wx svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.wx-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #1a2a4a, #2a3f6a);
+  border-radius: 12px;
+  color: #fff;
+}
+.wx-hero-emoji { font-size: 2.6rem; line-height: 1; }
+.wx-temp { font-family: var(--font-display, inherit); font-weight: 800; font-size: 2rem; line-height: 1; }
+.wx-cond { font-size: 0.8rem; font-weight: 600; margin-top: 2px; }
+.wx-feels { font-size: 0.66rem; opacity: 0.85; margin-top: 2px; }
+
+.wx-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 7px;
+  margin-top: 12px;
+}
+.wx-cell {
+  background: #faf8f4;
+  border: 1px solid #efeae1;
+  border-radius: 10px;
+  padding: 8px 9px;
+}
+.wx-cell-top { display: flex; align-items: center; gap: 5px; color: #c0181b; }
+.wx-cell-label { font-size: 0.6rem; color: #7a7a7a; font-weight: 600; }
+.wx-cell-val { font-family: var(--font-display, inherit); font-weight: 800; font-size: 1.05rem; color: #1a2a4a; margin-top: 3px; }
+.wx-cell-unit { font-size: 0.58rem; font-weight: 700; color: #9a9a9a; margin-left: 2px; }
+.wx-cell-sub { font-size: 0.58rem; color: #8a8a8a; margin-top: 1px; }
+
+.wx-today { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
+.wx-pill { background: #fff; border: 1px solid #eee7dc; border-radius: 9px; padding: 7px 4px; text-align: center; }
+.wx-pill-val { font-weight: 800; font-size: 0.82rem; color: #1a2a4a; }
+.wx-pill-lbl { font-size: 0.55rem; color: #8a8a8a; margin-top: 1px; }
+
+.wx-sec-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0 4px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #1a2a4a;
+}
+.wx-sec-val { color: #2563eb; font-size: 0.72rem; }
+.wx-sub { font-size: 0.62rem; color: #9a9a9a; margin-bottom: 6px; }
+
+.wx-rain-bars { display: flex; align-items: flex-end; gap: 4px; height: 56px; }
+.wx-rain-bar { flex: 1; background: #bcd4f5; border-radius: 3px 3px 0 0; min-height: 4px; }
+.wx-rain-bar.now { background: #c0181b; }
+.wx-rain-ticks { display: flex; justify-content: space-between; margin-top: 4px; }
+.wx-rain-ticks span { font-size: 0.52rem; color: #b0b0b0; flex: 1; text-align: center; }
+
+.wx-forecast { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.wx-day { background: #faf8f4; border: 1px solid #efeae1; border-radius: 10px; padding: 8px 2px; text-align: center; }
+.wx-day.today { background: #1a2a4a; border-color: #1a2a4a; }
+.wx-day.today .wx-day-name, .wx-day.today .wx-day-temp b, .wx-day.today .wx-day-pop { color: #fff; }
+.wx-day.today .wx-day-temp span { color: #c5cee0; }
+.wx-day-name { font-size: 0.58rem; font-weight: 700; color: #6a6a6a; }
+.wx-day-emoji { font-size: 1.25rem; margin: 3px 0; }
+.wx-day-temp { font-size: 0.66rem; }
+.wx-day-temp b { color: #1a2a4a; }
+.wx-day-temp span { color: #a0a0a0; margin-left: 2px; }
+.wx-day-pop { font-size: 0.54rem; color: #2563eb; margin-top: 2px; min-height: 0.7em; }

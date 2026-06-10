@@ -1,0 +1,483 @@
+/* ============================================================
+   CDRRMO Admin — Road Status page
+
+   Flush, full-height map layout (.main--flush in AdminLayout.css).
+   Scoped under .road-status to isolate it from sibling screens.
+   ============================================================ */
+
+.road-status {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Toolbar ── */
+.road-status .rs-toolbar {
+  min-height: 48px;
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid #e5e2dd;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  flex-wrap: wrap;
+}
+.road-status .rs-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: #1a1a1a;
+}
+.road-status .rs-title svg {
+  width: 16px;
+  height: 16px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+/* Brush selector */
+.road-status .rs-brushes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.road-status .rs-brush-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9a9a9a;
+  margin-right: 2px;
+}
+.road-status .rs-brush {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border: 1.5px solid #e5e2dd;
+  background: #fafafa;
+  border-radius: 9999px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #5a5a5a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.road-status .rs-brush-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--c);
+  flex-shrink: 0;
+  transition: box-shadow 0.15s;
+}
+.road-status .rs-brush:hover {
+  border-color: var(--c);
+}
+.road-status .rs-brush.active {
+  border-color: var(--c);
+  color: #1a1a1a;
+  background: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent);
+}
+.road-status .rs-brush.active .rs-brush-dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 30%, transparent);
+}
+
+.road-status .rs-source {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #7a7a7a;
+}
+.road-status .rs-source-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+/* ── Body: map + panel ── */
+.road-status .rs-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+.road-status .rs-map-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #e8e4dc;
+  isolation: isolate;
+}
+.road-status .rs-leaflet {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+/* Loading / error overlay */
+.road-status .rs-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 30px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e2dd;
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  text-align: center;
+  z-index: 1000;
+}
+.road-status .rs-overlay span {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: #3a3a3a;
+}
+.road-status .rs-overlay small {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  max-width: 230px;
+}
+.road-status .rs-overlay svg {
+  width: 28px;
+  height: 28px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.road-status .rs-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid #f0eee9;
+  border-top-color: #c0181b;
+  border-radius: 50%;
+  animation: rs-spin 0.8s linear infinite;
+}
+@keyframes rs-spin {
+  to { transform: rotate(360deg); }
+}
+.road-status .rs-retry {
+  margin-top: 4px;
+  padding: 7px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #c0181b;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.road-status .rs-retry:hover {
+  background: #a81518;
+}
+
+/* Paint hint chip */
+.road-status .rs-paint-hint {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 15px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e5e2dd;
+  border-radius: 9999px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #5a5a5a;
+  z-index: 1000;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.road-status .rs-paint-hint svg {
+  width: 14px;
+  height: 14px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.road-status .rs-coords {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e5e2dd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+  font-variant-numeric: tabular-nums;
+  z-index: 1000;
+}
+
+/* ── Right panel ── */
+.road-status .rs-panel {
+  width: 300px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid #e5e2dd;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 14px;
+  overflow-y: auto;
+}
+.road-status .rs-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.road-status .rs-panel::-webkit-scrollbar-thumb {
+  background: #d8d4cd;
+  border-radius: 9999px;
+}
+
+.road-status .rs-section {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0eee9;
+}
+.road-status .rs-section:last-child {
+  border-bottom: none;
+}
+.road-status .rs-section--grow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.road-status .rs-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5a5a5a;
+  margin-bottom: 10px;
+}
+.road-status .rs-pill {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #c0181b;
+  background: #fef2f2;
+  border-radius: 9999px;
+  padding: 1px 7px;
+  letter-spacing: 0;
+}
+
+/* Summary tiles */
+.road-status .rs-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.road-status .rs-sum {
+  border-radius: 10px;
+  padding: 11px 6px;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.road-status .rs-sum--blocked { background: #fef2f2; border-color: #fbd5d5; }
+.road-status .rs-sum--flooded { background: #fff7ed; border-color: #fde2c4; }
+.road-status .rs-sum--open { background: #f0fdf4; border-color: #c8efd6; }
+.road-status .rs-sum-val {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.road-status .rs-sum--blocked .rs-sum-val { color: #dc2626; }
+.road-status .rs-sum--flooded .rs-sum-val { color: #ea580c; }
+.road-status .rs-sum--open .rs-sum-val { color: #16a34a; }
+.road-status .rs-sum-lbl {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7a7a7a;
+  margin-top: 4px;
+}
+.road-status .rs-total {
+  margin-top: 9px;
+  font-size: 0.625rem;
+  color: #9a9a9a;
+  text-align: center;
+}
+
+/* Legend */
+.road-status .rs-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.road-status .rs-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+}
+.road-status .rs-legend-line {
+  width: 26px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.road-status .rs-legend-name {
+  font-weight: 600;
+  color: #3a3a3a;
+}
+
+/* Flagged roads */
+.road-status .rs-flagged-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.road-status .rs-clear {
+  border: none;
+  background: none;
+  color: #c0181b;
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.road-status .rs-clear:hover {
+  text-decoration: underline;
+}
+.road-status .rs-flagged {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+}
+.road-status .rs-flagged-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #f0eee9;
+}
+.road-status .rs-flagged-row:hover {
+  background: #f7f5f2;
+}
+.road-status .rs-flagged-line {
+  width: 4px;
+  height: 18px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.road-status .rs-flagged-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #3a3a3a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.road-status .rs-badge {
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.road-status .rs-badge.flooded { background: #ffedd5; color: #c2410c; }
+.road-status .rs-badge.blocked { background: #fee2e2; color: #b91c1c; }
+.road-status .rs-flagged-x {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: #bcbab7;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.road-status .rs-flagged-x:hover {
+  background: #fef2f2;
+  color: #c0181b;
+}
+
+.road-status .rs-empty {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  line-height: 1.5;
+  padding: 6px 2px;
+}
+
+/* Footer note */
+.road-status .rs-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.625rem;
+  color: #9a9a9a;
+  line-height: 1.5;
+}
+.road-status .rs-note svg {
+  width: 13px;
+  height: 13px;
+  fill: #cbb26b;
+  stroke: none;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 760px) {
+  .road-status .rs-body {
+    flex-direction: column;
+  }
+  .road-status .rs-map-area {
+    height: 56vh;
+    flex: 0 0 auto;
+  }
+  .road-status .rs-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e5e2dd;
+  }
+}

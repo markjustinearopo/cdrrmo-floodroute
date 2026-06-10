@@ -1,0 +1,563 @@
+/* ============================================================
+   CDRRMO Admin — Route Planning page
+
+   Shares the flush, full-height map layout (.main--flush in
+   AdminLayout.css) with the other map screens. Everything is scoped
+   under .route-plan so it can't bleed into sibling screens.
+   ============================================================ */
+
+.route-plan {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Toolbar ── */
+.route-plan .rp-toolbar {
+  min-height: 48px;
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid #e5e2dd;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  flex-wrap: wrap;
+}
+.route-plan .rp-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: #1a1a1a;
+}
+.route-plan .rp-title svg {
+  width: 16px;
+  height: 16px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.8;
+}
+
+/* Route-type segmented control */
+.route-plan .rp-type-seg {
+  display: flex;
+  gap: 3px;
+  background: #f4f2ee;
+  border: 1px solid #e5e2dd;
+  border-radius: 9px;
+  padding: 3px;
+}
+.route-plan .rp-type {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6a6a6a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.route-plan .rp-type:hover {
+  color: #1a1a1a;
+}
+.route-plan .rp-type.active {
+  background: #fff;
+  color: var(--seg, #c0181b);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.route-plan .rp-type-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Tool buttons (Undo / Clear / Auto-suggest) */
+.route-plan .rp-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.route-plan .rp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #e5e2dd;
+  background: #fafafa;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3a3a3a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.route-plan .rp-btn svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.route-plan .rp-btn:hover:not(:disabled) {
+  border-color: #c0181b;
+  color: #c0181b;
+  background: #fef2f2;
+}
+.route-plan .rp-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.route-plan .rp-btn--ghost {
+  position: relative;
+  border-style: dashed;
+  color: #9a9a9a;
+}
+.route-plan .rp-btn--ghost svg {
+  fill: #cbb26b;
+  stroke: none;
+}
+
+/* Auto-suggest (active flood-aware control) */
+.route-plan .rp-btn--auto svg {
+  fill: #cbb26b;
+  stroke: none;
+}
+.route-plan .rp-btn--auto:hover:not(:disabled) {
+  border-color: #1a7a4a;
+  color: #1a7a4a;
+  background: #f1faf5;
+}
+.route-plan .rp-btn--auto:hover:not(:disabled) svg {
+  fill: #1a7a4a;
+}
+.route-plan .rp-btn--auto.on {
+  border-color: #1a7a4a;
+  color: #1a7a4a;
+  background: #f1faf5;
+}
+.route-plan .rp-btn--auto.on svg {
+  fill: #1a7a4a;
+}
+.route-plan .rp-soon {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b8860b;
+  background: #fdf3d7;
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+
+/* ── Body: map + panel ── */
+.route-plan .rp-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+.route-plan .rp-map-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #e8e4dc;
+  isolation: isolate;
+}
+.route-plan .rp-leaflet {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+/* First-run hint */
+.route-plan .rp-hint {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 22px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e2dd;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  text-align: center;
+  pointer-events: none;
+  z-index: 1000;
+  animation: rp-float 3s ease-in-out infinite;
+}
+@keyframes rp-float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-4px); }
+}
+.route-plan .rp-hint svg {
+  width: 22px;
+  height: 22px;
+  fill: #c0181b;
+  stroke: none;
+  opacity: 0.85;
+}
+.route-plan .rp-hint span {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: #3a3a3a;
+}
+.route-plan .rp-hint small {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+}
+
+/* Coordinate readout (matches the other map screens) */
+.route-plan .rp-coords {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e5e2dd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+  font-variant-numeric: tabular-nums;
+  z-index: 1000;
+}
+
+/* ── Right panel ── */
+.route-plan .rp-panel {
+  width: 300px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid #e5e2dd;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 14px;
+  overflow-y: auto;
+}
+.route-plan .rp-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.route-plan .rp-panel::-webkit-scrollbar-thumb {
+  background: #d8d4cd;
+  border-radius: 9999px;
+}
+
+.route-plan .rp-section {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0eee9;
+}
+.route-plan .rp-section:last-child {
+  border-bottom: none;
+}
+.route-plan .rp-section--grow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.route-plan .rp-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5a5a5a;
+  margin-bottom: 10px;
+}
+.route-plan .rp-pill {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #c0181b;
+  background: #fef2f2;
+  border-radius: 9999px;
+  padding: 1px 7px;
+  letter-spacing: 0;
+}
+
+/* Route-name field */
+.route-plan .rp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.route-plan .rp-field > span {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #7a7a7a;
+}
+.route-plan .rp-field input {
+  padding: 9px 12px;
+  font-size: 0.8125rem;
+  border-radius: 8px;
+}
+.route-plan .rp-type-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+}
+
+/* Live metrics */
+.route-plan .rp-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.route-plan .rp-metric {
+  background: #faf9f7;
+  border: 1px solid #f0eee9;
+  border-radius: 9px;
+  padding: 9px 6px;
+  text-align: center;
+}
+.route-plan .rp-metric-val {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.route-plan .rp-metric-lbl {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  margin-top: 3px;
+}
+
+/* Stop list */
+.route-plan .rp-stops {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+.route-plan .rp-stop {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #faf9f7;
+  border: 1px solid #f0eee9;
+}
+.route-plan .rp-stop-badge {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.6875rem;
+  color: #fff;
+  background: #c0181b;
+}
+.route-plan .rp-stop-badge.start {
+  background: #1a7a4a;
+}
+.route-plan .rp-stop-badge.end {
+  background: #1a2a4a;
+}
+.route-plan .rp-stop-coords {
+  flex: 1 1 auto;
+  font-size: 0.75rem;
+  color: #5a5a5a;
+  font-variant-numeric: tabular-nums;
+}
+.route-plan .rp-stop-x {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: #bcbab7;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.route-plan .rp-stop-x:hover {
+  background: #fef2f2;
+  color: #c0181b;
+}
+
+.route-plan .rp-empty {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  line-height: 1.5;
+  padding: 6px 2px;
+}
+
+/* Save action */
+.route-plan .rp-actions {
+  padding-top: 14px;
+}
+.route-plan .rp-save {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px;
+  border: none;
+  border-radius: 9px;
+  background: #c0181b;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(192, 24, 27, 0.3);
+  transition: all 0.15s;
+}
+.route-plan .rp-save svg {
+  width: 15px;
+  height: 15px;
+  stroke: #fff;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.route-plan .rp-save:hover:not(:disabled) {
+  background: #a81518;
+  box-shadow: 0 4px 14px rgba(192, 24, 27, 0.4);
+  transform: translateY(-1px);
+}
+.route-plan .rp-save:disabled {
+  background: #d8b3b4;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Saved routes list */
+.route-plan .rp-saved {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.route-plan .rp-saved-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid #f0eee9;
+  transition: background 0.15s;
+}
+.route-plan .rp-saved-row:hover {
+  background: #f7f5f2;
+}
+.route-plan .rp-saved-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.route-plan .rp-saved-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+.route-plan .rp-saved-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.route-plan .rp-saved-meta {
+  font-size: 0.625rem;
+  color: #9a9a9a;
+}
+.route-plan .rp-saved-x {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.route-plan .rp-saved-x svg {
+  width: 13px;
+  height: 13px;
+  stroke: #bcbab7;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.route-plan .rp-saved-x:hover {
+  background: #fef2f2;
+}
+.route-plan .rp-saved-x:hover svg {
+  stroke: #c0181b;
+}
+
+/* ── Responsive: stack panel under map ── */
+@media (max-width: 760px) {
+  .route-plan .rp-body {
+    flex-direction: column;
+  }
+  .route-plan .rp-map-area {
+    height: 56vh;
+    flex: 0 0 auto;
+  }
+  .route-plan .rp-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e5e2dd;
+  }
+}

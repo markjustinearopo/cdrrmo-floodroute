@@ -1,0 +1,304 @@
+/* ============================================================
+   Shared styles for the Login & Register pages
+   (ported from assets/css/login.css + register.css — common parts)
+   ============================================================ */
+
+.auth-body {
+  min-height: 100vh;
+  background: #1a0000;
+  overflow-x: hidden;   /* no sideways scroll */
+  overflow-y: auto;     /* but allow scrolling when a form is taller than the screen */
+}
+
+/* In React the page lives inside #root; make it span the full viewport so
+   the centered .page-wrapper actually centers (the original relied on the
+   <body> being the flex container). */
+.auth-body #root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* ── Red gradient background ── */
+.page-bg {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 50%, #8B0F11 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 20%, #5C0000 0%, transparent 55%),
+    radial-gradient(ellipse 70% 70% at 50% 80%, #C0181B 0%, transparent 50%),
+    linear-gradient(135deg, #7A0A0A 0%, #C0181B 40%, #8B0000 100%);
+  z-index: 0;
+}
+
+.page-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity: 0.5;
+}
+
+/* ── Main container ── */
+.page-wrapper {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;          /* group both columns toward the center */
+  padding: 40px 5%;
+  gap: clamp(48px, 9vw, 150px);     /* space between brand & card, like the Figma */
+}
+
+/* ── Left: Branding panel ── */
+.brand-panel {
+  flex: 0 1 520px;                  /* fixed-ish width, no edge-stretching */
+  max-width: 520px;
+  animation: slideInLeft 0.7s cubic-bezier(.22,1,.36,1) both;
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.brand-logo {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 28px;
+  filter: drop-shadow(0 4px 20px rgba(0,0,0,0.4));
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+.brand-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+  font-weight: 800;
+  color: #FFFFFF;
+  line-height: 1.15;
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+
+.brand-subtitle {
+  font-size: 0.9375rem;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.65;
+  margin-bottom: 40px;
+  max-width: 400px;
+}
+
+.stats-row {
+  display: flex;
+  gap: 12px;
+}
+
+.stats-row .stat-box { flex: 1; }
+
+.stat-box.stat-navy {
+  background: rgba(26,42,74,0.6);
+  border-color: rgba(26,42,74,0.8);
+}
+
+/* ── Card header (shared) ── */
+.card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.header-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--cdrrmo-red);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(192,24,27,0.35);
+}
+
+.header-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke: white;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.header-text h2 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.header-text p {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── Form field group ── */
+.field-group {
+  margin-bottom: 16px;
+  animation: fadeUp 0.4s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Select dropdown arrow ── */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239A9A9A' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+/* ── Password toggle ── */
+.input-wrapper { position: relative; }
+.input-wrapper input { padding-right: 44px; }
+
+.toggle-pw {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast);
+}
+
+.toggle-pw:hover { color: var(--cdrrmo-red); }
+.toggle-pw svg {
+  width: 18px; height: 18px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* ── Checkbox / terms row ── */
+.terms-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 400;            /* reset the global <label> bold */
+  letter-spacing: normal;      /* reset the global <label> tracking */
+  text-transform: none;        /* read as a sentence, not a heading */
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+/* Keep the link on the same baseline / sentence as the "Accept" text */
+.terms-row a {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.terms-row input { width: 15px; height: 15px; margin: 0; flex-shrink: 0; }
+
+/* ── Error message ── */
+.error-msg {
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  color: #991B1B;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 14px;
+  display: none;
+}
+.error-msg.show { display: block; }
+
+/* ── Footer (shared) ── */
+.card-footer {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.secure-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 12px;
+}
+
+.secure-badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.footer-link {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+.footer-link a { color: var(--cdrrmo-red); font-weight: 600; }
+
+.support-link {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.system-version {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  margin-top: 8px;
+}
+
+/* ── Mobile responsive (shared) ── */
+@media (max-width: 900px) {
+  .auth-body { overflow-y: auto; }
+
+  .page-wrapper {
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 20px;
+    overflow-y: auto;
+  }
+
+  .brand-panel {
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .stats-row { justify-content: center; }
+  .brand-logo { margin: 0 auto 20px; }
+  .brand-subtitle { margin: 0 auto 28px; }
+}

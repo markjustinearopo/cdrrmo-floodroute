@@ -1,0 +1,49 @@
+/* ============================================================
+   Login page — specific styles (ported from assets/css/login.css)
+   Shared layout/branding lives in auth.css.
+   ============================================================ */
+
+/* ── Right: Login card ── */
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: #FFFFFF;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.1);
+  padding: 32px;
+  animation: slideInRight 0.7s cubic-bezier(.22,1,.36,1) 0.1s both;
+  flex-shrink: 0;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Role section label ── */
+.section-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+/* ── Login form panels ── */
+.login-panel { display: none; }
+.login-panel.active { display: block; }
+
+/* ── Mobile responsive ── */
+@media (max-width: 900px) {
+  .login-card {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card { padding: 24px 20px; }
+  .stats-row { gap: 8px; }
+  .stat-box .stat-number { font-size: 1.25rem; }
+}

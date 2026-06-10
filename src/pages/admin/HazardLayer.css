@@ -1,0 +1,496 @@
+/* ============================================================
+   CDRRMO Admin — Flood Hazard Layer page
+
+   Shares the flush, full-height map layout with the Flood Map
+   (.main--flush lives in FloodMap.css / AdminLayout.css). Everything
+   here is scoped under .hazard so it can't bleed into sibling screens.
+   ============================================================ */
+
+.hazard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Toolbar ── */
+.hazard .hz-toolbar {
+  height: 44px;
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid #e5e2dd;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+}
+.hazard .hz-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: #1a1a1a;
+}
+.hazard .hz-title svg {
+  width: 16px;
+  height: 16px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hazard .hz-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #7a7a7a;
+}
+.hazard .hz-source-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+.hazard .hz-updated {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  font-variant-numeric: tabular-nums;
+}
+.hazard .hz-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+.hazard .hz-live-dot.loading {
+  background: #f59e0b;
+  animation: hz-blink 1s ease-in-out infinite;
+}
+@keyframes hz-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.hazard .hz-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e5e2dd;
+  border-top-color: #c0181b;
+  border-radius: 50%;
+  animation: hz-spin 0.8s linear infinite;
+}
+@keyframes hz-spin { to { transform: rotate(360deg); } }
+.hazard .hz-retry {
+  margin-top: 6px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #c0181b;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.hazard .hz-refresh {
+  margin-top: 12px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #e5e2dd;
+  background: #fafafa;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #5a5a5a;
+  cursor: pointer;
+}
+.hazard .hz-refresh:hover:not(:disabled) { border-color: #1a7a4a; color: #1a7a4a; background: #f1faf5; }
+.hazard .hz-refresh:disabled { opacity: 0.6; cursor: progress; }
+
+/* ── Body: map + panel ── */
+.hazard .hz-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Map area */
+.hazard .hz-map-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #e8e4dc;
+  /* Trap Leaflet's panes in their own stacking context so they can't paint
+     over the topbar overlays (same guard the Flood Map uses). */
+  isolation: isolate;
+}
+.hazard .hz-leaflet {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+/* No-data hint */
+.hazard .hz-nodata {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 26px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e5e2dd;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  pointer-events: none;
+  z-index: 1000;
+}
+.hazard .hz-nodata svg {
+  width: 26px;
+  height: 26px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.7;
+}
+.hazard .hz-nodata span {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #5a5a5a;
+}
+.hazard .hz-nodata small {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  max-width: 220px;
+}
+
+/* Coordinate readout */
+.hazard .hz-coords {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e5e2dd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+  font-variant-numeric: tabular-nums;
+  z-index: 1000;
+}
+
+/* ── Right control panel ── */
+.hazard .hz-panel {
+  width: 300px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid #e5e2dd;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  overflow-y: auto;
+}
+.hazard .hz-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.hazard .hz-panel::-webkit-scrollbar-thumb {
+  background: #d8d4cd;
+  border-radius: 9999px;
+}
+.hazard .hz-panel::-webkit-scrollbar-thumb:hover {
+  background: #bcbab7;
+}
+
+.hazard .hz-section {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0eee9;
+}
+.hazard .hz-section:last-child {
+  border-bottom: none;
+}
+.hazard .hz-section-title {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5a5a5a;
+  margin-bottom: 10px;
+}
+
+/* Layer toggle rows */
+.hazard .hz-layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hazard .hz-layer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  /* Reset the global <label> uppercase so only the section title is caps */
+  text-transform: none;
+  font-weight: normal;
+  font-size: inherit;
+  margin-bottom: 0;
+}
+.hazard .hz-layer:hover {
+  background: #f7f5f2;
+}
+.hazard .hz-layer-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.hazard .hz-layer-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  /* Align with the title text cap-height, not the midpoint of name+desc */
+  margin-top: 3px;
+}
+.hazard .hz-layer-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.hazard .hz-layer-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.3;
+}
+.hazard .hz-layer-desc {
+  font-size: 0.625rem;
+  color: #9a9a9a;
+  line-height: 1.3;
+}
+.hazard .hz-layer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: -10px;
+}
+.hazard .hz-layer-count {
+  min-width: 18px;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #7a7a7a;
+  background: #f0eee9;
+  border-radius: 9999px;
+  padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Toggle switch */
+.hazard .hz-switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #d8d4cd;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.hazard .hz-switch.on {
+  background: #c0181b;
+}
+.hazard .hz-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.hazard .hz-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s;
+}
+.hazard .hz-switch.on .hz-switch-knob {
+  transform: translateX(14px);
+}
+
+/* Opacity slider */
+.hazard .hz-opacity-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.hazard .hz-opacity-head .hz-section-title {
+  margin-bottom: 0;
+}
+.hazard .hz-opacity-val {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c0181b;
+  font-variant-numeric: tabular-nums;
+}
+.hazard .hz-range {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e5e2dd;
+  border-radius: 9999px;
+  outline: none;
+  padding: 0;
+  border: none;
+}
+.hazard .hz-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #c0181b;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.hazard .hz-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #c0181b;
+  cursor: pointer;
+}
+
+/* Risk legend */
+.hazard .hz-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.hazard .hz-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+.hazard .hz-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.hazard .hz-legend-label {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.hazard .hz-legend-sub {
+  margin-left: auto;
+  font-size: 0.625rem;
+  color: #9a9a9a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hazard summary stats */
+.hazard .hz-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.hazard .hz-stat {
+  background: #faf9f7;
+  border: 1px solid #f0eee9;
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+.hazard .hz-stat-val {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.hazard .hz-stat-unit {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9a9a9a;
+  margin-left: 2px;
+}
+.hazard .hz-stat-lbl {
+  font-size: 0.625rem;
+  color: #7a7a7a;
+  margin-top: 2px;
+}
+
+/* Live feed */
+.hazard .hz-feed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hazard .hz-feed-row svg {
+  width: 16px;
+  height: 16px;
+  stroke: none;
+  fill: #2563eb;
+}
+.hazard .hz-feed-val {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #1a2a4a;
+  font-variant-numeric: tabular-nums;
+}
+.hazard .hz-feed-src {
+  margin-left: auto;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #2563eb;
+  background: #eff6ff;
+  border-radius: 9999px;
+  padding: 2px 7px;
+}
+.hazard .hz-feed-note {
+  font-size: 0.625rem;
+  color: #9a9a9a;
+  margin-top: 6px;
+  line-height: 1.5;
+}

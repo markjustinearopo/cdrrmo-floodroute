@@ -1,0 +1,63 @@
+/* ============================================================
+   Global styles for Leaflet-injected routing elements
+   (waypoint pins + road tooltips). These live in Leaflet's own
+   panes/containers, so they can't be scoped under a page class.
+   ============================================================ */
+
+/* Waypoint pins (custom divIcon used by Route Planning + Override Routes) */
+.wp-divicon {
+  background: none;
+  border: none;
+}
+.wp-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  background: #c0181b;
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: grab;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.wp-pin:hover {
+  transform: scale(1.12);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+.wp-pin:active {
+  cursor: grabbing;
+}
+/* Start = green, End = navy, intermediate stops = brand red (default) */
+.wp-pin.wp-start {
+  background: #1a7a4a;
+}
+.wp-pin.wp-end {
+  background: #1a2a4a;
+}
+/* Override-route pins read gold so they stand apart from the planned line */
+.wp-pin.wp-ovr {
+  background: #b8860b;
+}
+
+/* Road hover tooltip */
+.leaflet-tooltip.road-tip {
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.leaflet-tooltip.road-tip::before {
+  border-top-color: #1a1a1a;
+}

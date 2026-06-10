@@ -1,0 +1,122 @@
+/* ============================================================
+   Register page — specific styles (ported from assets/css/register.css)
+   Shared layout/branding lives in auth.css.
+   ============================================================ */
+
+/* ── Register Card ── */
+.register-card {
+  width: 100%;
+  max-width: 440px;
+  background: #FFFFFF;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.1);
+  padding: 32px;
+  animation: slideInRight 0.7s cubic-bezier(.22,1,.36,1) 0.1s both;
+  flex-shrink: 0;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Role badge (Resident only) ── */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: var(--color-bg-tertiary);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 20px;
+}
+
+.role-badge svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--cdrrmo-red);
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Name row (two columns) ── */
+.name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* ── Password strength bar ── */
+.strength-bar-wrap {
+  margin-top: 6px;
+  display: flex;
+  gap: 4px;
+}
+
+.strength-seg {
+  flex: 1;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--color-border);
+  transition: background 0.3s ease;
+}
+
+.strength-label {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+/* ── Terms row (multiline) ── */
+.register-card .terms-row {
+  align-items: flex-start;
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+.register-card .terms-row input { margin-top: 2px; }
+
+/* ── Success message ── */
+.success-msg {
+  background: #F0FDF4;
+  border: 1px solid #86EFAC;
+  color: #166534;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 14px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.success-msg.show { display: flex; }
+
+/* ── Footer (register variant has a top border) ── */
+.register-card .card-footer {
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+}
+
+.register-card .system-version { margin-top: 6px; }
+
+/* ── Mobile responsive ── */
+@media (max-width: 900px) {
+  .register-card {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-card { padding: 24px 20px; }
+  .name-row { grid-template-columns: 1fr; gap: 0; }
+  .stats-row { gap: 8px; }
+  .stat-box .stat-number { font-size: 1.25rem; }
+}

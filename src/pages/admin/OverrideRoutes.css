@@ -1,0 +1,646 @@
+/* ============================================================
+   CDRRMO Admin — Override Routes page
+
+   Flush, full-height map layout (.main--flush in AdminLayout.css).
+   Scoped under .override-routes to isolate it from sibling screens.
+   ============================================================ */
+
+.override-routes {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Toolbar ── */
+.override-routes .ov-toolbar {
+  min-height: 48px;
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid #e5e2dd;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  flex-wrap: wrap;
+}
+.override-routes .ov-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: #1a1a1a;
+}
+.override-routes .ov-title svg {
+  width: 16px;
+  height: 16px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.override-routes .ov-badge {
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b8860b;
+  background: #fdf3d7;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.override-routes .ov-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* Hazard toggle */
+.override-routes .ov-hazard-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #5a5a5a;
+  cursor: pointer;
+}
+.override-routes .ov-hazard-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.override-routes .ov-switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #d8d4cd;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.override-routes .ov-switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s;
+}
+.override-routes .ov-hazard-toggle input:checked + .ov-switch {
+  background: #c0181b;
+}
+.override-routes .ov-hazard-toggle input:checked + .ov-switch::before {
+  transform: translateX(14px);
+}
+.override-routes .ov-hazard-count {
+  font-size: 0.5625rem;
+  font-weight: 800;
+  color: #b91c1c;
+  background: #fee2e2;
+  border-radius: 9999px;
+  padding: 1px 6px;
+}
+
+/* Auto-reroute (flood-aware detour) */
+.override-routes .ov-auto-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #e5e2dd;
+  background: #fafafa;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3a3a3a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.override-routes .ov-auto-btn svg {
+  width: 13px;
+  height: 13px;
+  fill: #cbb26b;
+  stroke: none;
+}
+.override-routes .ov-auto-btn:hover:not(:disabled) {
+  border-color: #1a7a4a;
+  color: #1a7a4a;
+  background: #f1faf5;
+}
+.override-routes .ov-auto-btn:hover:not(:disabled) svg {
+  fill: #1a7a4a;
+}
+.override-routes .ov-auto-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Body: map + panel ── */
+.override-routes .ov-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+.override-routes .ov-map-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #e8e4dc;
+  isolation: isolate;
+}
+.override-routes .ov-leaflet {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+/* Hints */
+.override-routes .ov-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 16px 26px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e2dd;
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  text-align: center;
+  pointer-events: none;
+  z-index: 1000;
+}
+.override-routes .ov-hint--top {
+  top: 18px;
+  transform: translate(-50%, 0);
+  padding: 12px 22px;
+}
+.override-routes .ov-hint svg {
+  width: 24px;
+  height: 24px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+.override-routes .ov-hint--top svg {
+  fill: #c0181b;
+  stroke: none;
+}
+.override-routes .ov-hint span {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: #3a3a3a;
+}
+.override-routes .ov-hint small {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  max-width: 250px;
+}
+
+.override-routes .ov-coords {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e5e2dd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+  font-variant-numeric: tabular-nums;
+  z-index: 1000;
+}
+
+/* Map key */
+.override-routes .ov-key {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  display: flex;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e2dd;
+  border-radius: 9999px;
+  padding: 5px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+.override-routes .ov-key-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #5a5a5a;
+  white-space: nowrap;
+}
+.override-routes .ov-key-line {
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.override-routes .ov-key-line--planned {
+  background: repeating-linear-gradient(to right, #1a2a4a 0 3px, transparent 3px 7px);
+}
+.override-routes .ov-key-line--override {
+  background: #b8860b;
+}
+
+/* ── Right panel ── */
+.override-routes .ov-panel {
+  width: 304px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid #e5e2dd;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 14px;
+  overflow-y: auto;
+}
+.override-routes .ov-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.override-routes .ov-panel::-webkit-scrollbar-thumb {
+  background: #d8d4cd;
+  border-radius: 9999px;
+}
+
+.override-routes .ov-section {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0eee9;
+}
+.override-routes .ov-section:last-child {
+  border-bottom: none;
+}
+.override-routes .ov-section--grow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.override-routes .ov-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5a5a5a;
+  margin-bottom: 10px;
+}
+.override-routes .ov-pill {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #c0181b;
+  background: #fef2f2;
+  border-radius: 9999px;
+  padding: 1px 7px;
+  letter-spacing: 0;
+}
+
+.override-routes .ov-empty {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  line-height: 1.5;
+  padding: 6px 2px;
+}
+
+/* Route picker */
+.override-routes .ov-route-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.override-routes .ov-route {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  border: 1px solid #f0eee9;
+  background: #fff;
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+.override-routes .ov-route:hover {
+  background: #f7f5f2;
+}
+.override-routes .ov-route.active {
+  border-color: #c0181b;
+  background: #fef2f2;
+}
+.override-routes .ov-route-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.override-routes .ov-route-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.override-routes .ov-route-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.override-routes .ov-route-meta {
+  font-size: 0.625rem;
+  color: #9a9a9a;
+}
+.override-routes .ov-route-tag {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #9a7a1a;
+  background: #f5ecd0;
+  border-radius: 5px;
+  padding: 2px 5px;
+  flex-shrink: 0;
+}
+.override-routes .ov-route-tag.on {
+  color: #fff;
+  background: #b8860b;
+}
+
+/* Active-version segmented control */
+.override-routes .ov-version-seg {
+  display: flex;
+  gap: 4px;
+  background: #f4f2ee;
+  border: 1px solid #e5e2dd;
+  border-radius: 9px;
+  padding: 3px;
+}
+.override-routes .ov-version {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6a6a6a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.override-routes .ov-version:hover:not(:disabled):not(.active) {
+  color: #1a1a1a;
+}
+.override-routes .ov-version.active {
+  background: #fff;
+  color: #1a1a1a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.override-routes .ov-version:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Comparison */
+.override-routes .ov-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.override-routes .ov-compare-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.8125rem;
+}
+.override-routes .ov-compare-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.override-routes .ov-compare-dot.planned { background: #1a2a4a; }
+.override-routes .ov-compare-dot.override { background: #b8860b; }
+.override-routes .ov-compare-lbl {
+  flex: 1 1 auto;
+  color: #5a5a5a;
+  font-weight: 500;
+}
+.override-routes .ov-compare-val {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+.override-routes .ov-delta {
+  margin-top: 2px;
+  text-align: right;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #b8860b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Override editor */
+.override-routes .ov-editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+.override-routes .ov-editor-tools {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.override-routes .ov-mini {
+  border: 1px solid #e5e2dd;
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-family: var(--font-body);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #5a5a5a;
+  cursor: pointer;
+}
+.override-routes .ov-mini:hover:not(:disabled) {
+  border-color: #c0181b;
+  color: #c0181b;
+}
+.override-routes .ov-mini:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.override-routes .ov-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+}
+.override-routes .ov-point {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #faf9f7;
+  border: 1px solid #f0eee9;
+}
+.override-routes .ov-point-badge {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.6875rem;
+  color: #fff;
+  background: #b8860b;
+}
+.override-routes .ov-point-badge.start { background: #1a7a4a; }
+.override-routes .ov-point-badge.end { background: #1a2a4a; }
+.override-routes .ov-point-coords {
+  flex: 1 1 auto;
+  font-size: 0.75rem;
+  color: #5a5a5a;
+  font-variant-numeric: tabular-nums;
+}
+.override-routes .ov-point-x {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: #bcbab7;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.override-routes .ov-point-x:hover {
+  background: #fef2f2;
+  color: #c0181b;
+}
+
+/* Actions */
+.override-routes .ov-actions {
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.override-routes .ov-save {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px;
+  border: none;
+  border-radius: 9px;
+  background: #b8860b;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(184, 134, 11, 0.3);
+  transition: all 0.15s;
+}
+.override-routes .ov-save svg {
+  width: 15px;
+  height: 15px;
+  stroke: #fff;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.override-routes .ov-save:hover:not(:disabled) {
+  background: #9a7009;
+  box-shadow: 0 4px 14px rgba(184, 134, 11, 0.4);
+  transform: translateY(-1px);
+}
+.override-routes .ov-save:disabled {
+  background: #ddca9a;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.override-routes .ov-revert {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #e5e2dd;
+  background: #fafafa;
+  border-radius: 9px;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #5a5a5a;
+  cursor: pointer;
+}
+.override-routes .ov-revert:hover {
+  border-color: #c0181b;
+  color: #c0181b;
+  background: #fef2f2;
+}
+
+/* ── Responsive ── */
+@media (max-width: 760px) {
+  .override-routes .ov-body {
+    flex-direction: column;
+  }
+  .override-routes .ov-map-area {
+    height: 56vh;
+    flex: 0 0 auto;
+  }
+  .override-routes .ov-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e5e2dd;
+  }
+}

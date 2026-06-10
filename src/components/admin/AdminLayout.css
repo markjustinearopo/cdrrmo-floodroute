@@ -1,0 +1,878 @@
+/* ============================================================
+   Admin shell — alert banner, topbar, sidebar & page frame.
+   Shared by every CDRRMO Admin screen.
+   (ported from assets/css/admin/dashboard.css — shell parts)
+   ============================================================ */
+
+/* Background tint applied to <body> only while an admin page is mounted. */
+.admin-body {
+  background: #f0eee9;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ── Alert Banner ── */
+.alert-banner {
+  height: 34px;
+  background: #b91c1c;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fee2e2;
+  white-space: nowrap;
+  overflow: hidden;
+  z-index: 100;
+  position: relative;
+  flex-shrink: 0;
+}
+.alert-banner svg {
+  width: 14px;
+  height: 14px;
+  stroke: #fca5a5;
+  fill: none;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+.alert-banner .lbl {
+  color: #fecaca;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  margin-right: 2px;
+}
+/* Banner re-themes by live severity (default = high/red) */
+.alert-banner.lvl-safe { background: #15803d; color: #dcfce7; }
+.alert-banner.lvl-safe .lbl { color: #bbf7d0; }
+.alert-banner.lvl-safe svg { stroke: #86efac; }
+.alert-banner.lvl-moderate { background: #b45309; color: #ffedd5; }
+.alert-banner.lvl-moderate .lbl { color: #fed7aa; }
+.alert-banner.lvl-moderate svg { stroke: #fdba74; }
+
+/* ── Topbar ── */
+.topbar {
+  min-height: 52px;
+  background: #fff;
+  border-bottom: 1px solid #e5e2dd;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  z-index: 90;
+  position: relative;
+  flex-shrink: 0;
+}
+.logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 220px;
+  min-width: 220px;
+  flex-shrink: 0;
+}
+.logo-shield {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  flex-shrink: 0;
+}
+.logo-shield img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.logo-text {
+  line-height: 1.25;
+}
+.logo-text strong {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  display: block;
+  white-space: nowrap;
+}
+.logo-text span {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  white-space: nowrap;
+}
+.flood-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #78350f;
+  flex: 1 1 280px;
+  min-width: 0;
+  max-width: 560px;
+  margin: 0 auto;
+}
+.flood-pill .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+/* Status pill re-themes by live severity (default = moderate/amber) */
+.flood-pill.lvl-safe { background: #dcfce7; border-color: #86efac; color: #14532d; }
+.flood-pill.lvl-safe .dot { animation: none; }
+.flood-pill.lvl-high { background: #fee2e2; border-color: #fca5a5; color: #7f1d1d; }
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.1);
+  }
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-width: 0;
+}
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: #f7f5f2;
+  border: 1px solid #e5e2dd;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+.stat-chip svg {
+  width: 13px;
+  height: 13px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 2;
+}
+.stat-chip.wind svg {
+  stroke: #1a2a4a;
+}
+.stat-chip b {
+  font-weight: 700;
+}
+.time-chip {
+  padding: 4px 10px;
+  background: #f7f5f2;
+  border: 1px solid #e5e2dd;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3a3a3a;
+  font-variant-numeric: tabular-nums;
+}
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e5e2dd;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.icon-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: #5a5a5a;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.icon-btn:hover {
+  border-color: #c0181b;
+  background: #fef2f2;
+}
+.icon-btn:hover svg {
+  stroke: #c0181b;
+}
+.icon-btn.active {
+  border-color: #c0181b;
+  background: #fef2f2;
+}
+.icon-btn.active svg {
+  stroke: #c0181b;
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: #c0181b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  border: none;
+  font-family: var(--font-body);
+  transition: background 0.15s;
+}
+.avatar:hover {
+  background: #a81518;
+}
+
+/* ============================================================
+   Topbar overlays — notifications popup & account modal
+   ============================================================ */
+
+/* Transparent click-catcher behind the notifications popover. */
+.popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+/* ── Notifications popover ── */
+.notif-popover {
+  position: fixed;
+  top: 92px;
+  right: 16px;
+  width: min(360px, calc(100vw - 24px));
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.2);
+  z-index: 210;
+  overflow: hidden;
+  animation: popover-in 0.16s ease both;
+}
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0eee9;
+}
+.notif-head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.notif-count {
+  background: #c0181b;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 99px;
+}
+.notif-mark {
+  background: none;
+  border: none;
+  color: #c0181b;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.notif-mark:disabled {
+  color: #bcbab7;
+  cursor: default;
+}
+.notif-body {
+  max-height: 340px;
+  overflow-y: auto;
+}
+.notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 34px 24px;
+}
+.notif-empty svg {
+  width: 30px;
+  height: 30px;
+  stroke: #cbd5e1;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  margin-bottom: 4px;
+}
+.notif-empty-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #5a5a5a;
+}
+.notif-empty-sub {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  max-width: 220px;
+}
+.notif-item {
+  display: flex;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #f7f5f2;
+}
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+  background: #9a9a9a;
+}
+.notif-dot.high {
+  background: #dc2626;
+}
+.notif-dot.moderate {
+  background: #f97316;
+}
+.notif-dot.info {
+  background: #2563eb;
+}
+.notif-item-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.notif-item-desc {
+  font-size: 0.75rem;
+  color: #5a5a5a;
+  line-height: 1.4;
+}
+.notif-item-time {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  margin-top: 2px;
+}
+.notif-foot {
+  text-align: center;
+  padding: 10px 12px;
+  border-top: 1px solid #f0eee9;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c0181b;
+  cursor: pointer;
+}
+.notif-foot:hover {
+  background: #fef2f2;
+}
+
+/* ── Account modal (Profile / Settings) ── */
+.account-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 26, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 500;
+}
+.account-modal {
+  width: min(600px, 100%);
+  max-height: calc(100dvh - 40px);
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.account-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid #f0eee9;
+}
+.account-id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.account-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #c0181b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+.account-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.account-role {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+}
+.account-close {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e5e2dd;
+  border-radius: 7px;
+  background: #fafafa;
+  color: #5a5a5a;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  line-height: 1;
+}
+.account-close:hover {
+  border-color: #c0181b;
+  color: #c0181b;
+  background: #fef2f2;
+}
+.account-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 18px 0;
+  border-bottom: 1px solid #f0eee9;
+}
+.account-tab {
+  padding: 9px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #5a5a5a;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.account-tab:hover {
+  color: #1a1a1a;
+}
+.account-tab.active {
+  color: #c0181b;
+  border-bottom-color: #c0181b;
+}
+.account-body {
+  padding: 18px;
+  overflow-y: auto;
+}
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.account-form label {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+.acc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.photo-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.photo-ph {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: #c0181b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.photo-hint {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  margin-top: 4px;
+}
+.account-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+.btn-primary-sm {
+  padding: 8px 16px;
+  background: #c0181b;
+  border: none;
+  border-radius: 7px;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary-sm:hover {
+  background: #a81518;
+}
+.btn-soft {
+  padding: 8px 14px;
+  background: #fafafa;
+  border: 1px solid #e5e2dd;
+  border-radius: 7px;
+  color: #3a3a3a;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-soft:hover {
+  border-color: #c0181b;
+  color: #c0181b;
+  background: #fef2f2;
+}
+.settings-group-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+}
+.settings-divider {
+  height: 1px;
+  background: #f0eee9;
+  margin: 18px 0;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.setting-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.setting-sub {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+}
+/* Reusable switch */
+.switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  margin: 0;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #cbd5e1;
+  border-radius: 20px;
+  transition: 0.3s;
+}
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+.switch input:checked + .switch-slider {
+  background: #16a34a;
+}
+.switch input:checked + .switch-slider::before {
+  transform: translateX(16px);
+}
+
+/* Shared toast (admin overlays) */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: #1a1a1a;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 9px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  opacity: 0;
+  transition: all 0.35s;
+  z-index: 999;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 520px) {
+  .acc-grid {
+    grid-template-columns: 1fr;
+  }
+  .account-actions {
+    flex-direction: column;
+  }
+  .account-actions button {
+    width: 100%;
+  }
+}
+
+/* ── Body ──
+   App-shell layout: the banner (34) + topbar (52) sit at the top in normal
+   flow and the body fills the rest of the viewport exactly, so the chrome and
+   the sidebar stay put while only <main> scrolls. Below 1180px (where the
+   topbar can wrap to two rows) this is unwound back to a normal scrolling
+   page — see the responsive block. */
+.body-wrap {
+  display: flex;
+  align-items: stretch;
+  height: calc(100dvh - 86px);
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #e5e2dd;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 10px;
+  gap: 2px;
+  /* Full-height rail that stays in view; scrolls on its own when the nav is
+     taller than the viewport. */
+  height: 100%;
+  overflow-y: auto;
+}
+.sidebar-section {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #bcbab7;
+  padding: 10px 8px 4px;
+  margin-top: 4px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #5a5a5a;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.nav-item:hover {
+  background: #f7f5f2;
+  color: #1a1a1a;
+  text-decoration: none;
+}
+.nav-item.active {
+  background: #fef2f2;
+  color: #c0181b;
+  font-weight: 600;
+}
+.nav-item svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+.signout {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #e5e2dd;
+}
+
+/* ── Main page frame ── */
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* The single scroll region of the app-shell — the chrome and sidebar stay
+     fixed while page content scrolls here. */
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Full-bleed map screens (Flood Map, Hazard Layer) run flush: no padding and
+   they fill the viewport instead of scrolling like the other admin screens.
+   86px = alert banner (34) + topbar (52). */
+.main--flush {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  height: calc(100dvh - 86px);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1180px) {
+  .topbar {
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 16px;
+  }
+  .logo-wrap {
+    min-width: 192px;
+  }
+  .flood-pill {
+    max-width: 420px;
+  }
+  .stat-chip {
+    display: none;
+  }
+  /* The topbar can wrap to two rows below this width, so the fixed 86px shell
+     height no longer holds — fall back to a normal scrolling page where the
+     whole layout (chrome + sidebar + main) scrolls together. */
+  .body-wrap {
+    height: auto;
+    min-height: calc(100dvh - 86px);
+    overflow: visible;
+  }
+  .sidebar {
+    height: auto;
+    overflow-y: visible;
+  }
+  .main {
+    height: auto;
+    overflow-y: visible;
+  }
+}
+
+@media (max-width: 760px) {
+  .alert-banner {
+    height: auto;
+    min-height: 34px;
+    white-space: normal;
+    align-items: flex-start;
+    padding: 8px 12px;
+  }
+  .topbar {
+    padding: 8px 12px;
+  }
+  .logo-wrap {
+    width: auto;
+    min-width: 0;
+  }
+  .flood-pill {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+    margin: 0;
+  }
+  .topbar-right {
+    margin-left: 0;
+  }
+  .body-wrap {
+    flex-direction: column;
+    min-height: 0;
+  }
+  .sidebar {
+    width: 100%;
+    max-height: none;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-right: none;
+    border-bottom: 1px solid #e5e2dd;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .sidebar > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sidebar-section,
+  .signout {
+    display: none;
+  }
+  .nav-item {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+  .main {
+    padding: 12px;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 460px) {
+  .topbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .icon-btn,
+  .avatar {
+    width: 30px;
+    height: 30px;
+  }
+}

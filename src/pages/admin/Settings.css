@@ -1,0 +1,474 @@
+/* ============================================================
+   CDRRMO Admin — shared SETTINGS screen styles.
+
+   Used by the five configuration screens under the sidebar's
+   SETTINGS group: User Management, System Configuration,
+   Permissions & Roles, API Integrations and Alert Settings.
+
+   The data-table screens (User Management, Permissions) reuse the
+   `mng-` table / badge / modal vocabulary from Manage.css, so those
+   pages import BOTH stylesheets. The selectors here (`set-` prefix)
+   add the panel / field / toggle-list layout the config screens
+   need. The page frame, toast and the reusable `.switch` come from
+   AdminLayout.css.
+   ============================================================ */
+
+.set {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Sticky save bar (config pages) ── */
+.set-savebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+.set-savebar-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #9a9a9a;
+}
+.set-savebar-note svg {
+  width: 15px;
+  height: 15px;
+  stroke: #cbb26b;
+  fill: none;
+  stroke-width: 1.8;
+  flex-shrink: 0;
+}
+.set-savebar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Panel (a titled card section) ── */
+.set-panel {
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.set-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #f0eee9;
+}
+.set-panel-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #fef2f2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.set-panel-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.set-panel-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.15;
+}
+.set-panel-sub {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  margin-top: 1px;
+}
+.set-panel-head-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.set-panel-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Two-column panel grid. Side-by-side panels share a row and stretch to the
+   same height (`align-items: stretch`), so a shorter panel grows to match the
+   one beside it — no ragged gap left over. */
+.set-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+/* A panel that should occupy the full grid width on its own row. */
+.set-col-full { grid-column: 1 / -1; }
+
+/* ── Form fields ── */
+.set-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.set-field > span {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+/* `.set-panel` prefix bumps specificity above the global `input[type="…"]`
+   base rules (equal otherwise) so every control — text, number, select,
+   textarea — lands on the same compact height instead of number inputs
+   rendering taller than the selects beside them. */
+.set-panel .set-field input,
+.set-panel .set-field select,
+.set-panel .set-field textarea,
+.set-panel .set-unit input {
+  padding: 9px 12px;
+  font-size: 0.8125rem;
+}
+/* Lock single-line controls to one height so select, text, number, time and
+   unit inputs all measure exactly the same (textarea is excluded so it grows). */
+.set-panel .set-field input,
+.set-panel .set-field select,
+.set-panel .set-unit input {
+  height: 38px;
+}
+/* Radius on standalone controls only (direct children) — the unit input keeps
+   its square right edge so it seams flush against the suffix chip. */
+.set-panel .set-field > input,
+.set-panel .set-field > select,
+.set-panel .set-field > textarea {
+  border-radius: 8px;
+}
+.set-panel .set-field textarea { resize: vertical; min-height: 74px; }
+.set-field-hint {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+}
+.set-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.set-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* An input with a trailing unit chip (e.g. "m", "min", "days"). */
+.set-unit {
+  display: flex;
+  align-items: stretch;
+}
+/* `.set-panel` prefix outranks the global `input[type="number"]` base radius
+   so the right edge stays square and seams flush with the suffix chip. */
+.set-panel .set-unit input {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.set-unit-suffix {
+  display: flex;
+  align-items: center;
+  padding: 0 11px;
+  background: #f7f5f2;
+  border: 1.5px solid var(--color-border);
+  border-left: none;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #9a9a9a;
+  white-space: nowrap;
+}
+
+/* ── Toggle list (a stack of switch rows inside a panel) ── */
+.set-toggles {
+  display: flex;
+  flex-direction: column;
+}
+.set-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid #f0eee9;
+}
+.set-toggle:first-child { padding-top: 0; }
+.set-toggle:last-child { border-bottom: none; padding-bottom: 0; }
+.set-toggle-text { min-width: 0; }
+.set-toggle-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.set-toggle-sub {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  margin-top: 1px;
+  line-height: 1.45;
+}
+
+/* ── Section divider + subheading inside a panel body ── */
+.set-subhead {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+}
+.set-divider {
+  height: 1px;
+  background: #f0eee9;
+}
+
+/* ── Integration cards (API Integrations) ── */
+.set-int-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.set-int {
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.set-int-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.set-int-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f7f5f2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.set-int-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: #1a2a4a;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.set-int-name {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.set-int-cat {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #bcbab7;
+  margin-top: 1px;
+}
+.set-int-desc {
+  font-size: 0.75rem;
+  color: #5a5a5a;
+  line-height: 1.5;
+  flex: 1;
+}
+.set-int-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+}
+.set-int-endpoint {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.set-int-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #f0eee9;
+}
+.set-int-actions .switch { margin-left: auto; }
+
+/* Connection status pill (lives next to a card title) */
+.set-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.set-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.set-status.connected { background: #dcfce7; color: #15803d; }
+.set-status.disconnected { background: #f0eee9; color: #6b7280; }
+.set-status.error { background: #fee2e2; color: #b91c1c; }
+
+/* ── Roles screen — matrix (left) + role selector rail (right) ── */
+.set-roles {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 14px;
+  align-items: start;
+}
+.set-role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.set-role {
+  text-align: left;
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 11px;
+  padding: 12px 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.set-role:hover { border-color: #c0181b; }
+.set-role.active {
+  border-color: #c0181b;
+  background: #fef2f2;
+  box-shadow: inset 3px 0 0 #c0181b;
+}
+.set-role-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.set-role-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.set-role-count {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #9a9a9a;
+  background: #f7f5f2;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.set-role.active .set-role-count { background: #fff; color: #c0181b; }
+.set-role-desc {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  line-height: 1.45;
+}
+
+/* Permission matrix table (reuses .mng-table shell, adds checks) */
+.set-matrix th.set-matrix-act,
+.set-matrix td.set-matrix-act {
+  text-align: center;
+  width: 120px;
+}
+.set-matrix-mod {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.set-matrix .switch { margin: 0 auto; }
+.set-locked {
+  font-size: 0.6875rem;
+  color: #bcbab7;
+  font-weight: 600;
+}
+
+/* ── Avatar chip used in the user table ── */
+.set-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.set-user-av {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #1a2a4a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.set-user-av.admin { background: #c0181b; }
+.set-user-name { font-weight: 700; color: #1a1a1a; }
+.set-user-email { font-size: 0.6875rem; color: #9a9a9a; }
+
+/* Role badge tints (table) */
+.mng-badge.role-admin { background: #fee2e2; color: #b91c1c; }
+.mng-badge.role-operator { background: #dbeafe; color: #1d4ed8; }
+.mng-badge.role-officer { background: #ede9fe; color: #6d28d9; }
+.mng-badge.role-viewer { background: #f0eee9; color: #6b7280; }
+/* Account status */
+.mng-badge.pending { background: #fef3c7; color: #b45309; }
+.mng-badge.suspended { background: #fee2e2; color: #b91c1c; }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .set-cols,
+  .set-int-grid { grid-template-columns: 1fr; }
+  .set-roles { grid-template-columns: 1fr; }
+  /* On narrow screens show the role picker first (above the matrix), as a
+     wrapping row of cards. */
+  .set-role-list { order: -1; flex-direction: row; flex-wrap: wrap; }
+  .set-role { flex: 1 1 220px; }
+}
+@media (max-width: 640px) {
+  .set-grid,
+  .set-grid-3 { grid-template-columns: 1fr; }
+  .set-savebar-actions { width: 100%; }
+  .set-savebar-actions .mng-btn { flex: 1; justify-content: center; }
+}

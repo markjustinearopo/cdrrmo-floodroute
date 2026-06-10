@@ -1,0 +1,555 @@
+/* ============================================================
+   CDRRMO Admin — Flood Map page
+   (ported from assets/css/admin/flood-map.css — page parts only;
+   the topbar/sidebar/banner shell lives in AdminLayout.css)
+
+   Everything is scoped under .floodmap so these rules can't bleed
+   into the other admin screens that share generic class names.
+   ============================================================ */
+
+/* The flush, full-height map layout (.main--flush) is shared with the Hazard
+   Layer screen and now lives in AdminLayout.css. */
+
+.floodmap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Sub-tab bar ── */
+.floodmap .subtab-bar {
+  height: 44px;
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid #e5e2dd;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 4px;
+}
+.floodmap .subtab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #7a7a7a;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  background: none;
+}
+.floodmap .subtab:hover {
+  background: #f7f5f2;
+  color: #1a1a1a;
+}
+.floodmap .subtab.active {
+  background: #fef2f2;
+  color: #c0181b;
+  font-weight: 600;
+}
+.floodmap .subtab svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Map + Panel ── */
+.floodmap .map-panel-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Map area */
+.floodmap .map-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #e8e4dc;
+  /* Trap Leaflet's high z-index map panes in their own stacking context so
+     they can't paint over the topbar's notifications/account overlays. */
+  isolation: isolate;
+}
+.floodmap .floodmap-leaflet {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+/* Legend */
+.floodmap .map-legend {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e2dd;
+  border-radius: 20px;
+  padding: 5px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #5a5a5a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  z-index: 1000;
+}
+.floodmap .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.floodmap .legend-line {
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.floodmap .legend-live {
+  color: #bcbab7;
+  font-size: 0.625rem;
+}
+.floodmap .legend-ramp {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.floodmap .legend-ramp i {
+  width: 14px;
+  height: 8px;
+  display: inline-block;
+}
+.floodmap .legend-ramp i:first-of-type { border-radius: 3px 0 0 3px; }
+.floodmap .legend-ramp i:last-of-type { border-radius: 0 3px 3px 0; }
+.floodmap .legend-ramp small {
+  margin-left: 5px;
+  font-size: 0.5625rem;
+  color: #9a9a9a;
+}
+
+.floodmap .map-coords {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e5e2dd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+  font-variant-numeric: tabular-nums;
+  z-index: 1000;
+}
+
+/* ── Right Panel ── */
+.floodmap .right-panel {
+  width: 288px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid #e5e2dd;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.floodmap .panel-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid #e5e2dd;
+  background: #fafaf9;
+}
+.floodmap .panel-tab {
+  flex: 1;
+  text-align: center;
+  padding: 9px 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9a9a9a;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.floodmap .panel-tab.active {
+  color: #c0181b;
+  border-color: #c0181b;
+  background: #fff;
+}
+.floodmap .panel-tab:hover:not(.active) {
+  color: #5a5a5a;
+  background: #f7f5f2;
+}
+
+.floodmap .panel-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+/* Keep the panel scrollbar subtle (overrides the global red hover thumb) so
+   it never bleeds over the content/badges. */
+.floodmap .panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+.floodmap .panel-content::-webkit-scrollbar-thumb {
+  background: #d8d4cd;
+  border-radius: 9999px;
+}
+.floodmap .panel-content::-webkit-scrollbar-thumb:hover {
+  background: #bcbab7;
+}
+
+/* Stat cards grid */
+.floodmap .stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.floodmap .stat-card {
+  border-radius: 10px;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+.floodmap .stat-card.red { background: #fef2f2; }
+.floodmap .stat-card.orange { background: #fff7ed; }
+.floodmap .stat-card.green { background: #f0fdf4; }
+.floodmap .stat-card.blue { background: #eff6ff; }
+.floodmap .stat-card svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.floodmap .stat-card.red svg { stroke: #dc2626; }
+.floodmap .stat-card.orange svg { stroke: #ea580c; }
+.floodmap .stat-card.green svg { stroke: #16a34a; }
+.floodmap .stat-card.blue svg { stroke: #2563eb; }
+.floodmap .stat-num {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.floodmap .stat-card.red .stat-num { color: #dc2626; }
+.floodmap .stat-card.orange .stat-num { color: #ea580c; }
+.floodmap .stat-card.green .stat-num { color: #16a34a; }
+.floodmap .stat-card.blue .stat-num { color: #2563eb; }
+.floodmap .stat-lbl {
+  font-size: 0.6375rem;
+  font-weight: 500;
+  color: #7a7a7a;
+  line-height: 1.2;
+}
+
+/* Section headers */
+.floodmap .section-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.floodmap .section-hdr > span {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #3a3a3a;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* The title takes the remaining width (and may wrap); the badge stays put. */
+.floodmap .section-hdr > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Centered variant: title stacked on top, badge centered beneath it. */
+.floodmap .section-hdr--center {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.floodmap .section-hdr--center > span:first-child {
+  flex: 0 0 auto;
+  justify-content: center;
+  text-align: center;
+}
+.floodmap .section-hdr span svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+/* Scoped under .section-hdr so it out-ranks the generic title rule above
+   (otherwise the badge inherits the title's larger uppercase styling). */
+.floodmap .section-hdr .badge-rt {
+  flex: 0 0 auto;
+  align-self: center;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* Same specificity fix for the rainfall value (keeps it red, single-line). */
+.floodmap .section-hdr .rainfall-val {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c0181b;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+/* Donut chart */
+.floodmap .donut-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+.floodmap .donut-svg {
+  width: 130px;
+  height: 130px;
+}
+.floodmap .donut-svg circle {
+  transition: stroke-dasharray 0.4s, opacity 0.3s;
+}
+.floodmap .donut-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px 14px;
+  justify-content: center;
+}
+.floodmap .donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #5a5a5a;
+}
+.floodmap .donut-legend-item span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* Rainfall chart */
+.floodmap .rainfall-val {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c0181b;
+}
+.floodmap .rain-sub {
+  font-size: 0.5625rem;
+  color: #bcbab7;
+  margin-bottom: 4px;
+}
+.floodmap .rain-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 36px;
+}
+.floodmap .rain-bar {
+  flex: 1;
+  background: #bfdbfe;
+  border-radius: 3px 3px 0 0;
+  min-height: 4px;
+  transition: background 0.2s, height 0.3s;
+}
+.floodmap .rain-bar.active { background: #c0181b; }
+.floodmap .rain-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+}
+.floodmap .rain-ticks span {
+  font-size: 0.5625rem;
+  color: #bcbab7;
+}
+
+/* 3-day forecast */
+.floodmap .forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.floodmap .forecast-day {
+  background: #f7f5f2;
+  border-radius: 8px;
+  padding: 7px 4px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.floodmap .forecast-day .day-name {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  letter-spacing: 0.05em;
+}
+.floodmap .forecast-day .day-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.floodmap .forecast-day .day-temp {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #3a3a3a;
+}
+.floodmap .forecast-day.today { background: #1a2a4a; }
+.floodmap .forecast-day.today .day-name { color: rgba(255, 255, 255, 0.6); }
+.floodmap .forecast-day.today .day-temp { color: #fff; }
+
+/* Divider (tighter than the global .divider) */
+.floodmap .divider {
+  height: 1px;
+  background: #f0eee9;
+  margin: 2px 0;
+}
+
+/* ── Barangays tab list — fills the remaining panel height ── */
+/* (max-height/overflow reset because Dashboard.css ships an unscoped
+   .brgy-list that would otherwise cap this list at 320px.) */
+.floodmap .brgy-list {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: none;
+  overflow: visible;
+}
+.floodmap .brgy-row {
+  flex: 1 1 0;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border-bottom: 1px solid #f5f3ef;
+}
+.floodmap .brgy-row:last-child {
+  border-bottom: none;
+}
+.floodmap .brgy-row:hover { background: #f7f5f2; }
+.floodmap .brgy-row-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #3a3a3a;
+}
+.floodmap .risk-badge {
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+.floodmap .risk-badge.high { background: #fee2e2; color: #b91c1c; }
+.floodmap .risk-badge.moderate { background: #ffedd5; color: #c2410c; }
+.floodmap .risk-badge.low { background: #fef9c3; color: #a16207; }
+.floodmap .risk-badge.safe { background: #dcfce7; color: #15803d; }
+
+/* ── Empty panel states (Alerts / Routes tabs) ── */
+.floodmap .panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 36px 16px;
+}
+.floodmap .panel-empty svg {
+  width: 30px;
+  height: 30px;
+  stroke: #cbd5e1;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  margin-bottom: 4px;
+}
+.floodmap .panel-empty-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #5a5a5a;
+}
+.floodmap .panel-empty-sub {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  line-height: 1.4;
+  max-width: 180px;
+}
+
+/* Screen-reader-only banner mirror */
+.floodmap .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Responsive: stack the panel under the map on narrow screens ── */
+@media (max-width: 760px) {
+  .main--flush {
+    height: auto;
+    overflow: visible;
+  }
+  .floodmap {
+    height: auto;
+  }
+  .floodmap .map-panel-wrap {
+    flex-direction: column;
+  }
+  .floodmap .map-area {
+    height: 60vh;
+    flex: 0 0 auto;
+  }
+  .floodmap .right-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e5e2dd;
+  }
+}

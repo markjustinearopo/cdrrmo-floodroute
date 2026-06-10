@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 140" width="120" height="140" role="img" aria-label="CDRRMO logo placeholder">
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a4a9c"/>
+      <stop offset="1" stop-color="#0f2150"/>
+    </linearGradient>
+  </defs>
+  <path d="M60 4 L112 22 V72 C112 108 88 128 60 136 C32 128 8 108 8 72 V22 Z"
+        fill="url(#shield)" stroke="#d4af37" stroke-width="4"/>
+  <rect x="30" y="40" width="60" height="20" rx="3" fill="#c8202a"/>
+  <text x="60" y="55" font-family="Arial, sans-serif" font-size="13" font-weight="700"
+        fill="#ffffff" text-anchor="middle">CDRRMO</text>
+  <text x="60" y="82" font-family="Arial, sans-serif" font-size="8"
+        fill="#d4af37" text-anchor="middle">CABUYAO CITY</text>
+  <circle cx="60" cy="104" r="12" fill="none" stroke="#ffffff" stroke-width="2"/>
+</svg>

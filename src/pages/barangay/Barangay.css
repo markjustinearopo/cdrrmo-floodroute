@@ -1,0 +1,495 @@
+/* ============================================================
+   CDRRMO Barangay — fresh page styles for the bespoke barangay
+   screens (Dashboard + Barangay Operations).
+
+   Every selector is prefixed `bq-` so it never collides with the
+   admin Dashboard / Flood Map / Manage global classes that are
+   bundled alongside it. The page frame, alert banner, topbar, the
+   reusable `.switch` and the `.toast` helper come from
+   AdminLayout.css (imported by BarangayLayout); the edit modals on
+   the Operations hub reuse the `mng-` modal/form vocabulary.
+   ============================================================ */
+
+.bq {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Status banner (Dashboard hero) ──────────────────────────────────────── */
+.bq-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-left: 5px solid #16a34a;
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.bq-banner.low { border-left-color: #eab308; }
+.bq-banner.moderate { border-left-color: #f97316; }
+.bq-banner.high { border-left-color: #dc2626; }
+.bq-banner-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bq-banner.low .bq-banner-icon { background: #fefce8; }
+.bq-banner.moderate .bq-banner-icon { background: #fff7ed; }
+.bq-banner.high .bq-banner-icon { background: #fef2f2; }
+.bq-banner-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: #16a34a;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.bq-banner.low .bq-banner-icon svg { stroke: #b45309; }
+.bq-banner.moderate .bq-banner-icon svg { stroke: #ea580c; }
+.bq-banner.high .bq-banner-icon svg { stroke: #dc2626; }
+.bq-banner-text { flex: 1; min-width: 0; }
+.bq-banner-text h2 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+.bq-banner-text p {
+  font-size: 0.8125rem;
+  color: #5a5a5a;
+  margin-top: 3px;
+}
+.bq-banner-level {
+  flex-shrink: 0;
+  text-align: center;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: #f0fdf4;
+}
+.bq-banner.low .bq-banner-level { background: #fefce8; }
+.bq-banner.moderate .bq-banner-level { background: #fff7ed; }
+.bq-banner.high .bq-banner-level { background: #fef2f2; }
+.bq-banner-level-val {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #15803d;
+  text-transform: uppercase;
+}
+.bq-banner.low .bq-banner-level-val { color: #b45309; }
+.bq-banner.moderate .bq-banner-level-val { color: #ea580c; }
+.bq-banner.high .bq-banner-level-val { color: #dc2626; }
+.bq-banner-level-lbl {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  margin-top: 2px;
+}
+
+/* ── Stat cards ──────────────────────────────────────────────────────────── */
+.bq-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.bq-stat {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 14px;
+  padding: 15px 16px;
+  overflow: hidden;
+}
+.bq-stat::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #64748b;
+}
+.bq-stat.red::before { background: #dc2626; }
+.bq-stat.orange::before { background: #f97316; }
+.bq-stat.green::before { background: #16a34a; }
+.bq-stat.blue::before { background: #2563eb; }
+.bq-stat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f7f5f2;
+  margin-bottom: 10px;
+}
+.bq-stat-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke: #64748b;
+}
+.bq-stat.red .bq-stat-icon { background: #fef2f2; }
+.bq-stat.red .bq-stat-icon svg { stroke: #dc2626; }
+.bq-stat.orange .bq-stat-icon { background: #fff7ed; }
+.bq-stat.orange .bq-stat-icon svg { stroke: #ea580c; }
+.bq-stat.green .bq-stat-icon { background: #f0fdf4; }
+.bq-stat.green .bq-stat-icon svg { stroke: #16a34a; }
+.bq-stat.blue .bq-stat-icon { background: #eff6ff; }
+.bq-stat.blue .bq-stat-icon svg { stroke: #2563eb; }
+.bq-stat-val {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+.bq-stat-lbl {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  margin-top: 7px;
+}
+
+/* ── Two-column grid (Dashboard map + side; Operations panels) ───────────── */
+.bq-grid {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.bq-ops-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+/* ── Generic panel ───────────────────────────────────────────────────────── */
+.bq-panel {
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 14px;
+  padding: 16px;
+}
+.bq-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.bq-panel-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bq-panel-title svg {
+  width: 16px;
+  height: 16px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.bq-panel-sub {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  margin-top: -8px;
+  margin-bottom: 12px;
+}
+.bq-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border: 1px solid #e5e2dd;
+  background: #fafafa;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #3a3a3a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bq-mini-btn:hover { border-color: #c0181b; color: #c0181b; background: #fef2f2; }
+.bq-mini-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+/* ── Dashboard map ───────────────────────────────────────────────────────── */
+.bq-map-card { padding: 0; overflow: hidden; }
+.bq-map {
+  position: relative;
+  height: 380px;
+  width: 100%;
+}
+.bq-map .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #e8eef3;
+}
+.bq-map-label {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 500;
+  background: rgba(26, 42, 74, 0.85);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 7px;
+  letter-spacing: 0.02em;
+}
+.bq-map-legend {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #e5e2dd;
+  border-radius: 9px;
+  padding: 9px 11px;
+}
+.bq-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+.bq-legend-line { width: 16px; height: 3px; border-radius: 2px; }
+
+/* ── Quick actions ───────────────────────────────────────────────────────── */
+.bq-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bq-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 13px;
+  border: 1px solid #e5e2dd;
+  border-radius: 10px;
+  background: #fff;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bq-action:hover { border-color: #c0181b; background: #fef2f2; transform: translateX(2px); }
+.bq-action-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #fef2f2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bq-action-icon svg { width: 15px; height: 15px; stroke: #c0181b; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.bq-action.primary { background: #c0181b; border-color: #c0181b; color: #fff; }
+.bq-action.primary:hover { background: #a81518; }
+.bq-action.primary .bq-action-icon { background: rgba(255, 255, 255, 0.18); }
+.bq-action.primary .bq-action-icon svg { stroke: #fff; }
+.bq-action-arrow { margin-left: auto; color: #cbb9b9; font-weight: 800; }
+.bq-action.primary .bq-action-arrow { color: rgba(255, 255, 255, 0.7); }
+
+/* ── Feed / activity list (empty by default) ─────────────────────────────── */
+.bq-feed { display: flex; flex-direction: column; gap: 8px; }
+.bq-feed-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid #f0eee9;
+  border-radius: 10px;
+}
+.bq-feed-stripe { width: 3px; border-radius: 2px; flex-shrink: 0; background: #9a9a9a; }
+.bq-feed-stripe.high { background: #dc2626; }
+.bq-feed-stripe.moderate { background: #f97316; }
+.bq-feed-stripe.safe { background: #16a34a; }
+.bq-feed-title { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
+.bq-feed-msg { font-size: 0.75rem; color: #5a5a5a; line-height: 1.4; }
+.bq-feed-time { font-size: 0.6875rem; color: #9a9a9a; margin-top: 2px; }
+.bq-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 28px 18px;
+  color: #9a9a9a;
+}
+.bq-empty svg { width: 30px; height: 30px; stroke: #cbd5e1; fill: none; stroke-width: 1.6; stroke-linecap: round; }
+.bq-empty-title { font-size: 0.8125rem; font-weight: 700; color: #5a5a5a; }
+.bq-empty-sub { font-size: 0.75rem; color: #9a9a9a; max-width: 240px; }
+
+/* ── Operations — key/value profile grid ─────────────────────────────────── */
+.bq-kv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.bq-kv {
+  background: #f7f5f2;
+  border-radius: 10px;
+  padding: 11px 13px;
+}
+.bq-kv-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+}
+.bq-kv-val {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-top: 4px;
+  word-break: break-word;
+}
+.bq-kv-val.muted { color: #bcbab7; font-weight: 600; font-style: italic; }
+
+/* Flood-status summary card body */
+.bq-status-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f0eee9;
+}
+.bq-status-line:last-child { border-bottom: none; }
+.bq-status-key { font-size: 0.8125rem; color: #5a5a5a; }
+.bq-status-val { font-size: 0.875rem; font-weight: 700; color: #1a1a1a; font-variant-numeric: tabular-nums; }
+
+/* ── Operations — contacts list ──────────────────────────────────────────── */
+.bq-contacts { display: flex; flex-direction: column; gap: 8px; }
+.bq-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid #f0eee9;
+  border-radius: 11px;
+}
+.bq-contact-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #1a2a4a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.bq-contact-main { flex: 1; min-width: 0; }
+.bq-contact-name { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
+.bq-contact-role { font-size: 0.6875rem; color: #9a9a9a; }
+.bq-contact-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #3a3a3a;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bq-contact-actions { display: flex; gap: 4px; }
+.bq-icon-x {
+  border: none;
+  background: none;
+  color: #bcbab7;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  line-height: 1;
+}
+.bq-icon-x:hover { background: #fef2f2; color: #c0181b; }
+.bq-link {
+  border: none;
+  background: none;
+  padding: 4px 6px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c0181b;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.bq-link:hover { background: #fef2f2; }
+
+/* ── Operations — readiness list ─────────────────────────────────────────── */
+.bq-ready-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f0eee9;
+}
+.bq-ready-row:last-child { border-bottom: none; }
+.bq-ready-main { flex: 1; min-width: 0; }
+.bq-ready-label { font-size: 0.8125rem; font-weight: 600; color: #1a1a1a; }
+.bq-ready-sub { font-size: 0.6875rem; color: #9a9a9a; }
+.bq-ready-state {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: #f0eee9;
+  color: #6b7280;
+  white-space: nowrap;
+}
+.bq-ready-state.ready { background: #dcfce7; color: #15803d; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 1180px) {
+  .bq-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bq-grid, .bq-ops-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .bq-stats { grid-template-columns: 1fr; }
+  .bq-kv-grid { grid-template-columns: 1fr; }
+  .bq-banner { flex-wrap: wrap; }
+}

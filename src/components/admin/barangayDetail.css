@@ -1,0 +1,138 @@
+/* Barangay detail card — floating panel overlaid on the map's right edge. */
+.bdc {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 320px;
+  max-width: calc(100% - 24px);
+  background: #fff;
+  border: 1px solid #e7e3da;
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1200;
+  animation: bdc-in 0.18s ease-out;
+}
+@keyframes bdc-in {
+  from { opacity: 0; transform: translateX(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.bdc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 14px 16px;
+  color: #fff;
+  position: relative;
+}
+.bdc-head.high { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+.bdc-head.moderate { background: linear-gradient(135deg, #f97316, #c2410c); }
+.bdc-head.low { background: linear-gradient(135deg, #eab308, #a16207); }
+.bdc-head.safe { background: linear-gradient(135deg, #22c55e, #15803d); }
+.bdc-head-main { flex: 1; min-width: 0; }
+.bdc-name { font-family: var(--font-display, inherit); font-weight: 800; font-size: 1.05rem; line-height: 1.1; }
+.bdc-sub { font-size: 0.66rem; opacity: 0.9; margin-top: 2px; }
+.bdc-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+.bdc-close {
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  color: #fff;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+}
+.bdc-close:hover { background: rgba(255, 255, 255, 0.32); }
+
+.bdc-body { padding: 14px; overflow-y: auto; flex: 1; }
+
+.bdc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bdc-metric {
+  background: #faf8f4;
+  border: 1px solid #efeae1;
+  border-radius: 10px;
+  padding: 9px 10px;
+}
+.bdc-metric.tone-high { border-color: #fecaca; background: #fef2f2; }
+.bdc-metric.tone-moderate { border-color: #fed7aa; background: #fff7ed; }
+.bdc-metric.tone-low { border-color: #fde68a; background: #fefce8; }
+.bdc-metric.tone-safe { border-color: #bbf7d0; background: #f0fdf4; }
+.bdc-metric-val { font-family: var(--font-display, inherit); font-weight: 800; font-size: 1.18rem; color: #1a2a4a; }
+.bdc-metric-unit { font-size: 0.62rem; font-weight: 700; color: #8a8a8a; margin-left: 3px; }
+.bdc-metric-lbl { font-size: 0.62rem; color: #7a7a7a; margin-top: 1px; }
+
+.bdc-explain {
+  font-size: 0.72rem;
+  color: #475569;
+  line-height: 1.45;
+  margin: 12px 0 4px;
+  padding: 9px 10px;
+  background: #f8fafc;
+  border-left: 3px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.bdc-section-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1a2a4a;
+  margin: 16px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bdc-live { font-size: 0.58rem; color: #16a34a; font-weight: 700; letter-spacing: 0.02em; }
+
+.bdc-evac-list { display: flex; flex-direction: column; gap: 6px; }
+.bdc-evac {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  background: #faf8f4;
+  border: 1px solid #efeae1;
+  border-radius: 8px;
+  padding: 7px 9px;
+}
+.bdc-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.bdc-dot.open { background: #22c55e; }
+.bdc-dot.full { background: #f97316; }
+.bdc-dot.closed { background: #94a3b8; }
+.bdc-evac-name { font-weight: 600; color: #1a2a4a; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bdc-evac-meta { font-size: 0.62rem; color: #8a8a8a; text-transform: capitalize; flex: none; }
+
+.bdc-empty { font-size: 0.7rem; color: #8a8a8a; padding: 8px 0; }
+
+.bdc-trend { display: flex; align-items: flex-end; gap: 5px; height: 92px; padding: 4px 0; }
+.bdc-trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.bdc-bar-wrap { width: 100%; height: 64px; display: flex; align-items: flex-end; justify-content: center; }
+.bdc-bar { width: 70%; min-height: 6px; border-radius: 4px 4px 0 0; transition: height 0.2s; }
+.bdc-trend-mm { font-size: 0.58rem; font-weight: 700; color: #475569; }
+.bdc-trend-day { font-size: 0.56rem; color: #9a9a9a; }
+.bdc-trend-legend { font-size: 0.62rem; color: #8a8a8a; margin-top: 6px; line-height: 1.4; }
+
+.bdc-foot {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px dashed #e7e3da;
+  font-size: 0.64rem;
+  color: #9a9a9a;
+  line-height: 1.45;
+}
