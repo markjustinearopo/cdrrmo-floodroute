@@ -11,7 +11,7 @@ import {
   ContactContent,
 } from '../components/policyContent.jsx'
 import { EyeIcon, EyeOffIcon } from './Login.jsx'
-import api from '../services/api.js'
+import { authApi } from '../services/api.js'
 import { OFFICIAL_BRGY_KEY } from '../data/barangay.js'
 import './auth.css'
 import './Register.css'
@@ -23,7 +23,7 @@ import './Register.css'
 
 // The 18 barangays of Cabuyao City (same list as the Barangay login dropdown).
 const BARANGAYS = [
-  'Baclaran', 'Banay-banay', 'Banlic', 'Bigaa', 'Butong', 'Casile',
+  'Baclaran', 'Banay-Banay', 'Banlic', 'Bigaa', 'Butong', 'Casile',
   'Diezmo', 'Gulod', 'Mamatid', 'Marinig', 'Niugan', 'Pittland',
   'Poblacion Dos', 'Poblacion Tres', 'Poblacion Uno', 'Pulo', 'Sala',
   'San Isidro',
@@ -102,13 +102,7 @@ export default function Register() {
     setSubmitting(true)
     const fullName = `${firstName.trim()} ${lastName.trim()}`
     try {
-      await api.post('/auth/register', {
-        email,
-        password,
-        fullName,
-        barangay,
-        role: 'resident',
-      })
+      await authApi.registerResident({ email, password, fullName, barangay })
       // Scope the resident portal to the barangay chosen at sign-up (the
       // backend also stores it on the user record for when auth is live).
       localStorage.setItem(OFFICIAL_BRGY_KEY, barangay)
@@ -287,27 +281,23 @@ export default function Register() {
                 onChange={(e) => setTerms(e.target.checked)}
               />
               I accept the{' '}
-              <a
-                href="#"
+              <button
+                type="button"
+                className="link-inline"
                 style={{ margin: '0 3px' }}
-                onClick={(e) => {
-                  e.preventDefault()
-                  setModal('terms')
-                }}
+                onClick={() => setModal('terms')}
               >
                 Terms of Service
-              </a>{' '}
+              </button>{' '}
               and{' '}
-              <a
-                href="#"
+              <button
+                type="button"
+                className="link-inline"
                 style={{ margin: '0 3px' }}
-                onClick={(e) => {
-                  e.preventDefault()
-                  setModal('privacy')
-                }}
+                onClick={() => setModal('privacy')}
               >
                 Privacy Policy
-              </a>
+              </button>
             </label>
 
             {/* Submit */}
@@ -343,15 +333,13 @@ export default function Register() {
             </p>
             <p className="footer-link mt-2">
               Having trouble?{' '}
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault()
-                  setModal('contact')
-                }}
+              <button
+                type="button"
+                className="link-inline"
+                onClick={() => setModal('contact')}
               >
                 Contact CDRRMO IT Support
-              </a>
+              </button>
             </p>
             <p className="system-version">Cabuyao City DRRMO © 2026 · v1</p>
           </div>

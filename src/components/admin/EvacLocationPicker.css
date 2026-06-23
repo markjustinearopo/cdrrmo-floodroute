@@ -1,0 +1,84 @@
+/* ============================================================
+   EvacLocationPicker — shared "drop the pin" map styles.
+   Fills its parent container; the parent controls the box size.
+   ============================================================ */
+
+.evac-picker {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+  background: #e8e4dc;
+  overflow: hidden;
+}
+.evac-picker-map {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+/* "Click the centre's location" floating hint */
+.evac-picker-hint {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e2dd;
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  z-index: 1000;
+}
+.evac-picker-hint svg {
+  width: 16px;
+  height: 16px;
+  fill: #16a34a;
+  stroke: none;
+}
+.evac-picker-hint span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+
+/* Coordinate readout */
+.evac-picker-coords {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e5e2dd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.6875rem;
+  color: #5a5a5a;
+  font-variant-numeric: tabular-nums;
+  z-index: 1000;
+}
+
+/* Evacuation-centre house pin (matches the Flood Map marker) */
+.evac-pin-divicon { background: none; border: none; }
+.evac-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  border: 2px solid #fff;
+}
+.evac-pin svg {
+  width: 13px;
+  height: 13px;
+  transform: rotate(45deg);
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+}

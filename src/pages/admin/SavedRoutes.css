@@ -1,0 +1,382 @@
+/* ============================================================
+   CDRRMO Admin — Saved Routes page
+
+   Flush, full-height layout. Scoped under .sr-page.
+   Matches the warm design language of Route Planning, Auto Route,
+   and Road Status screens.
+   ============================================================ */
+
+.sr-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Toolbar ── */
+.sr-page .sr-toolbar {
+  min-height: 48px;
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid #e5e2dd;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  flex-wrap: wrap;
+}
+
+.sr-page .sr-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: #1a1a1a;
+  white-space: nowrap;
+}
+.sr-page .sr-title svg {
+  width: 16px;
+  height: 16px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.sr-page .sr-badge {
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c0181b;
+  background: #fef2f2;
+  border-radius: 9999px;
+  padding: 2px 8px;
+}
+
+/* Filter chips */
+.sr-page .sr-filters {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sr-page .sr-filters::-webkit-scrollbar { display: none; }
+
+.sr-page .sr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 9999px;
+  border: 1.5px solid #e5e2dd;
+  background: #fafafa;
+  color: #5a5a5a;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.sr-page .sr-chip:hover {
+  border-color: var(--chip-color, #c0181b);
+  color: var(--chip-color, #c0181b);
+}
+.sr-page .sr-chip.active {
+  background: var(--chip-color, #c0181b);
+  border-color: var(--chip-color, #c0181b);
+  color: #fff;
+}
+.sr-page .sr-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sr-page .sr-chip-count {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 9999px;
+  padding: 0 5px;
+  line-height: 1.4;
+}
+.sr-page .sr-chip:not(.active) .sr-chip-count {
+  background: #f0eee9;
+  color: #9a9a9a;
+}
+
+/* ── Body ── */
+.sr-page .sr-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Route list panel (left) ── */
+.sr-page .sr-list-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #e5e2dd;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.sr-page .sr-list-panel::-webkit-scrollbar { width: 6px; }
+.sr-page .sr-list-panel::-webkit-scrollbar-thumb {
+  background: #d8d4cd;
+  border-radius: 9999px;
+}
+
+.sr-page .sr-empty {
+  padding: 40px 20px;
+  font-size: 0.8125rem;
+  color: #9a9a9a;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.sr-page .sr-list {
+  list-style: none;
+  margin: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sr-page .sr-item {
+  display: flex;
+  align-items: stretch;
+  border-radius: 9px;
+  border: 1.5px solid #f0eee9;
+  background: #fafafa;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.sr-page .sr-item:hover {
+  background: #f7f5f2;
+  border-color: #e5e2dd;
+}
+.sr-page .sr-item.active {
+  border-color: #c0181b;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(192, 24, 27, 0.1);
+}
+
+.sr-page .sr-item-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  padding: 10px 10px 10px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  min-width: 0;
+}
+.sr-page .sr-item-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sr-page .sr-item-info { flex: 1; min-width: 0; }
+.sr-page .sr-item-name {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sr-page .sr-item-meta {
+  display: block;
+  font-size: 0.625rem;
+  color: #9a9a9a;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sr-page .sr-item-ovr { color: #b8860b; font-weight: 700; }
+.sr-page .sr-item-auto { color: #1a7a4a; font-weight: 700; }
+.sr-page .sr-item-eta {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #7a7a7a;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.sr-page .sr-item-del {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-left: 1px solid #f0eee9;
+  cursor: pointer;
+  color: #bcbab7;
+  border-radius: 0 8px 8px 0;
+  transition: color 0.12s, background 0.12s;
+}
+.sr-page .sr-item-del:hover { color: #c0181b; background: #fef2f2; }
+.sr-page .sr-item-del svg { width: 13px; height: 13px; }
+
+/* ── Map area ── */
+.sr-page .sr-map-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #e8e4dc;
+  isolation: isolate;
+}
+.sr-page .sr-leaflet { width: 100%; height: 100%; min-height: 360px; }
+
+/* ── Floating hint overlay (no route selected) ── */
+.sr-page .sr-hint {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 14px 24px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e5e2dd;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  text-align: center;
+  pointer-events: none;
+  z-index: 1000;
+  animation: sr-float 3s ease-in-out infinite;
+}
+@keyframes sr-float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(-4px); }
+}
+.sr-page .sr-hint svg {
+  width: 22px;
+  height: 22px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.85;
+  margin-bottom: 2px;
+}
+.sr-page .sr-hint span {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: #3a3a3a;
+}
+.sr-page .sr-hint small {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  max-width: 260px;
+  line-height: 1.4;
+}
+
+/* ── Route detail card (top-left map overlay) ── */
+.sr-page .sr-detail {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 60px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e5e2dd;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.11);
+  backdrop-filter: blur(6px);
+  z-index: 500;
+  pointer-events: none;
+}
+.sr-page .sr-detail-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.sr-page .sr-detail-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.sr-page .sr-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 5px;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+  font-weight: 600;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+.sr-page .sr-detail-version { color: #1a7a4a; font-weight: 700; }
+
+/* ── Map key (bottom-right, matches Auto Route ar-key) ── */
+.sr-page .sr-map-key {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  display: flex;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e2dd;
+  border-radius: 8px;
+  padding: 6px 12px;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+.sr-page .sr-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #5a5a5a;
+}
+.sr-page .sr-key-line { width: 20px; height: 3px; border-radius: 2px; }
+
+/* ── Coords pill (bottom-left, matches Route Planning rp-coords) ── */
+.sr-page .sr-coords {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e5e2dd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+  font-variant-numeric: tabular-nums;
+  z-index: 1000;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── Responsive ── */
+@media (max-width: 760px) {
+  .sr-page .sr-body { flex-direction: column; }
+  .sr-page .sr-list-panel {
+    width: 100%;
+    max-height: 45vh;
+    border-right: none;
+    border-bottom: 1px solid #e5e2dd;
+  }
+  .sr-page .sr-map-area { flex: 1 1 auto; }
+}

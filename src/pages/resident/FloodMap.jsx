@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip } from 'react-leaflet'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, Marker, Popup, GeoJSON } from 'react-leaflet'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
+import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
+import { usePersistedState } from '../../utils/usePersistedState.js'
 import {
   CABUYAO_CENTER,
   CABUYAO_ZOOM,
@@ -9,11 +11,13 @@ import {
   formatPHT,
   CabuyaoLock,
   CoordReadout,
+  LocateControl,
 } from '../../components/admin/mapHelpers.jsx'
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import { BarangayRiskLayer, InundationGrid } from '../../components/admin/BarangayRiskLayer.jsx'
 import { useLiveWeather } from '../../services/weather.js'
-import { SAMPLE_EVAC_CENTERS } from '../../data/cabuyao.js'
+import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import '../admin/FloodMap.css'
 
@@ -27,7 +31,23 @@ import '../admin/FloodMap.css'
  */
 
 const PANEL_TABS = ['Overview', 'Barangays']
+
+const NOAH_STYLE = {
+  1: { color: '#FBBF24', fillColor: '#FEF9C3', fillOpacity: 0.55, weight: 0.5 },
+  2: { color: '#F97316', fillColor: '#FED7AA', fillOpacity: 0.6,  weight: 0.5 },
+  3: { color: '#C0181B', fillColor: '#FCA5A5', fillOpacity: 0.65, weight: 0.5 },
+}
+const NOAH_LABEL = { 1: 'Low', 2: 'Moderate', 3: 'High' }
 const RAIN_TICKS = ['-8h', '-7', '-6', '-5', '-4', '-3', '-2', 'Now']
+
+// Toggleable overlays so a resident can isolate one layer (e.g. just flood
+// inundation, or just evacuation centres). On by default; state persists.
+const FLOOD_LAYERS = [
+  { key: 'noah', label: 'NOAH Flood Zones', color: '#C0181B' },
+  { key: 'inundation', label: 'Flood Inundation', color: '#2563EB' },
+  { key: 'barangays', label: 'Barangay Risk', color: '#F97316' },
+  { key: 'evac', label: 'Evacuation Centres', color: '#1A7A4A' },
+]
 
 export default function FloodMap() {
   const brgyLabel = residentBarangayLabel()
@@ -36,17 +56,30 @@ export default function FloodMap() {
   const { weather } = useLiveWeather()
   const { field } = useFloodRisk()
 
+  const [noahGeo, setNoahGeo] = useState(null)
+  useEffect(() => {
+    fetch('/noah_cabuyao_flood_100yr.geojson').then((r) => r.json()).then(setNoahGeo).catch(() => {})
+  }, [])
+  const noahStyle = useCallback((f) => NOAH_STYLE[f?.properties?.Var] ?? NOAH_STYLE[1], [])
+
   const barangays = useMemo(() => barangayRiskSamples(field), [field])
   const rainfall = weather.current.rain ?? 0
   const rainHistory = weather.rainHistory
+  const { evacuationCenters } = useEvacCenters()
+  const evacMarkers = useMemo(
+    () => evacuationCenters.filter((c) => Array.isArray(c.coords)),
+    [evacuationCenters],
+  )
   const evacuationOpen = useMemo(
-    () => SAMPLE_EVAC_CENTERS.filter((c) => c.status !== 'closed').length,
-    [],
+    () => evacuationCenters.filter((c) => c.status !== 'closed').length,
+    [evacuationCenters],
   )
 
   const [panelTab, setPanelTab] = useState('Overview')
   const [coords, setCoords] = useState(null)
   const [updated, setUpdated] = useState(formatPHT())
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-res-floodmap', { noah: true, inundation: true, barangays: true, evac: true })
+  const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-res-floodmap-intensity', 70)
 
   useEffect(() => {
     const id = setInterval(() => setUpdated(formatPHT()), 60_000)
@@ -114,10 +147,22 @@ export default function FloodMap() {
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
 
-              <InundationGrid cells={field?.cells} opacity={0.6} mode="interior" />
-              <BarangayRiskLayer samples={barangays} opacity={0.85} />
+              {layers.noah && noahGeo && (
+                <GeoJSON
+                  key="noah-100yr"
+                  data={noahGeo}
+                  style={noahStyle}
+                  onEachFeature={(f, lyr) => {
+                    const lvl = NOAH_LABEL[f.properties?.Var] ?? 'Unknown'
+                    lyr.bindTooltip(`NOAH 100-yr Flood Zone · ${lvl} Hazard`, { sticky: true, className: 'road-tip' })
+                  }}
+                />
+              )}
 
-              {barangays.map((b) => {
+              {layers.inundation && <InundationGrid field={field} opacity={intensity / 100} />}
+              {layers.barangays && <BarangayRiskLayer samples={barangays} opacity={Math.max(0.5, intensity / 100)} />}
+
+              {layers.barangays && barangays.map((b) => {
                 const mine = b.name === myBrgy
                 return (
                   <CircleMarker
@@ -140,8 +185,29 @@ export default function FloodMap() {
                 )
               })}
 
+              {/* Shared evacuation centres (city-wide) — where residents can go */}
+              {layers.evac && evacMarkers.map((c) => (
+                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacPinIcon(c.status)}>
+                  <Popup>
+                    <strong>{c.name}</strong>
+                    <div style={{ fontSize: '0.6875rem', color: '#7a7a7a' }}>{c.barangay} · {c.status}</div>
+                  </Popup>
+                </Marker>
+              ))}
+
               <CoordReadout onChange={setCoords} />
+              <LocateControl />
             </MapContainer>
+
+            <MapLayerToggles
+              layers={FLOOD_LAYERS.map((l) => ({
+                ...l,
+                on: layers[l.key],
+                onToggle: () => setLayers((v) => ({ ...v, [l.key]: !v[l.key] })),
+              }))}
+              opacity={intensity}
+              onOpacity={setIntensity}
+            />
 
             <div className="map-legend">
               <span className="legend-live">Live | Updated {updated} PHT</span>

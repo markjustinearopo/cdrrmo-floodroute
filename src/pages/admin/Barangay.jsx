@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { BARANGAYS, levelFromDepth } from '../../data/cabuyao.js'
+import { useBarangayAssignments } from '../../context/AdminDataContext.jsx'
+import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import './Manage.css'
 
 /**
@@ -9,8 +11,9 @@ import './Manage.css'
  * Roster of Cabuyao's 18 barangays. The list itself is fixed reference data,
  * so the work here is assignment: naming each barangay's captain and
  * evacuation coordinator, recording a contact number and setting an
- * operational status. The flood-status badge is derived from the measured
- * flood depth the backend supplies (safeness = flood depth) and is read-only.
+ * operational status. Assignments live in the shared AdminDataContext store
+ * (persisted, visible system-wide). The flood-status badge is derived live
+ * from the flood-risk field (safeness = flood depth) and is read-only.
  */
 
 const OPS_STATUSES = [
@@ -22,15 +25,22 @@ const STATUS_LABEL = Object.fromEntries(OPS_STATUSES.map((s) => [s.value, s.labe
 const RISK_LABEL = { high: 'High', moderate: 'Moderate', low: 'Low', safe: 'Safe' }
 
 export default function Barangay() {
-  // floodDepth (m) arrives from the DB/sensor feed; 0 until then.
-  const [rows, setRows] = useState(() =>
-    BARANGAYS.map((name) => ({
-      name, floodDepth: 0, captain: '', contact: '', coordinator: '', status: 'monitoring',
-    })),
-  )
+  const { barangayAssignments, assignBarangay } = useBarangayAssignments()
+  const { field } = useFloodRisk()
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // barangay name being assigned
   const [toast, setToast] = useState('')
+
+  // Fixed roster × saved assignments × live flood depth from the risk field.
+  const rows = useMemo(() => {
+    const depthByName = new Map(barangayRiskSamples(field).map((s) => [s.name, s.floodDepth]))
+    return BARANGAYS.map((name) => ({
+      name,
+      floodDepth: depthByName.get(name) ?? 0,
+      captain: '', contact: '', coordinator: '', status: 'monitoring',
+      ...(barangayAssignments[name] || {}),
+    }))
+  }, [barangayAssignments, field])
 
   const stats = useMemo(() => ({
     total: rows.length,
@@ -55,13 +65,12 @@ export default function Barangay() {
   function handleSave(e) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
-    setRows((prev) => prev.map((b) => (b.name === editing ? {
-      ...b,
+    assignBarangay(editing, {
       captain: f.get('captain').trim(),
       contact: f.get('contact').trim(),
       coordinator: f.get('coordinator').trim(),
       status: f.get('status'),
-    } : b)))
+    })
     flash(`${editing} assignment saved.`)
     setEditing(null)
   }
@@ -153,7 +162,7 @@ export default function Barangay() {
 
         <div className="mng-note">
           <SparkIcon />
-          <span>Flood status follows the measured depth from the hazard feed and cannot be edited here. Assignments are saved for this session until the backend is connected.</span>
+          <span>Flood status follows the live depth from the hazard feed and cannot be edited here. Assignments are shared system-wide and persist across refreshes.</span>
         </div>
       </div>
 

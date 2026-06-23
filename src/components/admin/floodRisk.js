@@ -1,19 +1,18 @@
 /* ============================================================
    Flood-risk field for the Cabuyao auto-routing engine.
 
-   The Conceptual Framework names three external feeds as the basis for
-   flood-aware routing. This module fuses them into a single spatial
-   risk surface the router can sample anywhere in the city:
+   This module fuses three real feeds into a single spatial risk surface
+   the router can sample anywhere in the city:
 
-     • Google Flood Hub  — flood-inundation model. Implemented keyless
-       via the Open-Meteo Flood API (river discharge) blended with
-       topographic susceptibility from the Open-Meteo Elevation API
-       (water pools in the low ground). The Integrations screen is where
-       a Flood Hub API key would be plugged in for the production feed.
-     • Windy.com          — live weather. Implemented keyless via the
-       Open-Meteo Forecast API (rainfall intensity + wind), standing in
-       for the Windy Point-Forecast feed until its key is configured.
-     • OpenStreetMap      — the road network itself (see routeEngine.js).
+     • Open-Meteo Flood API — flood-inundation driver. Live river discharge
+       (GloFAS / Copernicus model) blended with topographic susceptibility
+       from the Open-Meteo Elevation API (water pools in the low ground).
+     • Open-Meteo Forecast API — live weather: rainfall intensity + wind
+       that raise the wetness of the field as a storm arrives.
+     • OpenStreetMap        — the road network itself (see routeEngine.js).
+
+   All keyless by default; an Open-Meteo API key (Integrations screen) only
+   buys higher rate limits. Nothing here is mocked or hard-coded.
 
    The field is a GRID_N × GRID_N lattice of risk values in [0, 1] over
    the Cabuyao bounding box. `riskAt(lat, lng)` bilinearly interpolates
@@ -27,10 +26,15 @@
    ============================================================ */
 
 import { useCallback, useEffect, useState } from 'react'
-import { levelFromDepth } from './mapHelpers.jsx'
-import { fetchWeather } from '../../services/weather.js'
-import { BARANGAY_CENTROIDS, isOnLand } from '../../data/cabuyaoBarangays.js'
+import { DEPTH_THRESHOLDS, levelFromDepth } from './mapHelpers.jsx'
+import { fetchWeather, reloadWeather } from '../../services/weather.js'
+import { BARANGAY_CENTROIDS, CABUYAO_LAND_BBOX, isOnLand } from '../../data/cabuyaoBarangays.js'
 import TERRAIN from '../../data/cabuyaoElevation.json'
+
+// Refresh cadence for the hazard surface — matches the weather feed so the
+// inundation colours always reflect the most recent rainfall and discharge
+// reading rather than freezing at page-load.
+export const FIELD_REFRESH_MS = 5 * 60 * 1000
 
 /* Terrain is bundled, not fetched. Elevation is STATIC, so the susceptibility
    base is precomputed from the Open-Meteo Elevation API once (scripts/
@@ -143,7 +147,7 @@ function buildField({ elevation, weather, discharge }) {
       maxElev: liveElevation ? maxEl : null,
       wetness,
       sources: {
-        // Bundled terrain (always on) blended with the live Flood Hub discharge.
+        // Bundled terrain (always on) blended with live Open-Meteo Flood discharge.
         floodHub: true,
         windy: Boolean(weather),
         osm: true, // the road graph is always OSM
@@ -266,8 +270,8 @@ let fieldPromise = null
 
 async function loadField() {
   // Terrain susceptibility comes from the bundled elevation grid (static +
-  // reliable). Only the live-weather snapshot (rainfall, wind + Flood Hub
-  // discharge) is fetched, so a throttled weather feed degrades to the
+  // reliable). Only the live-weather snapshot (rainfall, wind + Open-Meteo
+  // Flood discharge) is fetched, so a throttled weather feed degrades to the
   // terrain-only hazard base rather than disappearing.
   const wx = await fetchWeather().catch(() => null)
 
@@ -303,6 +307,9 @@ export function fetchFloodField() {
  * React hook around the cached flood field. While it loads, callers get a
  * neutral zero-risk field so routing still runs (leaning on manual hazards);
  * once the feeds answer, the live field swaps in. `refresh` re-pulls the feeds.
+ *
+ * Auto-refreshes every FIELD_REFRESH_MS so the inundation colours track live
+ * rainfall and river discharge — the field does NOT freeze at page load.
  */
 export function useFloodRisk() {
   const [field, setField] = useState(fieldCache)
@@ -327,7 +334,22 @@ export function useFloodRisk() {
     }
   }, [nonce])
 
+  // Periodic auto-refresh: clear both caches and re-pull on the same cadence
+  // as the weather feed so the hazard surface stays live as rainfall changes.
+  useEffect(() => {
+    const id = setInterval(() => {
+      reloadWeather()
+      fieldCache = null
+      fieldPromise = null
+      setNonce((n) => n + 1)
+    }, FIELD_REFRESH_MS)
+    return () => clearInterval(id)
+  }, [])
+
   const refresh = useCallback(() => {
+    // Force a fresh weather pull so the rebuilt field reflects current rain/wind,
+    // not the potentially 5-min-old cached snapshot.
+    reloadWeather()
     fieldCache = null
     fieldPromise = null
     setNonce((n) => n + 1)
@@ -351,8 +373,105 @@ export const NEUTRAL_FIELD = {
  * risk bands line up with the depth thresholds the dashboards already use
  * (≈0.5 m at high risk). A live, model-derived estimate — not a sensor reading.
  */
+const DEPTH_PER_RISK = 0.83
+
 export function estDepthFromRisk(risk) {
-  return Math.max(0, risk * 0.83)
+  return Math.max(0, risk * DEPTH_PER_RISK)
+}
+
+/* ── NOAH-style hazard bands (shared by the 2D + 3D inundation surfaces) ──── */
+
+/**
+ * Risk-field values where the modeled depth crosses the system's depth
+ * thresholds — i.e. where the hazard surface changes band. Keeping the surface
+ * quantised to these stops means the painted colours mean EXACTLY what the
+ * Risk Classification legend says, in both the Leaflet and Mapbox views.
+ */
+export const RISK_BAND_STOPS = {
+  low: DEPTH_THRESHOLDS.low / DEPTH_PER_RISK, // ≈ 0.12 — Safe → Low
+  moderate: DEPTH_THRESHOLDS.moderate / DEPTH_PER_RISK, // ≈ 0.36 — Low → Moderate
+  high: DEPTH_THRESHOLDS.high / DEPTH_PER_RISK, // ≈ 0.60 — Moderate → High
+}
+
+/** Depth-band level ('safe' | 'low' | 'moderate' | 'high') for a risk value. */
+export function riskBand(risk) {
+  return levelFromDepth(estDepthFromRisk(risk))
+}
+
+/* Per-band fill strength (× the page opacity slider). Crisp, Project-NOAH-style
+   bands: even the safe green reads clearly without drowning the streets. */
+export const BAND_FILL = { safe: 0.4, low: 0.55, moderate: 0.65, high: 0.75 }
+
+/* ── Honeycomb hazard surface (shared by the 2D + 3D inundation layers) ──── */
+
+/* Hexagon circumradius in metres. ~100 m cells read as a fine beehive at city
+   zoom while staying cheap to build (≈2k hexes) and render (one canvas). */
+const HEX_RADIUS_M = 100
+/* Each hex is drawn slightly shrunk so thin seams show between cells — the
+   honeycomb structure stays visible even across same-band areas. */
+const HEX_SEAM = 0.93
+const M_PER_DEG_LAT = 111_320
+
+/**
+ * The live risk field as a dense pointy-top hexagon lattice over Cabuyao's
+ * land: [{ key, center:[lat,lng], ring:[[lat,lng]×6], risk, band }]. Every hex
+ * is sampled from field.riskAt at its centre (bilinear, so the honeycomb picks
+ * up far finer detail than the raw lattice) and banded by depth class.
+ *
+ * The land test probes the centre plus 4 half-spacing neighbours: adjacent
+ * barangay polygons meet along roads/rivers and OSM leaves thin unclaimed
+ * slivers there — a strict centre-point test punches hex-shaped holes in the
+ * surface, while genuine lake hexes (no polygon anywhere near) stay out.
+ *
+ * Cached per field (WeakMap), so the Leaflet and Mapbox views share one build.
+ */
+const hexCache = new WeakMap()
+
+export function buildFloodHexes(field) {
+  if (!field?.grid || !field.riskAt) return []
+  const cached = hexCache.get(field)
+  if (cached) return cached
+
+  const { s, w, n, e } = CABUYAO_LAND_BBOX
+  const mPerDegLng = M_PER_DEG_LAT * Math.cos((((s + n) / 2) * Math.PI) / 180)
+  const dxM = Math.sqrt(3) * HEX_RADIUS_M // horizontal spacing
+  const dyM = 1.5 * HEX_RADIUS_M // row spacing
+  const rows = Math.ceil(((n - s) * M_PER_DEG_LAT) / dyM)
+  const cols = Math.ceil(((e - w) * mPerDegLng) / dxM)
+
+  // Pointy-top unit vertices (metres), shrunk for the seams.
+  const verts = Array.from({ length: 6 }, (_, i) => {
+    const a = ((60 * i + 30) * Math.PI) / 180
+    return [Math.cos(a) * HEX_RADIUS_M * HEX_SEAM, Math.sin(a) * HEX_RADIUS_M * HEX_SEAM]
+  })
+
+  const halfDyLat = (0.5 * dyM) / M_PER_DEG_LAT
+  const halfDxLng = (0.5 * dxM) / mPerDegLng
+  const hexes = []
+  for (let r = 0; r <= rows; r++) {
+    const lat = s + (r * dyM) / M_PER_DEG_LAT
+    const xOffM = r % 2 ? dxM / 2 : 0
+    for (let c = 0; c <= cols; c++) {
+      const lng = w + (c * dxM + xOffM) / mPerDegLng
+      const onLand =
+        isOnLand(lat, lng) ||
+        isOnLand(lat + halfDyLat, lng) ||
+        isOnLand(lat - halfDyLat, lng) ||
+        isOnLand(lat, lng + halfDxLng) ||
+        isOnLand(lat, lng - halfDxLng)
+      if (!onLand) continue
+      const risk = field.riskAt(lat, lng)
+      hexes.push({
+        key: `${r}-${c}`,
+        center: [lat, lng],
+        ring: verts.map(([vx, vy]) => [lat + vy / M_PER_DEG_LAT, lng + vx / mPerDegLng]),
+        risk,
+        band: riskBand(risk),
+      })
+    }
+  }
+  hexCache.set(field, hexes)
+  return hexes
 }
 
 // Sample the field at each barangay's REAL interior point → live risk + depth.

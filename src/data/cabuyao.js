@@ -93,19 +93,9 @@ export const EVAC_STATUSES = [
   { value: 'closed', label: 'Closed' },
 ]
 
-/**
- * A starter set of known Cabuyao evacuation centres so the screen
- * is usable before the database feed lands. Occupancy starts at 0
- * (no active evacuation) and every field is editable in the UI.
- *
- * `coords` ([lat, lng]) are approximate positions within the city, used as
- * candidate destinations by the flood-aware Auto Route engine until the
- * surveyed facility coordinates arrive from the backend.
+/*
+ * Evacuation centres are no longer seeded in code. Every map and screen reads
+ * the live records from the shared store (AdminDataContext → Supabase), so a
+ * centre added once is the SAME centre everywhere — 2D and 3D, every portal.
+ * Manage them on the Evacuation screen or Route Planning's "Add Centre".
  */
-export const SAMPLE_EVAC_CENTERS = [
-  { id: 'ec-1', name: 'Cabuyao Central School', barangay: 'Poblacion Uno', capacity: 450, occupancy: 0, status: 'open', manager: '', contact: '', coords: [14.2766, 121.1245] },
-  { id: 'ec-2', name: 'Pulo Elementary School', barangay: 'Pulo', capacity: 300, occupancy: 0, status: 'open', manager: '', contact: '', coords: [14.2567, 121.1430] },
-  { id: 'ec-3', name: 'Mamatid Covered Court', barangay: 'Mamatid', capacity: 520, occupancy: 0, status: 'open', manager: '', contact: '', coords: [14.2389, 121.1556] },
-  { id: 'ec-4', name: 'Marinig National High School', barangay: 'Marinig', capacity: 600, occupancy: 0, status: 'open', manager: '', contact: '', coords: [14.2632, 121.1583] },
-  { id: 'ec-5', name: 'Banlic Multi-Purpose Hall', barangay: 'Banlic', capacity: 250, occupancy: 0, status: 'closed', manager: '', contact: '', coords: [14.2705, 121.1470] },
-]

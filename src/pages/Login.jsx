@@ -9,7 +9,7 @@ import {
   PrivacyContent,
   ContactContent,
 } from '../components/policyContent.jsx'
-import api, { getRoleForRedirect } from '../services/api.js'
+import { authApi, getRoleForRedirect } from '../services/api.js'
 import { OFFICIAL_BRGY_KEY } from '../data/barangay.js'
 import './auth.css'
 import './Login.css'
@@ -21,7 +21,7 @@ import './Login.css'
  */
 
 const BARANGAYS = [
-  'Baclaran', 'Banay-banay', 'Banlic', 'Bigaa', 'Butong', 'Casile',
+  'Baclaran', 'Banay-Banay', 'Banlic', 'Bigaa', 'Butong', 'Casile',
   'Diezmo', 'Gulod', 'Mamatid', 'Marinig', 'Niugan', 'Pittland',
   'Poblacion Dos', 'Poblacion Tres', 'Poblacion Uno', 'Pulo', 'Sala',
   'San Isidro',
@@ -70,10 +70,8 @@ export default function Login() {
         setError('Please select your barangay to continue.')
         return
       }
-      // Scope the barangay portal to the official's own jurisdiction. The
-      // backend will confirm this on /auth/login; storing it here lets the
-      // portal show the right barangay immediately.
-      localStorage.setItem(OFFICIAL_BRGY_KEY, brgy)
+      // Jurisdiction is set AFTER login from the account's own barangay
+      // (server-authoritative), so it can't be spoofed by the dropdown.
     } else {
       email = resEmail.trim()
       password = resPw.trim()
@@ -91,10 +89,18 @@ export default function Login() {
     setError('')
     setSubmitting(true)
     try {
-      const data = await api.post('/auth/login', { email, password })
-      api.setToken(data.token)
-      api.setUser(data.user)
-      navigate(getRoleForRedirect(data.user.role))
+      const user = await authApi.login(email, password)
+      // Jurisdiction is server-authoritative: an official is scoped to the
+      // barangay on their account, not the one chosen in the dropdown.
+      if (role === 'barangay') {
+        if (brgy && user.barangay && user.barangay !== brgy) {
+          authApi.logout()
+          setError(`This Staff ID belongs to Barangay ${user.barangay}. Select that barangay to sign in.`)
+          return
+        }
+        localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay || brgy)
+      }
+      navigate(getRoleForRedirect(user.role))
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.')
     } finally {
@@ -229,16 +235,14 @@ export default function Login() {
                     onChange={(e) => setAcceptTerms(e.target.checked)}
                   />
                   Accept{' '}
-                  <a
-                    href="#"
+                  <button
+                    type="button"
+                    className="link-inline"
                     style={{ margin: '0 3px' }}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setModal('legal')
-                    }}
+                    onClick={() => setModal('legal')}
                   >
                     Terms &amp; Privacy Policy
-                  </a>
+                  </button>
                 </label>
                 <LoginButton submitting={submitting} />
                 <div className="card-footer mt-4">
@@ -262,15 +266,13 @@ export default function Login() {
             <div className="secure-badge">Secure Government Portal</div>
             <p className="support-link">
               Having trouble?{' '}
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault()
-                  setModal('contact')
-                }}
+              <button
+                type="button"
+                className="link-inline"
+                onClick={() => setModal('contact')}
               >
                 Contact CDRRMO IT Support
-              </a>
+              </button>
             </p>
             <p className="system-version">Cabuyao City DRRMO © 2026 · v1</p>
           </div>

@@ -1,17 +1,18 @@
 /* ============================================================
    Flood-aware route engine.
 
-   Turns the OpenStreetMap road network (fetched from Overpass in
-   routingHelpers) into a routable graph and finds the safest practical
-   path across it, weighting every road segment by the flood-risk field
-   (floodRisk.js) and the admin's manually-flagged road conditions.
+   Turns the complete Cabuyao road network (every street in the city,
+   OpenStreetMap data bundled via routingHelpers) into a routable graph
+   and finds the safest practical path across it, weighting every road
+   segment by the flood-risk field (floodRisk.js) and the admin's
+   manually-flagged road conditions.
 
    This is the automatic, flood-aware route suggestion the rest of the
-   admin previously left as a "coming soon" control. The three feeds the
-   Conceptual Framework names meet here:
-     • OpenStreetMap     → the graph (nodes & edges)
-     • Google Flood Hub  → per-segment inundation risk  (floodRisk)
-     • Windy.com         → rainfall/wind driving that risk (floodRisk)
+   admin previously left as a "coming soon" control. Three real feeds
+   meet here:
+     • OpenStreetMap        → the graph (nodes & edges)
+     • Open-Meteo Flood API → per-segment inundation risk  (floodRisk)
+     • Open-Meteo Forecast  → rainfall/wind driving that risk (floodRisk)
 
    Pure functions, no React (a thin memo hook lives at the bottom). The
    search is a binary-heap A* with a straight-line-distance heuristic,
@@ -33,6 +34,32 @@ export const DEFAULT_ALPHA = 8
 // coordinates (they are the same OSM node), so rounding here stitches the
 // separate way geometries into one connected network at intersections.
 const COORD_PRECISION = 6
+
+/* Realistic urban driving speed (km/h) per OSM highway class — drives the
+   per-route ETA, so a route that threads barangay alleys is honest about
+   being slower than one that stays on the national highway. */
+const CLASS_KMH = {
+  motorway: 80, motorway_link: 40,
+  trunk: 60, trunk_link: 40,
+  primary: 45, primary_link: 35,
+  secondary: 40, secondary_link: 30,
+  tertiary: 35, tertiary_link: 30,
+  unclassified: 30,
+  residential: 25,
+  living_street: 15,
+  service: 15,
+  track: 12,
+  road: 25,
+  // Walk-only connectors bridging gated estates to the network — crawl pace
+  // so the router only threads them when there is no drivable alternative.
+  footway: 5,
+  path: 5,
+  pedestrian: 8,
+  steps: 3,
+  cycleway: 10,
+  bridleway: 8,
+}
+const DEFAULT_KMH = 25
 
 /* ── Binary min-heap keyed by priority (f-score) ─────────────────────────── */
 class MinHeap {
@@ -92,7 +119,10 @@ const keyOf = (lat, lng) => `${lat.toFixed(COORD_PRECISION)},${lng.toFixed(COORD
  *
  * Returns flat, index-aligned arrays for cache-friendly traversal:
  *   lat[i], lng[i]      → coordinates of node i
- *   adj[i]              → array of edges { to, d, wayId, mlat, mlng }
+ *   adj[i]              → array of edges { to, d, wayId, mlat, mlng, kmh }
+ *   comp[i] / mainComp  → connected-component label per node + the label of
+ *                         the city-wide network (largest component)
+ *   wayInfo             → Map(wayId → { name, named, highway }) for readouts
  * Edges are undirected (each segment is pushed both ways): evacuation and
  * relief convoys may run against one-way tags in an emergency, so the demo
  * deliberately ignores `oneway`.
@@ -102,6 +132,7 @@ export function buildGraph(roads) {
   const lat = []
   const lng = []
   const adj = []
+  const wayInfo = new Map()
 
   function nodeAt(la, lo) {
     const k = keyOf(la, lo)
@@ -120,6 +151,12 @@ export function buildGraph(roads) {
     const coords = f.geometry?.coordinates // [lng, lat] pairs
     if (!Array.isArray(coords) || coords.length < 2) continue
     const wayId = f.properties?.id
+    const kmh = CLASS_KMH[f.properties?.highway] || DEFAULT_KMH
+    wayInfo.set(wayId, {
+      name: f.properties?.name,
+      named: Boolean(f.properties?.named),
+      highway: f.properties?.highway,
+    })
     let prev = nodeAt(coords[0][1], coords[0][0])
     for (let i = 1; i < coords.length; i++) {
       const cur = nodeAt(coords[i][1], coords[i][0])
@@ -127,25 +164,65 @@ export function buildGraph(roads) {
       const d = haversineMeters([lat[prev], lng[prev]], [lat[cur], lng[cur]])
       const mlat = (lat[prev] + lat[cur]) / 2
       const mlng = (lng[prev] + lng[cur]) / 2
-      adj[prev].push({ to: cur, d, wayId, mlat, mlng })
-      adj[cur].push({ to: prev, d, wayId, mlat, mlng })
+      adj[prev].push({ to: cur, d, wayId, mlat, mlng, kmh })
+      adj[cur].push({ to: prev, d, wayId, mlat, mlng, kmh })
       prev = cur
     }
   }
 
-  return { lat, lng, adj, size: lat.length }
+  /* Label connected components (iterative BFS). A full city network always
+     contains islands — gated compounds, disconnected service loops — and a
+     click that snaps onto one would otherwise strand the search. Snapping is
+     restricted to the LARGEST component, the real city-wide road network. */
+  const size = lat.length
+  const comp = new Int32Array(size).fill(-1)
+  let mainComp = -1
+  let mainSize = 0
+  let nComps = 0
+  const queue = new Int32Array(size)
+  for (let seed = 0; seed < size; seed++) {
+    if (comp[seed] !== -1) continue
+    const label = nComps++
+    let head = 0
+    let tail = 0
+    queue[tail++] = seed
+    comp[seed] = label
+    let count = 0
+    while (head < tail) {
+      const cur = queue[head++]
+      count++
+      const edges = adj[cur]
+      for (let e = 0; e < edges.length; e++) {
+        const to = edges[e].to
+        if (comp[to] === -1) {
+          comp[to] = label
+          queue[tail++] = to
+        }
+      }
+    }
+    if (count > mainSize) {
+      mainSize = count
+      mainComp = label
+    }
+  }
+
+  return { lat, lng, adj, size, comp, mainComp, wayInfo }
 }
 
 /* ── Nearest-node snapping ───────────────────────────────────────────────── */
 // Nearest graph node to a free coordinate (where the admin clicked / an
 // evacuation centre sits). Planar squared distance is enough at city scale.
-export function nearestNode(graph, [lat, lng]) {
+// By default only nodes on the main (city-wide) component are considered, so
+// a click beside a gated compound's private loop still routes.
+export function nearestNode(graph, [lat, lng], { anyComponent = false } = {}) {
   let best = -1
   let bestD = Infinity
-  const { lat: las, lng: lns, size } = graph
+  const { lat: las, lng: lns, size, comp, mainComp } = graph
+  const restrict = !anyComponent && comp && mainComp >= 0
   // Latitude correction so the longitude axis isn't over-weighted.
   const kx = Math.cos((lat * Math.PI) / 180)
   for (let i = 0; i < size; i++) {
+    if (restrict && comp[i] !== mainComp) continue
     const dLat = las[i] - lat
     const dLng = (lns[i] - lng) * kx
     const d = dLat * dLat + dLng * dLng
@@ -256,20 +333,34 @@ function makeCost(opts, alpha) {
 
 /* ── Path → friendly result ──────────────────────────────────────────────── */
 function decorate(graph, result, opts) {
-  const { lat, lng, adj } = graph
+  const { lat, lng, adj, wayInfo } = graph
   const coords = result.nodes.map((id) => [lat[id], lng[id]])
 
-  // Count how many traversed segments sit on manually-flooded/blocked roads.
+  // Walk the path start→goal, counting manually-flagged segments, summing a
+  // class-aware drive time, and collecting the ordered list of named roads it
+  // follows (the "via" turn sheet shown on the Auto Route panel).
   let floodedSegments = 0
   const flooded = new Set()
+  let driveMins = 0
+  const via = []
   for (let i = 1; i < result.nodes.length; i++) {
     const edge = findEdge(adj[result.nodes[i - 1]], result.nodes[i])
-    const st = edge && opts.statusMap?.[edge.wayId]
+    if (!edge) continue
+    const st = opts.statusMap?.[edge.wayId]
     if (st === 'flooded' || st === 'blocked') {
       floodedSegments++
       flooded.add(edge.wayId)
     }
+    driveMins += (edge.d / 1000 / (edge.kmh || 25)) * 60
+    const info = wayInfo?.get(edge.wayId)
+    if (info?.named) {
+      const last = via[via.length - 1]
+      if (last && last.name === info.name) last.m += edge.d
+      else via.push({ name: info.name, m: edge.d })
+    }
   }
+  // Drop sub-40 m brushes past cross-streets — they aren't part of the story.
+  const viaRoads = via.filter((v) => v.m >= 40)
 
   const meanRisk = result.distanceM > 0 ? result.exposure / result.distanceM : 0
   return {
@@ -280,6 +371,8 @@ function decorate(graph, result, opts) {
     floodedSegments,
     floodedWays: [...flooded],
     nodeCount: result.nodes.length,
+    driveMins, // class-aware vehicle ETA (expressway fast, alleys slow)
+    viaRoads, // ordered named roads the path follows: [{ name, m }, …]
   }
 }
 

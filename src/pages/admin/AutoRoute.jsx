@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePersistedState } from '../../utils/usePersistedState.js'
 import {
   MapContainer,
   TileLayer,
   ZoomControl,
   Polyline,
   Marker,
-  Rectangle,
   CircleMarker,
   Tooltip,
 } from 'react-leaflet'
@@ -16,22 +16,47 @@ import {
   ClickToAddWaypoint,
   waypointIcon,
   formatDistance,
-  formatDriveEta,
+  formatMins,
   formatWalkEta,
   RoadNetworkLayer,
   useCabuyaoRoads,
   useRoadStatus,
-  useRoutes,
 } from '../../components/admin/routingHelpers.jsx'
 import { useRouteGraph, planRoute, planToNearestSafe, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
 import {
   useFloodRisk,
-  riskColor,
   riskLevel,
+  barangayRiskSamples,
   RISK_LEVEL_META,
   NEUTRAL_FIELD,
 } from '../../components/admin/floodRisk.js'
-import { SAMPLE_EVAC_CENTERS } from '../../data/cabuyao.js'
+import { BarangayRiskLayer, InundationGrid } from '../../components/admin/BarangayRiskLayer.jsx'
+import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import {
+  addInundationLayer,
+  addBarangayLayers,
+  setBarangayVisibility,
+  setMapLayerVisible,
+  updateBarangayData,
+  updateInundationData,
+  addHazardRoadsLayer,
+  updateHazardRoadsData,
+  addCityBoundary,
+  addNoahHazardLayer,
+} from '../../components/admin/mapbox3dHelpers.js'
+import {
+  useMap3DSetup,
+  addRouteLine3D,
+  setRouteLine3D,
+  startFlowDash3D,
+  syncWaypoints3D,
+  addEvacCentres3D,
+  updateEvacCentres3D,
+  setChosenCentre3D,
+  clickedEvacCentre3D,
+  playRouteReveal3D,
+} from '../../components/admin/routing3d.js'
+import { useEvacCenters, useSavedRoutes } from '../../context/AdminDataContext.jsx'
 import './AutoRoute.css'
 
 const SHORTEST_COLOR = '#94A3B8' // slate — the "fastest" comparison ghost
@@ -43,12 +68,13 @@ const SHORTEST_COLOR = '#94A3B8' // slate — the "fastest" comparison ghost
  * suite previously left as a "coming soon" control. It is the meeting
  * point of the three feeds the Conceptual Framework names:
  *
- *   • OpenStreetMap      → the routable road network (Overpass), turned
- *     into a graph by routeEngine and searched with a flood-weighted A*.
- *   • Google Flood Hub   → per-location inundation risk (river discharge +
+ *   • OpenStreetMap      → the complete city road network (every street,
+ *     bundled), turned into a graph by routeEngine and searched with a
+ *     flood-weighted A*.
+ *   • Open-Meteo Flood API → per-location inundation risk (river discharge +
  *     low-elevation susceptibility) from floodRisk, painted as a heat
  *     overlay and used to weight every road segment.
- *   • Windy.com          → live rainfall/wind that drives that risk field.
+ *   • Open-Meteo Forecast  → live rainfall/wind that drives that risk field.
  *
  * The admin drops an origin and a destination — or just an origin and lets
  * the engine pick the safest reachable evacuation centre — and the screen
@@ -57,13 +83,15 @@ const SHORTEST_COLOR = '#94A3B8' // slate — the "fastest" comparison ghost
  * store so it flows on to Route Planning and Override Routes.
  */
 export default function AutoRoute() {
-  const { roads, loading: roadsLoading, error: roadsError, retry } = useCabuyaoRoads()
+  const { roads } = useCabuyaoRoads()
   const graph = useRouteGraph(roads)
   const { field, loading: fieldLoading, refresh: refreshField } = useFloodRisk()
   const [statusMap] = useRoadStatus()
-  const [, { addRoute }] = useRoutes()
+  const [, { addRoute }] = useSavedRoutes()
+  const { evacuationCenters } = useEvacCenters()
 
   const live = field || NEUTRAL_FIELD
+  const riskSamples = useMemo(() => barangayRiskSamples(live), [live])
 
   // ── Trip definition ──
   const [type, setType] = useState('evacuation')
@@ -75,19 +103,22 @@ export default function AutoRoute() {
   // ── Result + overlays ──
   const [plan, setPlan] = useState(null)
   const [chosenCentre, setChosenCentre] = useState(null)
-  const [showRisk, setShowRisk] = useState(true)
-  const [showHazards, setShowHazards] = useState(true)
-  const [showCentres, setShowCentres] = useState(true)
-  const [showFastest, setShowFastest] = useState(true)
+  const [showRisk, setShowRisk] = usePersistedState('cdrrmo-layers-admin-autoroute-risk', false)
+  const [showHazards, setShowHazards] = usePersistedState('cdrrmo-layers-admin-autoroute-hazards', false)
+  const [showCentres, setShowCentres] = usePersistedState('cdrrmo-layers-admin-autoroute-centres', false)
+  const [showFastest, setShowFastest] = usePersistedState('cdrrmo-layers-admin-autoroute-fastest', false)
 
   const [name, setName] = useState('')
   const [coords, setCoords] = useState(null)
   const [toast, setToast] = useState('')
+  const [use3D, setUse3D] = use3DPreference()
 
   const color = ROUTE_TYPES[type].color
+  // Destinations = the shared store's open centres (city-wide), so Auto Route
+  // targets the same evacuation centres shown on every other map.
   const openCentres = useMemo(
-    () => SAMPLE_EVAC_CENTERS.filter((c) => c.coords && c.status !== 'closed'),
-    [],
+    () => evacuationCenters.filter((c) => Array.isArray(c.coords) && c.status !== 'closed'),
+    [evacuationCenters],
   )
 
   // Keep start/goal in refs so the map-click handler always sees fresh values.
@@ -141,7 +172,7 @@ export default function AutoRoute() {
 
   function generate() {
     if (!graph || graph.size === 0) {
-      return flash(roadsLoading ? 'Road network still loading…' : 'Road network unavailable.')
+      return flash('Road network unavailable.')
     }
     if (!start) return flash('Click the map to set the starting point.')
 
@@ -209,7 +240,9 @@ export default function AutoRoute() {
   const safe = plan?.ok ? plan.safe : null
   const fast = plan?.ok ? plan.fast : null
   const etaLabel = type === 'evacuation' ? 'Walk ETA' : 'Drive ETA'
-  const etaValue = safe ? (type === 'evacuation' ? formatWalkEta(safe.distanceM) : formatDriveEta(safe.distanceM)) : '--'
+  // Walking ETA for evacuations; a class-aware drive ETA (expressway fast,
+  // barangay alleys slow) for convoy / response trips.
+  const etaValue = safe ? (type === 'evacuation' ? formatWalkEta(safe.distanceM) : formatMins(safe.driveMins)) : '--'
   const lvl = safe ? riskLevel(safe.meanRisk) : 'low'
 
   const cautionLabel =
@@ -242,15 +275,42 @@ export default function AutoRoute() {
           </div>
 
           <div className="ar-sources" title="Live data feeds powering the route">
-            <SourceChip label="Flood Hub" on={live.meta.sources.floodHub} />
-            <SourceChip label="Windy" on={live.meta.sources.windy} />
+            <SourceChip label="Open-Meteo Flood" on={live.meta.sources.floodHub} />
+            <SourceChip label="Open-Meteo" on={live.meta.sources.windy} />
             <SourceChip label="OSM" on={Boolean(roads)} />
           </div>
+
+          <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>
 
         {/* ── Body: map + panel ── */}
         <div className="ar-body">
           <div className="ar-map-area">
+            {use3D ? (
+              /* The same trip, overlays and interactions on the Mapbox terrain
+                 map — 2D ⇄ 3D is a view preference, never a data change. */
+              <AutoRoute3DView
+                live={live}
+                riskSamples={riskSamples}
+                roads={roads}
+                statusMap={statusMap}
+                openCentres={openCentres}
+                chosenCentre={chosenCentre}
+                plan={plan}
+                color={color}
+                start={start}
+                goal={goal}
+                mode={mode}
+                showRisk={showRisk}
+                showHazards={showHazards}
+                showCentres={showCentres}
+                showFastest={showFastest}
+                onMapClick={handleMapClick}
+                onDragStart={dragStart}
+                onDragGoal={dragGoal}
+                onViewChange={setCoords}
+              />
+            ) : (
             <MapContainer
               center={CABUYAO_CENTER}
               zoom={CABUYAO_ZOOM}
@@ -262,20 +322,18 @@ export default function AutoRoute() {
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
 
-              {/* Flood-risk heat overlay (Flood Hub × Windy field) */}
-              {showRisk &&
-                live.cells.map((cell) => (
-                  <Rectangle
-                    key={cell.key}
-                    bounds={cell.bounds}
-                    pathOptions={{
-                      stroke: false,
-                      fillColor: riskColor(cell.risk),
-                      fillOpacity: 0.07 + 0.32 * cell.risk,
-                      interactive: false,
-                    }}
-                  />
-                ))}
+              {/* Flood-risk context (Open-Meteo flood × forecast field), clipped to the
+                  REAL barangay polygons exactly like the Flood Map — barangay
+                  fills for wall-to-wall coverage inside the boundary, interior
+                  heat cells for the fine surface. Never bleeds into Laguna de
+                  Bay or the neighbouring towns, and stays light so the route
+                  remains the loudest thing on the map. */}
+              {showRisk && (
+                <>
+                  <BarangayRiskLayer samples={riskSamples} opacity={0.35} interactive={false} />
+                  <InundationGrid field={live} opacity={0.4} />
+                </>
+              )}
 
               {/* Live road hazards flagged on Road Status */}
               {showHazards && hazardRoads && (
@@ -317,11 +375,24 @@ export default function AutoRoute() {
                 />
               )}
 
-              {/* Safe (recommended) route */}
+              {/* Safe (recommended) route: halo + core + a flowing white dash
+                  that animates A→B so the direction of travel reads at a glance */}
               {safe && (
                 <>
                   <Polyline positions={safe.coords} pathOptions={{ color, weight: 12, opacity: 0.22, lineCap: 'round' }} />
                   <Polyline positions={safe.coords} pathOptions={{ color, weight: 4.5, opacity: 0.97, lineCap: 'round' }} />
+                  <Polyline
+                    positions={safe.coords}
+                    pathOptions={{
+                      color: '#fff',
+                      weight: 2,
+                      opacity: 0.9,
+                      dashArray: '1 14',
+                      lineCap: 'round',
+                      className: 'ar-flow',
+                      interactive: false,
+                    }}
+                  />
                 </>
               )}
 
@@ -348,24 +419,9 @@ export default function AutoRoute() {
 
               <CoordReadout onChange={setCoords} />
             </MapContainer>
+            )}
 
-            {/* Overlays: loading / error / hint */}
-            {roadsLoading && (
-              <div className="ar-overlay">
-                <span className="ar-spinner" />
-                <span>Loading Cabuyao road network…</span>
-                <small>Fetching live roads from OpenStreetMap (Overpass)</small>
-              </div>
-            )}
-            {roadsError && !roadsLoading && (
-              <div className="ar-overlay">
-                <WarnIcon />
-                <span>Couldn't load the road network</span>
-                <small>The Overpass map service may be busy. Please try again.</small>
-                <button type="button" className="ar-retry" onClick={retry}>Retry</button>
-              </div>
-            )}
-            {!roadsLoading && !roadsError && !start && (
+            {!start && (
               <div className="ar-hint">
                 <CursorIcon />
                 <span>Click the map to drop your starting point</span>
@@ -451,7 +507,7 @@ export default function AutoRoute() {
 
             {/* Generate */}
             <section className="ar-section ar-generate">
-              <button type="button" className="ar-go" onClick={generate} disabled={roadsLoading || !start}>
+              <button type="button" className="ar-go" onClick={generate} disabled={!start}>
                 <SparkIcon /> Generate Route
               </button>
               {(start || goal) && (
@@ -502,6 +558,26 @@ export default function AutoRoute() {
                     </>
                   )}
                 </div>
+
+                {/* Turn sheet: the named roads the route follows, in order */}
+                {safe.viaRoads.length > 0 && (
+                  <div className="ar-via">
+                    <div className="ar-via-title">
+                      <RouteIcon /> Follows
+                    </div>
+                    <ol className="ar-via-list">
+                      {safe.viaRoads.slice(0, 7).map((v, i) => (
+                        <li className="ar-via-row" key={`${v.name}-${i}`}>
+                          <span className="ar-via-name" title={v.name}>{v.name}</span>
+                          <span className="ar-via-dist">{formatDistance(v.m)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    {safe.viaRoads.length > 7 && (
+                      <div className="ar-via-more">+{safe.viaRoads.length - 7} more roads</div>
+                    )}
+                  </div>
+                )}
               </section>
             )}
 
@@ -511,17 +587,17 @@ export default function AutoRoute() {
               <div className="ar-feeds">
                 <FeedRow
                   label="Rainfall"
-                  src="Windy"
+                  src="Open-Meteo"
                   value={live.meta.precip != null ? `${live.meta.precip.toFixed(1)} mm/h` : '--'}
                 />
                 <FeedRow
                   label="River discharge"
-                  src="Flood Hub"
+                  src="Open-Meteo"
                   value={live.meta.discharge != null ? `${live.meta.discharge.toFixed(1)} m³/s` : '--'}
                 />
                 <FeedRow
                   label="Elevation range"
-                  src="Flood Hub"
+                  src="Open-Meteo"
                   value={
                     live.meta.minElev != null
                       ? `${Math.round(live.meta.minElev)}–${Math.round(live.meta.maxElev)} m`
@@ -529,6 +605,11 @@ export default function AutoRoute() {
                   }
                 />
                 <FeedRow label="Flagged roads" src="CDRRMO" value={`${hazardCount}`} />
+                <FeedRow
+                  label="Road network"
+                  src="OSM"
+                  value={roads ? `${roads.features.length.toLocaleString()} streets` : '--'}
+                />
               </div>
               <button type="button" className="ar-refresh" onClick={refreshField} disabled={fieldLoading}>
                 {fieldLoading ? 'Refreshing…' : 'Refresh feeds'}
@@ -553,6 +634,178 @@ export default function AutoRoute() {
         <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
       </div>
     </AdminLayout>
+  )
+}
+
+/* ── 3D map view (Mapbox GL) ─────────────────────────────────────────────── */
+/**
+ * The Map3D-backed Auto Route map: the SAME risk context (barangay fills +
+ * inundation honeycomb), flagged-road hazards, evacuation centres, safe/fast
+ * route pair (with the flowing direction dash) and draggable A/B pins as the
+ * Leaflet view — every layer native and terrain-draped, every interaction
+ * (click-to-set, drag-to-move) intact. Generating a route plays the
+ * fly-along reveal: the safe line draws itself A→B under the camera.
+ */
+function AutoRoute3DView({
+  live,
+  riskSamples,
+  roads,
+  statusMap,
+  openCentres,
+  chosenCentre,
+  plan,
+  color,
+  start,
+  goal,
+  mode,
+  showRisk,
+  showHazards,
+  showCentres,
+  showFastest,
+  onMapClick,
+  onDragStart,
+  onDragGoal,
+  onViewChange,
+}) {
+  const pinsRef = useRef(new Map())
+  const stopFlowRef = useRef(null)
+
+  // Live values for the one-time load callback.
+  const initRef = useRef({})
+  initRef.current = { live, riskSamples, roads, statusMap, showRisk, showHazards, showCentres, openCentres, color }
+
+  const { onMapLoad, mapRef, ready } = useMap3DSetup((map) => {
+    const v = initRef.current
+    addNoahHazardLayer(map)
+    addInundationLayer(map, v.live, 0.4, v.showRisk)
+    addBarangayLayers(map, v.riskSamples, 0.35)
+    setBarangayVisibility(map, { fills: v.showRisk, markers: false })
+    addCityBoundary(map)
+    addHazardRoadsLayer(map, v.roads, v.statusMap, v.showHazards)
+    addEvacCentres3D(map, v.openCentres, { visible: v.showCentres })
+    // Shortest "ghost" under the safe line, exactly like the 2D dash pair.
+    addRouteLine3D(map, 'route-fast', { color: SHORTEST_COLOR, halo: false, width: 4, dash: [0.4, 1.8], opacity: 0.85 })
+    addRouteLine3D(map, 'route-safe', { color: v.color, flow: true })
+    stopFlowRef.current = startFlowDash3D(map, 'route-safe-flow')
+  })
+
+  useEffect(
+    () => () => {
+      stopFlowRef.current?.()
+      stopFlowRef.current = null
+    },
+    [],
+  )
+
+  // Fresh risk field → re-feed the context layers.
+  useEffect(() => {
+    if (ready && mapRef.current) {
+      updateBarangayData(mapRef.current, riskSamples)
+      updateInundationData(mapRef.current, live)
+    }
+  }, [riskSamples, live, ready, mapRef])
+
+  // Road hazards follow the shared statusMap.
+  useEffect(() => {
+    if (ready && mapRef.current) updateHazardRoadsData(mapRef.current, roads, statusMap)
+  }, [roads, statusMap, ready, mapRef])
+
+  // Layer toggles.
+  useEffect(() => {
+    if (!ready || !mapRef.current) return
+    setBarangayVisibility(mapRef.current, { fills: showRisk, markers: false })
+    setMapLayerVisible(mapRef.current, 'inundation-fill', showRisk)
+  }, [showRisk, ready, mapRef])
+  useEffect(() => {
+    if (ready && mapRef.current) setMapLayerVisible(mapRef.current, 'hazard-roads', showHazards)
+  }, [showHazards, ready, mapRef])
+  useEffect(() => {
+    if (ready && mapRef.current) setMapLayerVisible(mapRef.current, 'evac-centres-3d', showCentres)
+  }, [showCentres, ready, mapRef])
+  // Live centre list (add / edit / remove from the shared store).
+  useEffect(() => {
+    if (ready && mapRef.current) updateEvacCentres3D(mapRef.current, openCentres)
+  }, [openCentres, ready, mapRef])
+
+  // New plan → the generation animation: the safe line draws itself A→B with
+  // the camera riding its tip, then pulls back to frame the route; the
+  // shortest "ghost" appears once the reveal lands. Clearing the plan clears
+  // both lines.
+  const lastPlanRef = useRef(null)
+  const cancelRevealRef = useRef(null)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map || lastPlanRef.current === plan) return
+    lastPlanRef.current = plan
+    cancelRevealRef.current?.()
+    cancelRevealRef.current = null
+    const safe = plan?.ok ? plan.safe.coords : null
+    const fast = plan?.ok && !plan.identical ? plan.fast.coords : null
+    if (!safe) {
+      setRouteLine3D(map, 'route-safe', null)
+      setRouteLine3D(map, 'route-fast', null)
+      return
+    }
+    setRouteLine3D(map, 'route-fast', null) // ghost waits for the reveal
+    const cancel = playRouteReveal3D(map, 'route-safe', safe, {
+      onDone: () => {
+        cancelRevealRef.current = null
+        setRouteLine3D(map, 'route-fast', fast)
+      },
+    })
+    cancelRevealRef.current = cancel
+  }, [plan, ready, mapRef])
+
+  useEffect(
+    () => () => {
+      cancelRevealRef.current?.()
+    },
+    [],
+  )
+
+  // "Show shortest" toggle (the line also stays hidden until its data lands).
+  useEffect(() => {
+    if (ready && mapRef.current) setMapLayerVisible(mapRef.current, 'route-fast-core', showFastest)
+  }, [showFastest, ready, mapRef])
+
+  // Route colour follows the trip type.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map || !map.getLayer('route-safe-core')) return
+    map.setPaintProperty('route-safe-core', 'line-color', color)
+    map.setPaintProperty('route-safe-halo', 'line-color', color)
+  }, [color, ready, mapRef])
+
+  // A/B pins (drag keeps the same invalidate-on-move contract as 2D).
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    const pins = []
+    if (start) pins.push({ key: 'A', latlng: start, label: 'A', kind: 'start', draggable: true, onDragEnd: onDragStart })
+    if (mode === 'points' && goal) {
+      pins.push({ key: 'B-pt', latlng: goal, label: 'B', kind: 'end', draggable: true, onDragEnd: onDragGoal })
+    }
+    if (mode === 'nearest' && chosenCentre) {
+      pins.push({ key: 'B-ctr', latlng: chosenCentre.coords, label: 'B', kind: 'end' })
+    }
+    syncWaypoints3D(map, pinsRef.current, pins)
+  }, [start, goal, mode, chosenCentre, ready, mapRef, onDragStart, onDragGoal])
+
+  // Chosen-centre highlight.
+  useEffect(() => {
+    if (ready && mapRef.current) setChosenCentre3D(mapRef.current, openCentres, chosenCentre?.id)
+  }, [chosenCentre, openCentres, ready, mapRef])
+
+  return (
+    <Map3D
+      onMapLoad={onMapLoad}
+      onViewChange={onViewChange}
+      onMapClick={(lngLat, e) => {
+        const map = mapRef.current
+        if (map && clickedEvacCentre3D(map, e)) return // dot click ≠ waypoint drop
+        onMapClick([lngLat.lat, lngLat.lng])
+      }}
+    />
   )
 }
 
@@ -631,12 +884,12 @@ function CursorIcon() {
     </svg>
   )
 }
-function WarnIcon() {
+function RouteIcon() {
   return (
     <svg viewBox="0 0 24 24">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-      <line x1="12" y1="9" x2="12" y2="13" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
+      <circle cx="6" cy="19" r="3" />
+      <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
+      <circle cx="18" cy="5" r="3" />
     </svg>
   )
 }

@@ -1,0 +1,44 @@
+/* ============================================================
+   ConfirmDialog — yes/no prompt styles.
+
+   Reuses Modal.css for the overlay + card chrome; this file only adds
+   the smaller "confirmation" sizing, the danger/default header tints,
+   the two-button footer and the red destructive button.
+   ============================================================ */
+
+.confirm-card {
+  max-width: 440px;
+}
+
+/* Header badge tint follows the tone (danger = red, default = navy). */
+.confirm-icon.default {
+  background: var(--cdrrmo-navy, #1a2a4a);
+  box-shadow: 0 4px 12px rgba(26, 42, 74, 0.35);
+}
+
+.confirm-msg {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary, #5a5a5a);
+}
+.confirm-msg b { color: var(--color-text-primary, #1a1a1a); }
+
+/* Two buttons, right-aligned, with a gap (Modal's footer is single-button). */
+.confirm-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Destructive primary action — red, distinct from the neutral cancel. */
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+.btn-danger:hover {
+  background: #b91c1c;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+  transform: translateY(-1px);
+}
+.btn-danger:active { transform: translateY(0); }

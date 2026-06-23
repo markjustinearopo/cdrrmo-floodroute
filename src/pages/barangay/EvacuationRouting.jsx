@@ -1,7 +1,15 @@
 import { useMemo, useState } from 'react'
-import { MapContainer, TileLayer, ZoomControl, Polyline, Marker } from 'react-leaflet'
+import { MapContainer, TileLayer, ZoomControl, Polyline, Marker, Popup } from 'react-leaflet'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
-import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock, CoordReadout } from '../../components/admin/mapHelpers.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import {
+  CABUYAO_CENTER,
+  CABUYAO_ZOOM,
+  CabuyaoLock,
+  BarangayLock,
+  JurisdictionToggle,
+  CoordReadout,
+} from '../../components/admin/mapHelpers.jsx'
 import {
   ROUTE_TYPES,
   ClickToAddWaypoint,
@@ -9,9 +17,17 @@ import {
   pathLengthMeters,
   formatDistance,
   formatWalkEta,
-  useRoutes,
+  routeGeometry,
+  useCabuyaoRoads,
+  useRoadStatus,
 } from '../../components/admin/routingHelpers.jsx'
-import { officialBarangayLabel } from '../../data/barangay.js'
+import { useRouteGraph, planRoute, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
+import { useFloodRisk } from '../../components/admin/floodRisk.js'
+import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import RouteSketch3DView from '../../components/admin/RouteSketch3DView.jsx'
+import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
+import { useEvacCenters, useSavedRoutes } from '../../context/AdminDataContext.jsx'
+import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/RoutePlanning.css'
 
 /**
@@ -19,23 +35,40 @@ import '../admin/RoutePlanning.css'
  *
  * The official maps the safe route residents should take from their area to an
  * evacuation centre by clicking the Cabuyao map to drop ordered stops, then
- * names and saves it. Routes persist to the SAME shared store the command
- * center reads, so a barangay's evacuation route appears on the admin's
- * Override Routes screen — one routing picture for the whole city. Automatic
- * flood-aware suggestion is a separate algorithmic study (disabled here).
+ * names and saves it. Auto-suggest snaps the stops to the complete city road
+ * network and connects them flood-aware — the same engine the command center
+ * uses. Routes persist to the SAME shared store the command center reads, so a
+ * barangay's evacuation route appears on the admin's Override Routes screen —
+ * one routing picture for the whole city.
  */
 export default function EvacuationRouting() {
   const brgyLabel = officialBarangayLabel()
-  const [routes, { addRoute, removeRoute }] = useRoutes()
+  const myBrgy = getOfficialBarangay()
+  const [view, setView] = useJurisdictionView()
+  const locked = view === 'mine' && Boolean(myBrgy)
+  const [routes, { addRoute, removeRoute }] = useSavedRoutes()
+  const { roads } = useCabuyaoRoads()
+  const graph = useRouteGraph(roads)
+  const { field } = useFloodRisk()
+  const [statusMap] = useRoadStatus()
+  const { evacuationCenters } = useEvacCenters()
+  const evacMarkers = useMemo(
+    () => evacuationCenters.filter((c) => Array.isArray(c.coords)),
+    [evacuationCenters],
+  )
 
   const [type, setType] = useState('evacuation')
   const [name, setName] = useState('')
   const [points, setPoints] = useState([])
+  const [path, setPath] = useState(null) // road-following geometry once auto-suggested
   const [coords, setCoords] = useState(null)
   const [toast, setToast] = useState('')
+  const [use3D, setUse3D] = use3DPreference()
+  const [confirmDel, setConfirmDel] = useState(null) // saved route pending deletion
 
   const color = ROUTE_TYPES[type].color
-  const distance = useMemo(() => pathLengthMeters(points), [points])
+  const geometry = path && path.length > 1 ? path : points
+  const distance = useMemo(() => pathLengthMeters(geometry), [geometry])
 
   function flash(msg) {
     setToast(msg)
@@ -43,27 +76,58 @@ export default function EvacuationRouting() {
     flash._t = window.setTimeout(() => setToast(''), 2200)
   }
 
+  // Editing the stops invalidates any previously snapped road path.
   function addPoint(latlng) {
     setPoints((p) => [...p, latlng])
+    setPath(null)
   }
   function movePoint(i, latlng) {
     setPoints((p) => p.map((pt, idx) => (idx === i ? latlng : pt)))
+    setPath(null)
   }
   function removePoint(i) {
     setPoints((p) => p.filter((_, idx) => idx !== i))
+    setPath(null)
   }
   function undo() {
     setPoints((p) => p.slice(0, -1))
+    setPath(null)
   }
   function clearDraft() {
     setPoints([])
+    setPath(null)
     setName('')
+  }
+
+  // Same flood-aware snap the command center's Route Planning uses: connect
+  // each consecutive pair of stops along the road network, steering around
+  // flagged and flood-prone segments; unreachable pairs stay straight.
+  function autoSuggest() {
+    if (points.length < 2) return flash('Drop at least two stops, then Auto-suggest.')
+    if (!graph || graph.size === 0) return flash('Road network unavailable.')
+    const opts = { riskAt: field?.riskAt, statusMap, alpha: DEFAULT_ALPHA }
+    let line = []
+    let gaps = 0
+    for (let i = 1; i < points.length; i++) {
+      const seg = planRoute(graph, points[i - 1], points[i], opts)
+      const piece = seg.ok ? seg.safe.coords : [points[i - 1], points[i]]
+      if (!seg.ok) gaps++
+      line = line.length === 0 ? piece.slice() : line.concat(piece.slice(1))
+    }
+    setPath(line)
+    flash(
+      gaps
+        ? `Snapped to roads · ${gaps} gap${gaps > 1 ? 's' : ''} kept straight.`
+        : 'Snapped to roads, steering around flood-prone segments.',
+    )
   }
 
   function save() {
     if (points.length < 2) return flash('Add at least two stops to save a route.')
     const finalName = name.trim() || `Brgy. ${brgyLabel} ${ROUTE_TYPES[type].label} Route`
-    addRoute({ name: finalName, type, points, barangay: brgyLabel })
+    const saved = { name: finalName, type, points, barangay: brgyLabel }
+    if (path && path.length > 1) saved.path = path
+    addRoute(saved)
     flash(`Saved "${finalName}".`)
     clearDraft()
   }
@@ -72,6 +136,7 @@ export default function EvacuationRouting() {
     setType(r.type)
     setName(r.name)
     setPoints(r.points)
+    setPath(r.path && r.path.length > 1 ? r.path : null)
     flash(`Loaded "${r.name}" for editing.`)
   }
 
@@ -119,18 +184,43 @@ export default function EvacuationRouting() {
             </button>
             <button
               type="button"
-              className="rp-btn rp-btn--ghost"
-              disabled
-              title="Automatic flood-aware suggestion is a separate study — coming soon."
+              className={`rp-btn rp-btn--auto ${path ? 'on' : ''}`}
+              onClick={autoSuggest}
+              disabled={points.length < 2}
+              title="Snap the stops to roads and avoid flood-prone segments (OpenStreetMap · Open-Meteo)"
             >
               <SparkIcon /> Auto-suggest
-              <span className="rp-soon">Soon</span>
             </button>
           </div>
+
+          <JurisdictionToggle value={view} onChange={setView} brgyLabel={brgyLabel} />
+          <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>
 
         <div className="rp-body">
           <div className="rp-map-area">
+            {use3D ? (
+              /* Same draft, same draggable stops, same click-to-add — on
+                 terrain, masked to the barangay border in "My Barangay" view.
+                 Auto-suggest plays the fly-along route reveal. */
+              <RouteSketch3DView
+                key={locked ? `b-${myBrgy}` : 'city'}
+                lines={[{ id: 'draft', coords: geometry, color }]}
+                pins={points.map((pt, i) => ({
+                  key: `p${i}`,
+                  latlng: pt,
+                  label: pinLabel(i),
+                  kind: pinKind(i),
+                  draggable: true,
+                  onDragEnd: (ll) => movePoint(i, ll),
+                }))}
+                evac={evacMarkers}
+                reveal={{ id: 'draft', key: path }}
+                jurisdiction={locked ? myBrgy : null}
+                onMapClick={addPoint}
+                onViewChange={setCoords}
+              />
+            ) : (
             <MapContainer
               center={CABUYAO_CENTER}
               zoom={CABUYAO_ZOOM}
@@ -140,13 +230,15 @@ export default function EvacuationRouting() {
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.85} />
               <ZoomControl position="bottomright" />
-              <CabuyaoLock />
+              {locked ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
               <ClickToAddWaypoint onAdd={addPoint} />
 
-              {points.length > 1 && (
+              {/* Route line follows roads once Auto-suggest has snapped it,
+                  otherwise links the stops directly. */}
+              {geometry.length > 1 && (
                 <>
-                  <Polyline positions={points} pathOptions={{ color, weight: 11, opacity: 0.22, lineCap: 'round' }} />
-                  <Polyline positions={points} pathOptions={{ color, weight: 4, opacity: 0.95, lineCap: 'round' }} />
+                  <Polyline positions={geometry} pathOptions={{ color, weight: 11, opacity: 0.22, lineCap: 'round' }} />
+                  <Polyline positions={geometry} pathOptions={{ color, weight: 4, opacity: 0.95, lineCap: 'round' }} />
                 </>
               )}
 
@@ -165,8 +257,19 @@ export default function EvacuationRouting() {
                 />
               ))}
 
+              {/* Shared evacuation centres (city-wide) — possible destinations */}
+              {evacMarkers.map((c) => (
+                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacPinIcon(c.status)}>
+                  <Popup>
+                    <strong>{c.name}</strong>
+                    <div style={{ fontSize: '0.6875rem', color: '#7a7a7a' }}>{c.barangay} · {c.status}</div>
+                  </Popup>
+                </Marker>
+              ))}
+
               <CoordReadout onChange={setCoords} />
             </MapContainer>
+            )}
 
             {points.length === 0 && (
               <div className="rp-hint">
@@ -212,10 +315,16 @@ export default function EvacuationRouting() {
                   <div className="rp-metric-lbl">Distance</div>
                 </div>
                 <div className="rp-metric">
-                  <div className="rp-metric-val">{points.length > 1 ? formatWalkEta(distance) : '--'}</div>
+                  <div className="rp-metric-val">{geometry.length > 1 ? formatWalkEta(distance) : '--'}</div>
                   <div className="rp-metric-lbl">Walk ETA</div>
                 </div>
               </div>
+              {path && (
+                <div className="rp-type-note">
+                  <span className="rp-type-dot" style={{ background: '#1a7a4a' }} />
+                  Snapped to roads · flood-aware (OSM · Open-Meteo)
+                </div>
+              )}
             </section>
 
             <section className="rp-section rp-section--grow">
@@ -268,10 +377,11 @@ export default function EvacuationRouting() {
                       <button type="button" className="rp-saved-main" onClick={() => loadRoute(r)} title="Load for editing">
                         <span className="rp-saved-name">{r.name}</span>
                         <span className="rp-saved-meta">
-                          {ROUTE_TYPES[r.type]?.label} · {formatDistance(pathLengthMeters(r.points))} · {r.points.length} stops
+                          {ROUTE_TYPES[r.type]?.label} · {formatDistance(pathLengthMeters(routeGeometry(r)))} · {r.points.length} stops
+                          {r.source === 'auto' || r.path ? ' · auto' : ''}
                         </span>
                       </button>
-                      <button type="button" className="rp-saved-x" title="Delete route" onClick={() => removeRoute(r.id)}>
+                      <button type="button" className="rp-saved-x" title="Delete route" onClick={() => setConfirmDel(r)}>
                         <TrashIcon />
                       </button>
                     </li>
@@ -284,6 +394,18 @@ export default function EvacuationRouting() {
 
         <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
       </div>
+
+      {confirmDel && (
+        <ConfirmDialog
+          title="Delete this route?"
+          confirmLabel="Delete route"
+          message={(
+            <>Delete the saved route <b>{confirmDel.name}</b>? This removes it for the command center and residents too and can't be undone.</>
+          )}
+          onConfirm={() => { removeRoute(confirmDel.id); setConfirmDel(null) }}
+          onCancel={() => setConfirmDel(null)}
+        />
+      )}
     </BarangayLayout>
   )
 }

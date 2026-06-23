@@ -8,6 +8,8 @@ import {
   useCabuyaoRoads,
   useRoadStatus,
 } from '../../components/admin/routingHelpers.jsx'
+import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
 import '../admin/RoadStatus.css'
 
 /**
@@ -15,14 +17,15 @@ import '../admin/RoadStatus.css'
  *
  * READ-ONLY view of which roads are flooded or closed, so a resident can avoid
  * them. The conditions are exactly the ones CDRRMO and barangay officials tag
- * (shared store) — residents only look. The live Cabuyao road network comes
- * from OpenStreetMap (Overpass); flagged roads are drawn as a static overlay.
+ * (shared store) — residents only look. The complete Cabuyao road network
+ * (OpenStreetMap, bundled) underlays the flagged roads as a static overlay.
  */
 
 export default function RoadStatus() {
-  const { roads, loading, error, retry } = useCabuyaoRoads()
+  const { roads } = useCabuyaoRoads()
   const [statusMap] = useRoadStatus() // read-only consumption of the shared conditions
   const [coords, setCoords] = useState(null)
+  const [use3D, setUse3D] = use3DPreference()
 
   const counts = useMemo(() => {
     const c = { flooded: 0, blocked: 0 }
@@ -56,12 +59,19 @@ export default function RoadStatus() {
 
           <div className="rs-source">
             <span className="rs-source-dot" />
-            OpenStreetMap · Overpass
+            OpenStreetMap · {roads ? `${roads.features.length.toLocaleString()} roads` : 'Overpass'}
           </div>
+
+          <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>
 
         <div className="rs-body">
           <div className="rs-map-area">
+            {use3D ? (
+              /* Same network + shared conditions, on terrain. Read-only: no
+                 click-to-paint, residents only view conditions. */
+              <RoadNetwork3DView statusMap={statusMap} interactive={false} onViewChange={setCoords} />
+            ) : (
             <MapContainer
               center={CABUYAO_CENTER}
               zoom={CABUYAO_ZOOM}
@@ -75,23 +85,6 @@ export default function RoadStatus() {
               {roads && <RoadNetworkLayer roads={roads} statusMap={statusMap} interactive={false} />}
               <CoordReadout onChange={setCoords} />
             </MapContainer>
-
-            {loading && (
-              <div className="rs-overlay">
-                <span className="rs-spinner" />
-                <span>Loading Cabuyao road network…</span>
-                <small>Fetching live roads from OpenStreetMap (Overpass)</small>
-              </div>
-            )}
-            {error && !loading && (
-              <div className="rs-overlay">
-                <WarnIcon />
-                <span>Couldn't load the road network</span>
-                <small>The Overpass map service may be busy. Please try again.</small>
-                <button type="button" className="rs-retry" onClick={retry}>
-                  Retry
-                </button>
-              </div>
             )}
 
             <div className="rs-coords">
@@ -118,7 +111,7 @@ export default function RoadStatus() {
                   <div className="rs-sum-lbl">Passable</div>
                 </div>
               </div>
-              <div className="rs-total">{counts.total} road segments mapped</div>
+              <div className="rs-total">{counts.total.toLocaleString()} road segments mapped — every street in Cabuyao</div>
             </section>
 
             <section className="rs-section">
@@ -177,15 +170,6 @@ function RoadIcon() {
       <line x1="12" y1="5" x2="12" y2="8" />
       <line x1="12" y1="11" x2="12" y2="14" />
       <line x1="12" y1="17" x2="12" y2="20" />
-    </svg>
-  )
-}
-function WarnIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-      <line x1="12" y1="9" x2="12" y2="13" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   )
 }

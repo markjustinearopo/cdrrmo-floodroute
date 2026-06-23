@@ -466,6 +466,147 @@
   margin-top: 1px;
 }
 
+/* ============================================================
+   Road change-request workflow (barangay proposes → CDRRMO approves)
+   Shared by the barangay Road Status (propose) + admin Road Status
+   (approve/reject) screens.
+   ============================================================ */
+
+/* Amber "pending" pill variant of .rs-pill */
+.road-status .rs-pill--pending {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+/* Reason textarea + send button (barangay proposal block) */
+.road-status .rs-reason {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e5e2dd;
+  border-radius: 9px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: #1a1a1a;
+  resize: vertical;
+  background: #fafafa;
+}
+.road-status .rs-reason:focus {
+  outline: none;
+  border-color: #7c3aed;
+  background: #fff;
+}
+.road-status .rs-send {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 9px;
+  background: #1a2a4a;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.road-status .rs-send:hover { background: #25406e; }
+
+/* Request list (status tracking on barangay, queue on admin) */
+.road-status .rs-reqlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  overflow-y: auto;
+}
+.road-status .rs-req {
+  border: 1px solid #f0eee9;
+  border-left: 3px solid #cbd5e1;
+  border-radius: 9px;
+  padding: 8px 10px;
+}
+.road-status .rs-req--pending { border-left-color: #f59e0b; background: #fffdf7; }
+.road-status .rs-req--approved { border-left-color: #16a34a; background: #f7fdf9; }
+.road-status .rs-req--rejected { border-left-color: #dc2626; background: #fffafa; }
+.road-status .rs-req-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.road-status .rs-req-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.road-status .rs-reqbadge {
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.road-status .rs-reqbadge.pending { background: #fef3c7; color: #b45309; }
+.road-status .rs-reqbadge.approved { background: #dcfce7; color: #15803d; }
+.road-status .rs-reqbadge.rejected { background: #fee2e2; color: #b91c1c; }
+.road-status .rs-req-meta { font-size: 0.6875rem; color: #7a7a7a; margin-top: 4px; }
+.road-status .rs-req-reason { font-size: 0.6875rem; color: #5a5a5a; font-style: italic; margin-top: 4px; }
+.road-status .rs-req-note {
+  font-size: 0.6875rem;
+  color: #b91c1c;
+  margin-top: 4px;
+  background: #fef2f2;
+  border-radius: 6px;
+  padding: 4px 7px;
+}
+.road-status .rs-req-dismiss {
+  margin-top: 6px;
+  border: none;
+  background: none;
+  color: #9a9a9a;
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+.road-status .rs-req-dismiss:hover { color: #c0181b; text-decoration: underline; }
+
+/* Pending badge for the My-Requests / pending counter (.rs-badge variants) */
+.road-status .rs-badge.pending { background: #ede9fe; color: #6d28d9; }
+
+/* Admin approve / reject action row */
+.road-status .rs-req-actions {
+  display: flex;
+  gap: 7px;
+  margin-top: 8px;
+}
+.road-status .rs-act {
+  flex: 1 1 0;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.road-status .rs-act--approve { background: #16a34a; color: #fff; }
+.road-status .rs-act--approve:hover { background: #15803d; }
+.road-status .rs-act--reject { background: #fff; border-color: #e5e2dd; color: #b91c1c; }
+.road-status .rs-act--reject:hover { background: #fef2f2; border-color: #fbd5d5; }
+.road-status .rs-req-by { font-size: 0.625rem; color: #9a9a9a; margin-top: 3px; }
+
 /* ── Responsive ── */
 @media (max-width: 760px) {
   .road-status .rs-body {

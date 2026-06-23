@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import { useIntegrations, nowLabel } from '../../context/AdminDataContext.jsx'
+import { INTEGRATION_STATUS_LABEL as STATUS_LABEL, INTEGRATION_SECRET_KEYS } from '../../data/integrations.js'
 import './Manage.css'
 import './Settings.css'
 
@@ -7,94 +9,19 @@ import './Settings.css'
  * CDRRMO Admin — API Integrations (Settings).
  *
  * The external services the system talks to: the rainfall/weather feed, the
- * SMS and email gateways used to broadcast alerts, the map tile provider, the
- * flood-sensor feed and web push. Each card carries a connection status, the
+ * email gateway (Resend via Supabase Edge Functions), the map tile provider,
+ * and web push. Each card carries a connection status, the
  * keys/endpoints needed to reach it and an enable switch. Secrets are masked.
  *
- * Configuration is held in component state and acknowledged with a toast; it
- * persists to the backend (PUT /integrations) once it is connected.
+ * Configuration lives in the shared AdminDataContext store (persisted,
+ * mirrored on the Flood Map's System Modules panel). "Test" really probes the
+ * keyless live feeds and records the response time and last-check stamp.
  */
 
-const STATUS_LABEL = { connected: 'Connected', disconnected: 'Not Connected', error: 'Error' }
-
-/* Service catalogue. `fields` drive the Configure modal; the first non-secret
-   field is echoed (masked where needed) on the card. */
-const CATALOG = [
-  {
-    id: 'weather', name: 'Windy · Weather & Wind', category: 'Data Feed', icon: 'cloud',
-    desc: 'Live rainfall, wind and forecast feeding the header, dashboards and the flood-risk model. Running keyless via Open-Meteo until a Windy key is set.',
-    fields: [
-      { key: 'endpoint', label: 'API Endpoint', type: 'text', placeholder: 'https://api.open-meteo.com/v1/forecast' },
-      { key: 'apiKey', label: 'Windy API Key', type: 'password', placeholder: 'Optional — using keyless feed' },
-    ],
-    enabled: true, status: 'connected',
-    values: { endpoint: 'https://api.open-meteo.com/v1/forecast' },
-  },
-  {
-    id: 'floodhub', name: 'Google Flood Hub', category: 'Data Feed', icon: 'activity',
-    desc: 'Flood forecast & river-discharge feeding the real-time hazard layer and flood-aware routing. Running keyless via the Open-Meteo Flood API until a Flood Hub key is set.',
-    fields: [
-      { key: 'endpoint', label: 'API Endpoint', type: 'text', placeholder: 'https://flood-api.open-meteo.com/v1/flood' },
-      { key: 'apiKey', label: 'Flood Hub API Key', type: 'password', placeholder: 'Optional — using keyless feed' },
-    ],
-    enabled: true, status: 'connected',
-    values: { endpoint: 'https://flood-api.open-meteo.com/v1/flood' },
-  },
-  {
-    id: 'sms', name: 'SMS Gateway', category: 'Notifications', icon: 'message',
-    desc: 'Broadcast flood alerts to residents and barangay officials by text message.',
-    fields: [
-      { key: 'provider', label: 'Provider', type: 'text', placeholder: 'e.g. Semaphore, Twilio' },
-      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter API key' },
-      { key: 'sender', label: 'Sender ID', type: 'text', placeholder: 'CDRRMO' },
-    ],
-    enabled: false, status: 'disconnected',
-  },
-  {
-    id: 'email', name: 'Email (SMTP)', category: 'Notifications', icon: 'mail',
-    desc: 'Send alert digests, reports and account invites over your SMTP server.',
-    fields: [
-      { key: 'host', label: 'SMTP Host', type: 'text', placeholder: 'smtp.cabuyao.gov.ph' },
-      { key: 'port', label: 'Port', type: 'text', placeholder: '587' },
-      { key: 'username', label: 'Username', type: 'text', placeholder: 'alerts@cabuyao.gov.ph' },
-      { key: 'password', label: 'Password', type: 'password', placeholder: 'Enter password' },
-    ],
-    enabled: false, status: 'disconnected',
-  },
-  {
-    id: 'maptiles', name: 'Map Tiles', category: 'Mapping', icon: 'map',
-    desc: 'Base map imagery for the Flood Map, Hazard Layer and routing screens.',
-    fields: [
-      { key: 'endpoint', label: 'Tile URL Template', type: 'text', placeholder: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' },
-    ],
-    enabled: true, status: 'connected',
-    values: { endpoint: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' },
-  },
-  {
-    id: 'sensors', name: 'Flood Sensor Feed', category: 'Data Feed', icon: 'activity',
-    desc: 'Measured water-level readings per barangay that drive every risk badge.',
-    fields: [
-      { key: 'endpoint', label: 'Feed Endpoint', type: 'text', placeholder: 'https://sensors.cabuyao.gov.ph/api/levels' },
-      { key: 'apiKey', label: 'Access Token', type: 'password', placeholder: 'Enter access token' },
-    ],
-    enabled: false, status: 'disconnected',
-  },
-  {
-    id: 'push', name: 'Push Notifications', category: 'Notifications', icon: 'bell',
-    desc: 'Browser push alerts for staff using the command-center web app.',
-    fields: [
-      { key: 'publicKey', label: 'VAPID Public Key', type: 'text', placeholder: 'Enter public key' },
-      { key: 'privateKey', label: 'VAPID Private Key', type: 'password', placeholder: 'Enter private key' },
-    ],
-    enabled: false, status: 'disconnected',
-  },
-]
-
-const SECRET_KEYS = new Set(['apiKey', 'password', 'privateKey'])
-
 export default function Integrations() {
-  const [items, setItems] = useState(() => CATALOG.map((c) => ({ ...c, values: c.values || {} })))
+  const { integrations: items, setIntegration } = useIntegrations()
   const [configuring, setConfiguring] = useState(null) // integration id
+  const [testing, setTesting] = useState(null) // integration id being probed
   const [toast, setToast] = useState('')
 
   const stats = useMemo(() => ({
@@ -112,15 +39,13 @@ export default function Integrations() {
   }
 
   function toggleEnabled(id) {
-    setItems((prev) => prev.map((i) => {
-      if (i.id !== id) return i
-      // Can't enable a service that was never configured.
-      if (!i.enabled && i.status !== 'connected') {
-        flash(`Configure ${i.name} before enabling it.`)
-        return i
-      }
-      return { ...i, enabled: !i.enabled }
-    }))
+    const i = items.find((x) => x.id === id)
+    if (!i) return
+    // Can't enable a service that was never configured.
+    if (!i.enabled && i.status !== 'connected') {
+      return flash(`Configure ${i.name} before enabling it.`)
+    }
+    setIntegration(id, { enabled: !i.enabled })
   }
 
   function handleConfigure(e) {
@@ -130,20 +55,55 @@ export default function Integrations() {
     for (const field of current.fields) values[field.key] = (f.get(field.key) || '').trim()
     // Connected once the first field has a value; otherwise back to not-connected.
     const connected = Boolean(values[current.fields[0].key])
-    setItems((prev) => prev.map((i) => (i.id === configuring ? {
-      ...i,
+    setIntegration(configuring, {
       values,
       status: connected ? 'connected' : 'disconnected',
-      enabled: connected ? i.enabled : false,
-    } : i)))
+      enabled: connected ? current.enabled : false,
+    })
     setConfiguring(null)
     flash(connected ? `${current.name} connected.` : `${current.name} configuration cleared.`)
   }
 
   function disconnect(id) {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status: 'disconnected', enabled: false, values: {} } : i)))
+    setIntegration(id, { status: 'disconnected', enabled: false, values: {} })
     const it = items.find((i) => i.id === id)
     flash(`${it?.name || 'Integration'} disconnected.`)
+  }
+
+  /** Probe the service for real (keyless feeds carry a reachable testUrl). */
+  async function testConnection(i) {
+    if (!i.testUrl) {
+      // No public probe target — verify configuration shape instead.
+      const ok = i.status === 'connected'
+      setIntegration(i.id, { lastCheck: nowLabel(), lastCheckAt: Date.now() })
+      return flash(ok
+        ? `${i.name}: configuration present — full validation needs the live gateway.`
+        : `${i.name} is not configured yet.`)
+    }
+    setTesting(i.id)
+    const started = performance.now()
+    try {
+      const res = await fetch(i.testUrl, { signal: AbortSignal.timeout(8000) })
+      const ms = Math.round(performance.now() - started)
+      const ok = res.ok
+      setIntegration(i.id, {
+        status: ok ? 'connected' : 'error',
+        lastCheck: nowLabel(),
+        lastCheckAt: Date.now(),
+        responseMs: ms,
+      })
+      flash(ok ? `${i.name} reachable — ${ms} ms.` : `${i.name} responded with HTTP ${res.status}.`)
+    } catch {
+      setIntegration(i.id, {
+        status: 'error',
+        lastCheck: nowLabel(),
+        lastCheckAt: Date.now(),
+        responseMs: null,
+      })
+      flash(`${i.name} is unreachable.`)
+    } finally {
+      setTesting(null)
+    }
   }
 
   return (
@@ -191,7 +151,7 @@ export default function Integrations() {
                 <div className="set-int-meta">
                   <span className="set-int-endpoint">
                     {primaryVal
-                      ? `${primary.label}: ${SECRET_KEYS.has(primary.key) ? maskSecret(primaryVal) : primaryVal}`
+                      ? `${primary.label}: ${INTEGRATION_SECRET_KEYS.has(primary.key) ? maskSecret(primaryVal) : primaryVal}`
                       : <span className="mng-muted">Not configured</span>}
                   </span>
                   {i.status === 'connected' && (
@@ -199,8 +159,24 @@ export default function Integrations() {
                   )}
                 </div>
 
+                {/* Live usage stats from the last real probe */}
+                {i.lastCheck && (
+                  <div className="set-int-stats">
+                    Last check: {i.lastCheck}
+                    {i.responseMs != null && ` · ${i.responseMs} ms`}
+                  </div>
+                )}
+
                 <div className="set-int-actions">
                   <button type="button" className="mng-link" onClick={() => setConfiguring(i.id)}>Configure</button>
+                  <button
+                    type="button"
+                    className="mng-link"
+                    disabled={testing === i.id}
+                    onClick={() => testConnection(i)}
+                  >
+                    {testing === i.id ? 'Testing…' : 'Test'}
+                  </button>
                   <label className="switch" title={i.status === 'connected' ? 'Enable / disable' : 'Configure first'}>
                     <input type="checkbox" checked={i.enabled} onChange={() => toggleEnabled(i.id)} />
                     <span className="switch-slider" />
@@ -213,7 +189,7 @@ export default function Integrations() {
 
         <div className="mng-note">
           <SparkIcon />
-          <span>Keys are masked and stored for this session only. Connections are validated and persisted once the integrations API is connected.</span>
+          <span>Keys are masked; configuration persists and mirrors onto the Flood Map's System Modules panel. "Test" really probes the keyless live feeds and records response time.</span>
         </div>
       </div>
 

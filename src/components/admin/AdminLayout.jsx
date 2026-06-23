@@ -2,8 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import NotificationsPanel from './NotificationsPanel.jsx'
 import AccountModal from './AccountModal.jsx'
+import ConfirmDialog from '../ConfirmDialog.jsx'
+import { Avatar } from '../Avatar.jsx'
+import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import { useFloodRisk, barangayRiskSamples } from './floodRisk.js'
+import { useRealTimeSync } from '../../hooks/useRealTimeSync.js'
 import './AdminLayout.css'
 
 /**
@@ -33,9 +37,10 @@ const NAV = [
     section: 'Routing',
     items: [
       { label: 'Auto Route', to: '/admin/auto-route', icon: SparkIcon },
-      { label: 'Route Planning', to: '/admin/route-planning', icon: TargetIcon },
       { label: 'Road Status', to: '/admin/road-status', icon: ListIcon },
+      { label: 'Route Planning', to: '/admin/route-planning', icon: TargetIcon },
       { label: 'Override Routes', to: '/admin/override-routes', icon: ShuffleIcon },
+      { label: 'Saved Routes', to: '/admin/saved-routes', icon: BookmarkIcon },
     ],
   },
   {
@@ -64,7 +69,13 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   const { weather } = useLiveWeather()
   const { field } = useFloodRisk()
 
-  // Live flood picture (derived from the Flood Hub × Windy risk field), shared
+  // Portal heartbeat: refresh the shared store every 5s + a live "updated Xs
+  // ago" stamp. Staleness tints the chip (amber > 30s, red > 60s).
+  const { lastUpdated, refresh, label: syncLabel } = useRealTimeSync(5000)
+  const staleSecs = lastUpdated ? Math.round((Date.now() - lastUpdated) / 1000) : 0
+  const syncTone = staleSecs > 60 ? 'stale' : staleSecs > 30 ? 'warn' : ''
+
+  // Live flood picture (derived from the Open-Meteo flood × forecast risk field), shared
   // by the alert banner + status pill on every admin screen. The hazard map
   // always shows inherent susceptibility, but an ACTIVE alert is only raised
   // when there is real wetness (rain / elevated discharge) — so a dry day reads
@@ -94,6 +105,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   // Topbar overlays: 'notif' (notifications popup) | 'account' (profile/settings) | null
   const [menu, setMenu] = useState(null)
   const [accountTab, setAccountTab] = useState('profile')
+  const [confirmSignout, setConfirmSignout] = useState(false)
 
   // Tint the page background only while an admin screen is mounted.
   useEffect(() => {
@@ -121,6 +133,12 @@ export default function AdminLayout({ children, mainClassName = '' }) {
 
   function handleSignout(e) {
     e.preventDefault()
+    setConfirmSignout(true)
+  }
+
+  function confirmSignoutNow() {
+    setConfirmSignout(false)
+    authApi.logout() // actually clear the session token + cached user
     navigate('/login')
   }
 
@@ -155,17 +173,34 @@ export default function AdminLayout({ children, mainClassName = '' }) {
         </div>
 
         <div className="topbar-right">
-          <div className="stat-chip" title="Live rainfall (Windy · Open-Meteo)">
+          <div className="stat-chip" title="Live rainfall (Open-Meteo)">
             <svg viewBox="0 0 24 24">
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
             </svg>
             Rainfall: <b>{formatRain(weather.current.rain)}</b>
           </div>
-          <div className="stat-chip wind" title="Live wind (Windy · Open-Meteo)">
+          <div className="stat-chip wind" title="Live wind (Open-Meteo)">
             <svg viewBox="0 0 24 24">
               <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />
             </svg>
             Wind: <b>{formatWind(weather.current.windKmh)}</b>
+          </div>
+          <div className={`sync-chip ${syncTone}`} title="Live data refresh">
+            <span className="sync-dot" />
+            Updated {syncLabel}
+            <button
+              type="button"
+              className="sync-refresh"
+              title="Refresh now"
+              onClick={refresh}
+              aria-label="Refresh data now"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M23 4v6h-6" />
+                <path d="M1 20v-6h6" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+            </button>
           </div>
           <div className="time-chip">{clock}</div>
           <button
@@ -202,7 +237,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
               setMenu('account')
             }}
           >
-            CA
+            <Avatar initials="CA" />
           </button>
         </div>
       </div>
@@ -250,6 +285,25 @@ export default function AdminLayout({ children, mainClassName = '' }) {
 
         <main className={`main ${mainClassName}`.trim()}>{children}</main>
       </div>
+
+      {confirmSignout && (
+        <ConfirmDialog
+          title="Sign out?"
+          tone="default"
+          confirmLabel="Sign out"
+          cancelLabel="Stay signed in"
+          icon={(
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          )}
+          message={<>You'll be returned to the login screen and your session will end.</>}
+          onConfirm={confirmSignoutNow}
+          onCancel={() => setConfirmSignout(false)}
+        />
+      )}
     </>
   )
 }
@@ -318,6 +372,13 @@ function SparkIcon() {
     <svg viewBox="0 0 24 24">
       <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
       <path d="M19 15l.7 1.9L21.5 17.5 19.7 18l-.7 1.9-.7-1.9L16.5 17.5l1.8-.6L19 15z" />
+    </svg>
+  )
+}
+function BookmarkIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </svg>
   )
 }

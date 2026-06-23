@@ -1,22 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { ALERT_LEVELS } from '../../data/cabuyao.js'
-import {
-  officialBarangayLabel,
-  getOfficialBarangay,
-  safeGet,
-  safeSend,
-  brgyQuery,
-} from '../../data/barangay.js'
+import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
+import { useAlerts } from '../../context/AdminDataContext.jsx'
 import '../admin/Manage.css'
 
 /**
  * CDRRMO Barangay — Alerts.
  *
  * The official broadcasts flood-hazard alerts to residents of THEIR barangay
- * and tracks the ones currently active. Alerts post to the shared /alerts
- * endpoint, so the CDRRMO command center sees every barangay broadcast. The
- * list starts empty and fills from the database.
+ * and tracks the ones currently active. Alerts are written to the SAME shared
+ * store the command center reads, scoped to this barangay — so the city command
+ * center and this barangay's residents see every broadcast immediately, and the
+ * official only ever sees their own barangay's alerts.
  */
 
 const LEVEL_LABEL = { high: 'High', moderate: 'Moderate', safe: 'All Clear' }
@@ -29,28 +26,21 @@ const FILTERS = [
   { key: 'resolved', label: 'Resolved' },
 ]
 
-function nowLabel() {
-  return new Date().toLocaleString('en-PH', {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-    hour12: true, timeZone: 'Asia/Manila',
-  })
-}
-
 export default function Alerts() {
   const brgyLabel = officialBarangayLabel()
-  const [alerts, setAlerts] = useState([])
+  const myBrgy = getOfficialBarangay()
+  const { alerts: allAlerts, addAlert, updateAlert, resolveAlert, removeAlert } = useAlerts()
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [toast, setToast] = useState('')
+  const [confirmDel, setConfirmDel] = useState(null) // alert pending withdrawal
 
-  useEffect(() => {
-    let active = true
-    safeGet(`/alerts${brgyQuery()}`).then((data) => {
-      if (active && data?.alerts) setAlerts(data.alerts)
-    })
-    return () => { active = false }
-  }, [])
+  // Strict isolation: only this barangay's alerts from the shared store.
+  const alerts = useMemo(
+    () => allAlerts.filter((a) => a.barangay === myBrgy),
+    [allAlerts, myBrgy],
+  )
 
   const stats = useMemo(() => ({
     active: alerts.filter((a) => a.status === 'active').length,
@@ -79,33 +69,25 @@ export default function Alerts() {
   function handleIssue(e) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
-    const alert = {
-      id: `al-${Date.now()}`,
+    addAlert({
       title: f.get('title').trim(),
-      barangay: getOfficialBarangay(),
+      barangay: myBrgy,
       level: f.get('level'),
       message: f.get('message').trim(),
-      issued: nowLabel(),
-      status: 'active',
-    }
-    setAlerts((prev) => [alert, ...prev])
-    safeSend('post', '/alerts', alert)
+    })
     setShowModal(false)
     flash(`Alert broadcast to Brgy. ${brgyLabel}.`)
   }
 
   function resolve(id) {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'resolved' } : a)))
-    safeSend('put', `/alerts/${id}`, { status: 'resolved' })
+    resolveAlert(id)
     flash('Alert marked resolved.')
   }
   function reopen(id) {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'active' } : a)))
-    safeSend('put', `/alerts/${id}`, { status: 'active' })
+    updateAlert(id, { status: 'active' })
   }
   function remove(id) {
-    setAlerts((prev) => prev.filter((a) => a.id !== id))
-    safeSend('del', `/alerts/${id}`)
+    removeAlert(id)
     flash('Alert withdrawn.')
   }
 
@@ -201,7 +183,7 @@ export default function Alerts() {
                         ) : (
                           <button type="button" className="mng-link subtle" onClick={() => reopen(a.id)}>Reopen</button>
                         )}
-                        <button type="button" className="mng-link subtle" onClick={() => remove(a.id)}>Withdraw</button>
+                        <button type="button" className="mng-link subtle" onClick={() => setConfirmDel(a)}>Withdraw</button>
                       </div>
                     </td>
                   </tr>
@@ -256,6 +238,18 @@ export default function Alerts() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmDel && (
+        <ConfirmDialog
+          title="Withdraw this alert?"
+          confirmLabel="Withdraw alert"
+          message={(
+            <>Withdraw <b>{confirmDel.title}</b> for Brgy. {brgyLabel}? Residents will no longer see it. This can't be undone.</>
+          )}
+          onConfirm={() => { remove(confirmDel.id); setConfirmDel(null) }}
+          onCancel={() => setConfirmDel(null)}
+        />
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>

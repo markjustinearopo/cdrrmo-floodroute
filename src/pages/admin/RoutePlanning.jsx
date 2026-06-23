@@ -12,10 +12,10 @@ import {
   routeGeometry,
   useCabuyaoRoads,
   useRoadStatus,
-  useRoutes,
 } from '../../components/admin/routingHelpers.jsx'
 import { useRouteGraph, planRoute, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
 import { useFloodRisk } from '../../components/admin/floodRisk.js'
+import { useSavedRoutes } from '../../context/AdminDataContext.jsx'
 import './RoutePlanning.css'
 
 /**
@@ -33,7 +33,7 @@ import './RoutePlanning.css'
  * the backend save endpoint until the API is wired in.
  */
 export default function RoutePlanning() {
-  const [routes, { addRoute, removeRoute }] = useRoutes()
+  const [routes, { addRoute, removeRoute }] = useSavedRoutes()
   const { roads, loading: roadsLoading } = useCabuyaoRoads()
   const graph = useRouteGraph(roads)
   const { field } = useFloodRisk()

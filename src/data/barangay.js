@@ -12,20 +12,39 @@
    the city command center and vice-versa.
    ============================================================ */
 
+import { useCallback, useState } from 'react'
 import api from '../services/api.js'
+import { BARANGAY_NAMES } from './cabuyaoBarangays.js'
 
 // Key the login screen writes the chosen barangay to, so the portal can
 // scope itself even before the auth backend exists.
 export const OFFICIAL_BRGY_KEY = 'cdrrmo_brgy'
 
+// Map of lower-cased name → canonical name, so a stale or differently-cased
+// value ('Banay-banay') resolves to the one the rest of the system keys on
+// ('Banay-Banay'). The geometry, risk samples and shared records all use the
+// canonical spelling, so scoping silently breaks without this.
+const CANON_BY_LOWER = new Map(BARANGAY_NAMES.map((n) => [n.toLowerCase(), n]))
+
+/**
+ * Normalise any barangay name to the canonical spelling used across the system.
+ * Returns the input unchanged if it isn't a known barangay (so non-barangay
+ * labels pass through), and '' for empty input.
+ */
+export function canonicalBarangay(name) {
+  if (!name) return ''
+  return CANON_BY_LOWER.get(String(name).trim().toLowerCase()) || name
+}
+
 /**
  * The barangay this official governs. Prefers the authenticated user's
  * record, falling back to the login selection. Empty string when unknown
- * (e.g. the portal was opened directly without signing in).
+ * (e.g. the portal was opened directly without signing in). Always returned in
+ * the canonical spelling so map/risk/record scoping lines up.
  */
 export function getOfficialBarangay() {
   const user = api.getUser?.()
-  return user?.barangay || localStorage.getItem(OFFICIAL_BRGY_KEY) || ''
+  return canonicalBarangay(user?.barangay || localStorage.getItem(OFFICIAL_BRGY_KEY) || '')
 }
 
 /** A safe display label for the header/titles when no barangay is set yet. */
@@ -33,40 +52,29 @@ export function officialBarangayLabel() {
   return getOfficialBarangay() || 'Your Barangay'
 }
 
-/**
- * Best-effort GET against the shared backend. Resolves to `fallback` on any
- * failure (network error, backend not running yet) so screens render their
- * empty state instead of throwing. This is how "data starts at none, then
- * fills from the database" is honoured without a backend in place.
- */
-export async function safeGet(endpoint, fallback = null) {
-  try {
-    const data = await api.get(endpoint)
-    return data ?? fallback
-  } catch {
-    return fallback
-  }
-}
+// Map jurisdiction preference: 'mine' (locked to the official's own barangay
+// border) or 'city' (whole-city situational context). Persisted per browser so
+// the choice carries across the barangay map screens.
+const JURISDICTION_KEY = 'cdrrmo_jurisdiction'
 
 /**
- * Best-effort write (POST/PUT/DELETE) that never rejects — the barangay UI
- * updates optimistically and this syncs the change to the database when the
- * backend is reachable. Returns true on success, false otherwise.
+ * The barangay map jurisdiction toggle, modeled on use3DPreference(): returns
+ * `[view, setView]` where view is 'mine' | 'city'. Defaults to 'mine' so an
+ * official is confined to their own jurisdiction unless they opt into the
+ * city-wide context view.
  */
-export async function safeSend(method, endpoint, body) {
-  try {
-    await api[method](endpoint, body)
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** Encode the official's barangay as a query filter for shared endpoints. */
-export function brgyQuery(extra = '') {
-  const b = getOfficialBarangay()
-  const base = b ? `barangay=${encodeURIComponent(b)}` : ''
-  const tail = extra ? (base ? `&${extra}` : extra) : ''
-  const qs = `${base}${tail}`
-  return qs ? `?${qs}` : ''
+export function useJurisdictionView() {
+  const [view, setViewState] = useState(
+    () => (localStorage.getItem(JURISDICTION_KEY) === 'city' ? 'city' : 'mine'),
+  )
+  const setView = useCallback((v) => {
+    const next = v === 'city' ? 'city' : 'mine'
+    setViewState(next)
+    try {
+      localStorage.setItem(JURISDICTION_KEY, next)
+    } catch {
+      /* private mode */
+    }
+  }, [])
+  return [view, setView]
 }

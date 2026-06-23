@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import NotificationsPanel from '../admin/NotificationsPanel.jsx'
 import AccountModal from '../admin/AccountModal.jsx'
+import ConfirmDialog from '../ConfirmDialog.jsx'
+import { Avatar } from '../Avatar.jsx'
 import { residentBarangayLabel } from '../../data/resident.js'
+import { authApi } from '../../services/api.js'
+import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import '../admin/AdminLayout.css'
 
 /**
@@ -47,9 +51,11 @@ const NAV = [
 
 export default function ResidentLayout({ children, mainClassName = '' }) {
   const navigate = useNavigate()
+  const { weather } = useLiveWeather()
   const [clock, setClock] = useState('--:-- PHT')
   const [menu, setMenu] = useState(null)
   const [accountTab, setAccountTab] = useState('profile')
+  const [confirmSignout, setConfirmSignout] = useState(false)
 
   const brgyLabel = residentBarangayLabel()
 
@@ -76,6 +82,12 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
 
   function handleSignout(e) {
     e.preventDefault()
+    setConfirmSignout(true)
+  }
+
+  function confirmSignoutNow() {
+    setConfirmSignout(false)
+    authApi.logout() // actually clear the session token + cached user
     navigate('/login')
   }
 
@@ -83,7 +95,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
     name: 'Resident',
     role: `Brgy. ${brgyLabel} — Resident`,
     initials: 'RS',
-    idLabel: 'Email Address',
+    idLabel: 'Username',
   }
 
   return (
@@ -121,13 +133,13 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
             <svg viewBox="0 0 24 24">
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
             </svg>
-            Rainfall: <b>--</b>
+            Rainfall: <b>{formatRain(weather.current.rain)}</b>
           </div>
           <div className="stat-chip wind">
             <svg viewBox="0 0 24 24">
               <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />
             </svg>
-            Wind: <b>--</b>
+            Wind: <b>{formatWind(weather.current.windKmh)}</b>
           </div>
           <div className="time-chip">{clock}</div>
           <button
@@ -164,7 +176,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
               setMenu('account')
             }}
           >
-            RS
+            <Avatar initials="RS" />
           </button>
         </div>
       </div>
@@ -213,6 +225,25 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
 
         <main className={`main ${mainClassName}`.trim()}>{children}</main>
       </div>
+
+      {confirmSignout && (
+        <ConfirmDialog
+          title="Sign out?"
+          tone="default"
+          confirmLabel="Sign out"
+          cancelLabel="Stay signed in"
+          icon={(
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          )}
+          message={<>You'll be returned to the login screen and your session will end.</>}
+          onConfirm={confirmSignoutNow}
+          onCancel={() => setConfirmSignout(false)}
+        />
+      )}
     </>
   )
 }

@@ -270,6 +270,25 @@ select {
 }
 .footer-link a { color: var(--cdrrmo-red); font-weight: 600; }
 
+/* Inline text buttons that open the policy / support modals. Real <button>s
+   (not <a href="#">) so they're reliably clickable, sit above any decoration,
+   and — inside the terms label — don't toggle the Accept checkbox. */
+.link-inline {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--cdrrmo-red);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  position: relative;
+  z-index: 2;
+}
+.link-inline:hover { text-decoration: underline; }
+.terms-row .link-inline { white-space: nowrap; }
+
 .support-link {
   font-size: 0.8125rem;
   color: var(--color-text-muted);

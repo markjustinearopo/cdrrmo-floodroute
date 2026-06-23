@@ -151,6 +151,20 @@ export function barangayFeature(name) {
   return byName.get(name) || null
 }
 
+/**
+ * The outer ring(s) of a barangay polygon as [lat,lng] rings:
+ * `[[ [lat,lng], … ], …]`. Used to draw the per-barangay jurisdiction mask +
+ * outline on both the 2D (Leaflet) and 3D (Mapbox) maps. Interior holes are
+ * intentionally dropped — the mask only needs the barangay's footprint.
+ */
+export function barangayOuterRings(name) {
+  const f = byName.get(name)
+  if (!f) return []
+  const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates
+  // poly[0] is the outer ring; convert GeoJSON [lng,lat] → Leaflet [lat,lng].
+  return polys.map((poly) => poly[0].map(([lng, lat]) => [lat, lng]))
+}
+
 /** Leaflet bounds [[s,w],[n,e]] tightly enclosing a barangay (for fitBounds). */
 export function barangayBounds(name) {
   const f = byName.get(name)

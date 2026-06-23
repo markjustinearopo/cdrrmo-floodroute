@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { usePersistedState } from '../../utils/usePersistedState.js'
 import { MapContainer, TileLayer, ZoomControl, Polyline, Marker } from 'react-leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock, CoordReadout } from '../../components/admin/mapHelpers.jsx'
@@ -12,10 +13,10 @@ import {
   RoadNetworkLayer,
   useCabuyaoRoads,
   useRoadStatus,
-  useRoutes,
 } from '../../components/admin/routingHelpers.jsx'
 import { useRouteGraph, planRoute } from '../../components/admin/routeEngine.js'
 import { useFloodRisk } from '../../components/admin/floodRisk.js'
+import { useSavedRoutes } from '../../context/AdminDataContext.jsx'
 import './OverrideRoutes.css'
 
 const OVERRIDE_COLOR = '#B8860B' // gold — distinct from any route-type colour
@@ -34,7 +35,7 @@ const OVERRIDE_COLOR = '#B8860B' // gold — distinct from any route-type colour
  * only as a disabled "coming soon" control.
  */
 export default function OverrideRoutes() {
-  const [routes, { updateRoute }] = useRoutes()
+  const [routes, { updateRoute }] = useSavedRoutes()
   const { roads } = useCabuyaoRoads() // hazard overlay + the auto-reroute graph
   const graph = useRouteGraph(roads)
   const { field } = useFloodRisk()
@@ -43,7 +44,7 @@ export default function OverrideRoutes() {
   const [selectedId, setSelectedId] = useState(null)
   const [override, setOverride] = useState([]) // [[lat,lng], …]
   const [overrideAuto, setOverrideAuto] = useState(false) // auto-detour vs hand-drawn
-  const [showHazards, setShowHazards] = useState(true)
+  const [showHazards, setShowHazards] = usePersistedState('cdrrmo-layers-admin-override-hazards', false)
   const [coords, setCoords] = useState(null)
   const [toast, setToast] = useState('')
 

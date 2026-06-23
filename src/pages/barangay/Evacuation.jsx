@@ -1,13 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { EVAC_STATUSES } from '../../data/cabuyao.js'
-import {
-  officialBarangayLabel,
-  getOfficialBarangay,
-  safeGet,
-  safeSend,
-  brgyQuery,
-} from '../../data/barangay.js'
+import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import '../admin/Manage.css'
 
 /**
@@ -16,8 +12,10 @@ import '../admin/Manage.css'
  * Directory of the evacuation centres inside THIS barangay. The official
  * registers each centre, names a manager and contact, sets capacity and keeps
  * live occupancy and open/full/closed status current during an evacuation.
- * Centres sync to the shared /evac-centers endpoint so the command center sees
- * city-wide capacity. The list starts empty and fills from the database.
+ * Centres are written to the SAME shared store the command center reads, scoped
+ * to this barangay — so a centre registered here rolls up into the city-wide
+ * capacity and appears on the admin Flood Map, and the official only ever sees
+ * their own barangay's centres.
  */
 
 const STATUS_LABEL = Object.fromEntries(EVAC_STATUSES.map((s) => [s.value, s.label]))
@@ -40,19 +38,19 @@ function occClass(occupancy, capacity, status) {
 
 export default function Evacuation() {
   const brgyLabel = officialBarangayLabel()
-  const [centers, setCenters] = useState([])
+  const myBrgy = getOfficialBarangay()
+  const { evacuationCenters, addEvacCenter, updateEvacCenter, removeEvacCenter } = useEvacCenters()
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // center object, 'new', or null
   const [toast, setToast] = useState('')
+  const [confirmDel, setConfirmDel] = useState(null) // centre pending removal
 
-  useEffect(() => {
-    let active = true
-    safeGet(`/evac-centers${brgyQuery()}`).then((data) => {
-      if (active && data?.centers) setCenters(data.centers)
-    })
-    return () => { active = false }
-  }, [])
+  // Strict isolation: only this barangay's centres from the shared store.
+  const centers = useMemo(
+    () => evacuationCenters.filter((c) => c.barangay === myBrgy),
+    [evacuationCenters, myBrgy],
+  )
 
   const stats = useMemo(() => ({
     total: centers.length,
@@ -84,7 +82,7 @@ export default function Evacuation() {
     const occupancy = Math.max(0, Number(f.get('occupancy')) || 0)
     const data = {
       name: f.get('name').trim(),
-      barangay: getOfficialBarangay(),
+      barangay: myBrgy,
       capacity,
       occupancy,
       status: f.get('status'),
@@ -92,21 +90,17 @@ export default function Evacuation() {
       contact: f.get('contact').trim(),
     }
     if (current) {
-      setCenters((prev) => prev.map((c) => (c.id === current.id ? { ...c, ...data } : c)))
-      safeSend('put', `/evac-centers/${current.id}`, data)
+      updateEvacCenter(current.id, data)
       flash(`${data.name} updated.`)
     } else {
-      const created = { id: `ec-${Date.now()}`, ...data }
-      setCenters((prev) => [created, ...prev])
-      safeSend('post', '/evac-centers', created)
+      addEvacCenter(data)
       flash(`${data.name} added.`)
     }
     setEditing(null)
   }
 
   function remove(id) {
-    setCenters((prev) => prev.filter((c) => c.id !== id))
-    safeSend('del', `/evac-centers/${id}`)
+    removeEvacCenter(id)
     flash('Evacuation centre removed.')
   }
 
@@ -204,7 +198,7 @@ export default function Evacuation() {
                       <td>
                         <div className="mng-row-actions">
                           <button type="button" className="mng-link" onClick={() => setEditing(c)}>Manage</button>
-                          <button type="button" className="mng-link subtle" onClick={() => remove(c.id)}>Remove</button>
+                          <button type="button" className="mng-link subtle" onClick={() => setConfirmDel(c)}>Remove</button>
                         </div>
                       </td>
                     </tr>
@@ -274,6 +268,18 @@ export default function Evacuation() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmDel && (
+        <ConfirmDialog
+          title="Remove this evacuation centre?"
+          confirmLabel="Remove centre"
+          message={(
+            <>Remove <b>{confirmDel.name}</b> from the directory? It will disappear for residents and the command center too. This can't be undone.</>
+          )}
+          onConfirm={() => { remove(confirmDel.id); setConfirmDel(null) }}
+          onCancel={() => setConfirmDel(null)}
+        />
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>

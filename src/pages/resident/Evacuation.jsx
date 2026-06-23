@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
 import { EVAC_STATUSES } from '../../data/cabuyao.js'
-import { residentBarangayLabel, getResidentBarangay, safeGet } from '../../data/resident.js'
+import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import './Resident.css'
 
 /**
@@ -10,8 +11,8 @@ import './Resident.css'
  *
  * A read-only directory of the city's evacuation centres so a resident can see
  * which are open, how full they are and where, then get a route. Centres are
- * registered by barangay officials / CDRRMO; residents only browse. The list
- * starts empty and fills from the shared backend (GET /evac-centers).
+ * the SAME ones barangay officials / CDRRMO register in the shared store —
+ * residents only browse (city-wide, so a neighbouring open shelter is findable).
  */
 
 const STATUS_LABEL = Object.fromEntries(EVAC_STATUSES.map((s) => [s.value, s.label]))
@@ -30,17 +31,9 @@ export default function Evacuation() {
   const brgyLabel = residentBarangayLabel()
   const myBrgy = getResidentBarangay()
 
-  const [centers, setCenters] = useState([])
+  const { evacuationCenters: centers } = useEvacCenters()
   const [filter, setFilter] = useState('open')
   const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    let active = true
-    safeGet('/evac-centers').then((d) => {
-      if (active && d?.centers) setCenters(d.centers)
-    })
-    return () => { active = false }
-  }, [])
 
   const FILTERS = [
     { key: 'open', label: 'Open Now' },
@@ -131,7 +124,7 @@ export default function Evacuation() {
                   </div>
                   <div className="res-shelter-foot">
                     <span className="res-shelter-meta">{capacity ? `${Math.max(capacity - occupancy, 0).toLocaleString()} spaces left` : 'Capacity —'}</span>
-                    <button type="button" className="res-dir-btn" onClick={() => navigate('/resident/evacuation-routing')}>
+                    <button type="button" className="res-dir-btn" onClick={() => navigate('/resident/evacuation-routing', { state: { destId: c.id } })}>
                       <svg viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
                       Directions
                     </button>

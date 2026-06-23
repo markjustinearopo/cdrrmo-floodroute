@@ -1,5 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import {
+  loadAlertSettings, loadAlertSettingsRemote, saveAlertSettings, useNotifications,
+} from '../../context/AdminDataContext.jsx'
+import { sendAlertEmail } from '../../services/emailAlert.js'
 import './Manage.css'
 import './Settings.css'
 
@@ -11,39 +15,23 @@ import './Settings.css'
  * trigger tied to the flood-depth thresholds, the default message templates per
  * level, who receives alerts, and quiet-hours / throttling rules.
  *
- * Values are held in component state and acknowledged with a toast; they
- * persist to the backend (PUT /alert-settings) once it is connected.
+ * Settings persist to the shared store (localStorage today, PUT /alert-settings
+ * later) and survive a refresh; "Send Test Alert" drops a real notification
+ * into the topbar bell over the enabled channels.
  */
 
-const DEFAULTS = {
-  // Delivery channels
-  sms: true,
-  email: true,
-  push: false,
-  siren: false,
-  // Automatic alerts
-  autoIssue: false,
-  triggerLevel: 'high',
-  reissueInterval: 30,
-  // Templates (placeholders: {barangay} {level} {depth})
-  tplHigh: '🚨 SEVERE FLOOD WARNING for {barangay}. Water level has reached {depth} m. Evacuate low-lying areas immediately and proceed to the nearest evacuation center.',
-  tplModerate: '⚠️ Flood advisory for {barangay}. Water level is rising ({depth} m). Avoid flooded roads and prepare to evacuate if conditions worsen.',
-  tplSafe: '✅ ALL CLEAR for {barangay}. Flood waters have receded. Stay alert for further advisories from CDRRMO.',
-  // Recipients
-  toStaff: true,
-  toOfficials: true,
-  toResidents: false,
-  // Quiet hours / throttling
-  quietHours: false,
-  quietFrom: '22:00',
-  quietTo: '05:00',
-  maxPerHour: 4,
-}
-
 export default function AlertSettings() {
-  const [cfg, setCfg] = useState(DEFAULTS)
+  const { notify } = useNotifications()
+  const [cfg, setCfg] = useState(loadAlertSettings)
   const [dirty, setDirty] = useState(false)
   const [toast, setToast] = useState('')
+
+  // Pull the shared settings from Supabase once on mount (cache renders first).
+  useEffect(() => {
+    let alive = true
+    loadAlertSettingsRemote().then((s) => { if (alive) setCfg(s) })
+    return () => { alive = false }
+  }, [])
 
   function set(key, value) {
     setCfg((prev) => ({ ...prev, [key]: value }))
@@ -55,12 +43,17 @@ export default function AlertSettings() {
   }
   function handleSave(e) {
     e.preventDefault()
+    saveAlertSettings(cfg)
     setDirty(false)
-    flash('Alert settings saved — will sync once the backend is connected.')
+    flash('Alert settings saved.')
   }
   function sendTest() {
-    const channels = [cfg.sms && 'SMS', cfg.email && 'Email', cfg.push && 'Push', cfg.siren && 'Siren'].filter(Boolean)
-    flash(channels.length ? `Test alert queued via ${channels.join(', ')}.` : 'Enable a channel to send a test alert.')
+    const channels = [cfg.email && 'Email', cfg.push && 'Push'].filter(Boolean)
+    if (!channels.length) return flash('Enable a channel to send a test alert.')
+    sendAlertEmail({ level: 'moderate', title: 'Test Alert', message: 'This is a test from CDRRMO FloodRoute.', barangay: 'All Barangays' })
+      .then(() => notify('moderate', 'Test email sent', `Delivered via ${channels.join(', ')}.`))
+      .catch(() => notify('moderate', 'Test notification', `Would deliver via ${channels.join(', ')} (email not yet configured).`))
+    flash(`Test alert sent via ${channels.join(', ')}.`)
   }
 
   return (
@@ -97,10 +90,8 @@ export default function AlertSettings() {
           {/* Delivery channels */}
           <Panel icon={<SendIcon />} title="Delivery Channels" sub="Where alerts are broadcast">
             <div className="set-toggles">
-              <Toggle label="SMS / Text message" sub="Reach residents and barangay officials directly on their phones." checked={cfg.sms} onChange={(v) => set('sms', v)} />
-              <Toggle label="Email" sub="Send alert digests to staff and registered contacts." checked={cfg.email} onChange={(v) => set('email', v)} />
+              <Toggle label="Email" sub="Send alert emails to staff and registered contacts via Supabase + Resend." checked={cfg.email} onChange={(v) => set('email', v)} />
               <Toggle label="Web push" sub="Browser notifications for command-center staff." checked={cfg.push} onChange={(v) => set('push', v)} />
-              <Toggle label="Sirens / Public address" sub="Trigger barangay warning sirens for high-level alerts." checked={cfg.siren} onChange={(v) => set('siren', v)} />
             </div>
           </Panel>
 
@@ -144,11 +135,11 @@ export default function AlertSettings() {
           </Panel>
 
           {/* Automatic alerts */}
-          <Panel icon={<ZapIcon />} title="Automatic Alerts" sub="Issue alerts from the sensor feed">
+          <Panel icon={<ZapIcon />} title="Automatic Alerts" sub="Issue alerts from the flood-risk model">
             <div className="set-toggles">
               <Toggle
                 label="Auto-issue on threshold breach"
-                sub="Raise an alert automatically when a barangay's measured flood depth crosses the trigger level."
+                sub="Raise an alert automatically when a barangay's modeled flood depth crosses the trigger level."
                 checked={cfg.autoIssue}
                 onChange={(v) => set('autoIssue', v)}
               />
