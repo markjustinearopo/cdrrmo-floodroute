@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { levelFromDepth, RISK_META } from '../../components/admin/mapHelpers.jsx'
-import { officialBarangayLabel, getOfficialBarangay, safeGet, safeSend, brgyQuery } from '../../data/barangay.js'
+import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
+import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
+import { useBarangayAssignments, useAlerts, useEvacCenters } from '../../context/AdminDataContext.jsx'
 import './Barangay.css'
 import '../admin/Manage.css'
 
@@ -10,10 +13,11 @@ import '../admin/Manage.css'
  *
  * The single-barangay command hub: the barangay profile, its key officials and
  * emergency contacts, response-team / resource readiness, and a flood-status
- * summary for the jurisdiction. Everything starts empty and is filled from the
- * shared backend; edits are optimistic and sync to the database when reachable.
- * The flood-status figures are read-only — they follow the measured depth from
- * the hazard feed, the system-wide source of truth.
+ * summary for the jurisdiction. Profile + contacts + readiness live in the SAME
+ * shared store the command center reads (under this barangay's assignment), so
+ * the captain/coordinator/contact an official sets here appear on the admin
+ * Barangay roster. The flood-status figures are read-only — they follow the
+ * measured depth from the hazard feed, the system-wide source of truth.
  */
 
 const PROFILE_FIELDS = [
@@ -34,43 +38,42 @@ const READINESS_ITEMS = [
   { key: 'res-boat', label: 'Rescue Boat / Vehicle', sub: 'Transport for evacuation' },
   { key: 'res-power', label: 'Generator & Lights', sub: 'Backup power at the centre' },
   { key: 'res-relief', label: 'Relief Goods Stock', sub: 'Food & water packs' },
-  { key: 'res-siren', label: 'Early-Warning Siren', sub: 'Alerting equipment tested' },
 ]
 
 export default function Operations() {
   const brgyLabel = officialBarangayLabel()
   const myBrgy = getOfficialBarangay()
 
-  const [profile, setProfile] = useState({})
-  const [contacts, setContacts] = useState([])
-  const [readiness, setReadiness] = useState({}) // { [key]: true }
-  const [floodDepth, setFloodDepth] = useState(0)
-  const [activeAlerts, setActiveAlerts] = useState(0)
-  const [openShelters, setOpenShelters] = useState(0)
+  const { barangayAssignments, assignBarangay } = useBarangayAssignments()
+  const { alerts } = useAlerts()
+  const { evacuationCenters } = useEvacCenters()
+  const { field } = useFloodRisk()
+
+  // The barangay's shared assignment record holds its profile, contacts and
+  // readiness — the same record the admin Barangay roster reads.
+  const record = useMemo(() => barangayAssignments[myBrgy] || {}, [barangayAssignments, myBrgy])
+  const profile = record
+  const contacts = record.contacts || []
+  const readiness = record.readiness || {}
+
+  // Read-only figures, scoped to this barangay, from the shared system.
+  const floodDepth = useMemo(
+    () => barangayRiskSamples(field).find((b) => b.name === myBrgy)?.floodDepth ?? 0,
+    [field, myBrgy],
+  )
+  const activeAlerts = useMemo(
+    () => alerts.filter((a) => a.barangay === myBrgy && a.status === 'active').length,
+    [alerts, myBrgy],
+  )
+  const openShelters = useMemo(
+    () => evacuationCenters.filter((c) => c.barangay === myBrgy && c.status === 'open').length,
+    [evacuationCenters, myBrgy],
+  )
 
   const [editingProfile, setEditingProfile] = useState(false)
   const [editingContact, setEditingContact] = useState(null) // contact, 'new', or null
+  const [confirmDelContact, setConfirmDelContact] = useState(null) // contact pending removal
   const [toast, setToast] = useState('')
-
-  useEffect(() => {
-    let active = true
-    safeGet(`/barangay-profile${brgyQuery()}`).then((d) => {
-      if (active && d?.profile) setProfile(d.profile)
-    })
-    safeGet(`/barangay-contacts${brgyQuery()}`).then((d) => {
-      if (active && d?.contacts) setContacts(d.contacts)
-    })
-    safeGet('/barangays').then((d) => {
-      if (!active || !d?.barangays) return
-      const mine = d.barangays.find((b) => b.name === myBrgy)
-      if (mine) setFloodDepth(Number(mine.flood_depth ?? mine.floodDepth ?? 0))
-    })
-    safeGet(`/alerts${brgyQuery('isActive=true')}`).then((d) => active && d?.alerts && setActiveAlerts(d.alerts.length))
-    safeGet(`/evac-centers${brgyQuery()}`).then((d) => {
-      if (active && d?.centers) setOpenShelters(d.centers.filter((c) => c.status === 'open').length)
-    })
-    return () => { active = false }
-  }, [myBrgy])
 
   const level = useMemo(() => levelFromDepth(floodDepth), [floodDepth])
   const readyCount = useMemo(() => READINESS_ITEMS.filter((i) => readiness[i.key]).length, [readiness])
@@ -85,8 +88,7 @@ export default function Operations() {
     const f = new FormData(e.currentTarget)
     const next = {}
     PROFILE_FIELDS.forEach(({ key }) => { next[key] = (f.get(key) || '').trim() })
-    setProfile(next)
-    safeSend('put', `/barangay-profile${brgyQuery()}`, { barangay: myBrgy, ...next })
+    assignBarangay(myBrgy, next)
     setEditingProfile(false)
     flash('Barangay profile saved.')
   }
@@ -100,30 +102,20 @@ export default function Operations() {
       role: (f.get('role') || '').trim(),
       contact: (f.get('contact') || '').trim(),
     }
-    if (currentContact) {
-      setContacts((prev) => prev.map((c) => (c.id === currentContact.id ? { ...c, ...data } : c)))
-      safeSend('put', `/barangay-contacts/${currentContact.id}`, data)
-      flash('Contact updated.')
-    } else {
-      const created = { id: `ct-${Date.now()}`, barangay: myBrgy, ...data }
-      setContacts((prev) => [created, ...prev])
-      safeSend('post', '/barangay-contacts', created)
-      flash('Contact added.')
-    }
+    const next = currentContact
+      ? contacts.map((c) => (c.id === currentContact.id ? { ...c, ...data } : c))
+      : [{ id: `ct-${Date.now()}`, ...data }, ...contacts]
+    assignBarangay(myBrgy, { contacts: next })
+    flash(currentContact ? 'Contact updated.' : 'Contact added.')
     setEditingContact(null)
   }
   function removeContact(id) {
-    setContacts((prev) => prev.filter((c) => c.id !== id))
-    safeSend('del', `/barangay-contacts/${id}`)
+    assignBarangay(myBrgy, { contacts: contacts.filter((c) => c.id !== id) })
     flash('Contact removed.')
   }
 
   function toggleReady(key) {
-    setReadiness((prev) => {
-      const next = { ...prev, [key]: !prev[key] }
-      safeSend('put', `/barangay-readiness${brgyQuery()}`, { barangay: myBrgy, key, ready: !prev[key] })
-      return next
-    })
+    assignBarangay(myBrgy, { readiness: { ...readiness, [key]: !readiness[key] } })
   }
 
   function initials(name) {
@@ -178,15 +170,15 @@ export default function Operations() {
               <div className="bq-panel-title"><WaveIcon /> Flood Status</div>
               <span className={`mng-badge ${level}`}>{RISK_META[level].label}</span>
             </div>
-            <p className="bq-panel-sub">Follows the measured flood depth from the hazard feed — read-only.</p>
+            <p className="bq-panel-sub">Follows the modeled flood depth from the hazard feed — read-only.</p>
             <div>
               <div className="bq-status-line">
                 <span className="bq-status-key">Current Risk Level</span>
                 <span className="bq-status-val">{RISK_META[level].label}</span>
               </div>
               <div className="bq-status-line">
-                <span className="bq-status-key">Measured Flood Depth</span>
-                <span className="bq-status-val">{floodDepth.toFixed(2)} m</span>
+                <span className="bq-status-key">Est. Flood Depth</span>
+                <span className="bq-status-val">~{floodDepth.toFixed(2)} m</span>
               </div>
               <div className="bq-status-line">
                 <span className="bq-status-key">Active Alerts</span>
@@ -230,7 +222,7 @@ export default function Operations() {
                   <span className="bq-contact-num">{c.contact || '—'}</span>
                   <div className="bq-contact-actions">
                     <button type="button" className="bq-link" onClick={() => setEditingContact(c)}>Edit</button>
-                    <button type="button" className="bq-icon-x" title="Remove" onClick={() => removeContact(c.id)}>×</button>
+                    <button type="button" className="bq-icon-x" title="Remove" onClick={() => setConfirmDelContact(c)}>×</button>
                   </div>
                 </div>
               ))}
@@ -335,6 +327,18 @@ export default function Operations() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmDelContact && (
+        <ConfirmDialog
+          title="Remove this contact?"
+          confirmLabel="Remove contact"
+          message={(
+            <>Remove <b>{confirmDelContact.name || 'this contact'}</b>{confirmDelContact.role ? <> ({confirmDelContact.role})</> : null} from your emergency contacts? Residents rely on this list during an event.</>
+          )}
+          onConfirm={() => { removeContact(confirmDelContact.id); setConfirmDelContact(null) }}
+          onCancel={() => setConfirmDelContact(null)}
+        />
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>

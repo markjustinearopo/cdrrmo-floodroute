@@ -534,25 +534,120 @@
 }
 .auto-route .ar-compare-delta b { color: #1a1a1a; }
 
+/* Via roads — the turn sheet of named roads the route follows */
+.auto-route .ar-via {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #f0eee9;
+  border-radius: 9px;
+  background: #faf9f7;
+}
+.auto-route .ar-via-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  margin-bottom: 7px;
+}
+.auto-route .ar-via-title svg {
+  width: 12px;
+  height: 12px;
+  stroke: #9a9a9a;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.auto-route .ar-via-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.auto-route .ar-via-row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0 3px 16px;
+  font-size: 0.75rem;
+}
+/* Mini itinerary spine: a dot per road, a thread connecting them */
+.auto-route .ar-via-row::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #1a7a4a;
+}
+.auto-route .ar-via-row::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: calc(50% + 5px);
+  bottom: -8px;
+  width: 1.5px;
+  background: #d9e7df;
+}
+.auto-route .ar-via-row:last-child::after { display: none; }
+.auto-route .ar-via-name {
+  font-weight: 600;
+  color: #2a2a2a;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.auto-route .ar-via-dist {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: #9a9a9a;
+}
+.auto-route .ar-via-more {
+  margin-top: 5px;
+  padding-left: 16px;
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+}
+
 /* Feeds */
 .auto-route .ar-feeds { display: flex; flex-direction: column; gap: 4px; }
 .auto-route .ar-feed {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 34px; /* uniform row height regardless of value/source length */
   padding: 7px 9px;
   border-radius: 8px;
   background: #faf9f7;
   border: 1px solid #f0eee9;
 }
-.auto-route .ar-feed-lbl { font-size: 0.75rem; color: #5a5a5a; flex: 1 1 auto; }
+.auto-route .ar-feed-lbl { font-size: 0.75rem; color: #5a5a5a; white-space: nowrap; }
 .auto-route .ar-feed-val {
+  margin-left: auto; /* push value + badge to the right, single line */
   font-size: 0.8125rem;
   font-weight: 700;
   color: #1a1a1a;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
 }
 .auto-route .ar-feed-src {
+  flex: 0 0 auto;
+  min-width: 78px;   /* fixed-width badge column so every source chip lines up */
+  text-align: center;
+  white-space: nowrap;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -606,6 +701,14 @@
 }
 .auto-route .ar-save svg { width: 15px; height: 15px; stroke: #fff; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .auto-route .ar-save:hover { background: #a81518; box-shadow: 0 4px 14px rgba(192, 24, 27, 0.4); transform: translateY(-1px); }
+
+/* Flowing direction dashes on the recommended route (SVG polyline) */
+.auto-route .ar-flow {
+  animation: ar-flow-dash 1.1s linear infinite;
+}
+@keyframes ar-flow-dash {
+  to { stroke-dashoffset: -15; }
+}
 
 /* ── Responsive: stack panel under map ── */
 @media (max-width: 760px) {

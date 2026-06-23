@@ -553,3 +553,59 @@
     border-top: 1px solid #e5e2dd;
   }
 }
+
+/* ── Operational overlays: popups, evac pins & the Alerts panel rows ── */
+.fm-popup { font-family: var(--font-body); min-width: 160px; }
+.fm-popup strong { font-size: 0.85rem; color: #1a1a1a; }
+.fm-popup-sub { font-size: 0.72rem; color: #7a7a7a; margin: 2px 0 6px; }
+.fm-popup-row { font-size: 0.72rem; color: #4a4a4a; margin-top: 2px; }
+.fm-occ-track { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin: 4px 0; }
+.fm-occ-fill { height: 100%; background: #16a34a; }
+.fm-popup-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.fm-popup-actions button {
+  border: 1px solid #e0ddd6;
+  background: #fff;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #c0181b;
+  cursor: pointer;
+}
+.fm-popup-actions button:hover { background: #fef2f2; }
+
+.fm-evac-divicon { background: none; border: none; }
+.fm-evac-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  border: 2px solid #fff;
+}
+.fm-evac-pin svg {
+  width: 13px;
+  height: 13px;
+  transform: rotate(45deg);
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+/* Alerts panel rows (right panel → Alerts tab) */
+.fm-alert-row { display: flex; gap: 0; background: #fff; border: 1px solid #f0eee9; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+.fm-alert-stripe { width: 3px; flex-shrink: 0; }
+.fm-alert-stripe.high { background: #dc2626; }
+.fm-alert-stripe.moderate { background: #f97316; }
+.fm-alert-stripe.safe { background: #16a34a; }
+.fm-alert-body { flex: 1; padding: 8px 10px; min-width: 0; }
+.fm-alert-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.fm-alert-title { font-size: 0.8rem; font-weight: 700; color: #1a1a1a; }
+.fm-alert-resolve { border: none; background: none; font-family: var(--font-body); font-size: 0.7rem; font-weight: 700; color: #c0181b; cursor: pointer; flex-shrink: 0; }
+.fm-alert-resolve:hover { text-decoration: underline; }
+.fm-alert-meta { font-size: 0.68rem; color: #9a9a9a; margin-top: 1px; }
+.fm-alert-msg { font-size: 0.72rem; color: #5a5a5a; margin-top: 3px; line-height: 1.4; }

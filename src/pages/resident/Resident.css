@@ -21,7 +21,9 @@
   display: grid;
   grid-template-columns: 1.5fr 1fr;
   gap: 14px;
-  align-items: start;
+  /* Stretch both columns equal so the map fills the feed down to the bottom
+     edge of the side panel beside it (no short, dangling map). */
+  align-items: stretch;
 }
 .res-feed { display: flex; flex-direction: column; gap: 14px; }
 .res-side { display: flex; flex-direction: column; gap: 14px; }
@@ -56,6 +58,106 @@
   opacity: 0.9;
   margin-top: 6px;
 }
+
+/* ── "What to do now" guidance card (tinted by risk level) ───────────────── */
+.res-steps-card {
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-left: 4px solid #16a34a;
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.res-steps-card.low { border-left-color: #eab308; }
+.res-steps-card.moderate { border-left-color: #f97316; }
+.res-steps-card.high { border-left-color: #dc2626; }
+.res-steps {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.res-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.8125rem;
+  color: #3a3a3a;
+  line-height: 1.4;
+}
+.res-step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+.res-steps-card.low .res-step-dot { background: #ca8a04; }
+.res-steps-card.moderate .res-step-dot { background: #ea580c; }
+.res-steps-card.high .res-step-dot { background: #dc2626; }
+
+/* ── Preparedness checklist (persisted) ──────────────────────────────────── */
+.res-prep-count {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #16a34a;
+  font-variant-numeric: tabular-nums;
+}
+.res-prep-track {
+  height: 6px;
+  background: #f0eee9;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.res-prep-fill {
+  height: 100%;
+  background: #16a34a;
+  border-radius: 9999px;
+  transition: width 0.25s ease;
+}
+.res-prep-list { display: flex; flex-direction: column; gap: 4px; }
+.res-prep-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.res-prep-row:hover { background: #f7f5f2; }
+.res-prep-row input { position: absolute; opacity: 0; width: 0; height: 0; }
+.res-prep-box {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  flex-shrink: 0;
+  position: relative;
+  transition: all 0.12s;
+}
+.res-prep-row input:checked + .res-prep-box {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+.res-prep-row input:checked + .res-prep-box::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.res-prep-label { font-size: 0.8125rem; color: #3a3a3a; line-height: 1.35; }
+.res-prep-row input:checked ~ .res-prep-label { color: #9a9a9a; text-decoration: line-through; }
 
 /* ── Nearest evacuation centre card ──────────────────────────────────────── */
 .res-evac-card {
@@ -120,10 +222,17 @@
   border: 1px solid #e5e2dd;
   border-radius: 14px;
   overflow: hidden;
+  /* Grow to absorb the feed column's leftover height so the map's bottom edge
+     aligns with the side panel beside it. */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
 }
 .res-map {
   position: relative;
-  height: 340px;
+  flex: 1;
+  min-height: 0;
   width: 100%;
 }
 .res-map .leaflet-container { height: 100%; width: 100%; background: #e8eef3; }
@@ -390,6 +499,20 @@
   padding: 2px;
 }
 .res-note svg { width: 14px; height: 14px; fill: #cbb26b; stroke: none; flex-shrink: 0; margin-top: 1px; }
+
+/* ── "You are here" draggable location pin (Evacuation Routing) ──────────── */
+.res-you-pin { background: none; border: none; }
+.res-you-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35), 0 2px 6px rgba(0, 0, 0, 0.3);
+  cursor: grab;
+}
+.res-you-pin:active .res-you-dot { cursor: grabbing; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 1180px) {

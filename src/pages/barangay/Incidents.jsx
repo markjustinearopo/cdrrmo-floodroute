@@ -1,23 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { INCIDENT_TYPES, PRIORITIES, RESPONSE_TEAMS } from '../../data/cabuyao.js'
-import {
-  officialBarangayLabel,
-  getOfficialBarangay,
-  safeGet,
-  safeSend,
-  brgyQuery,
-} from '../../data/barangay.js'
+import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
+import { useIncidents } from '../../context/AdminDataContext.jsx'
 import '../admin/Manage.css'
 
 /**
  * CDRRMO Barangay — Incidents.
  *
  * The official logs field incidents inside THEIR barangay and dispatches a
- * response team. Reports are filed against the shared /incidents endpoint, so
- * the city command center sees them in its own queue (one system). The list
- * starts empty and fills from the database; until the backend is reachable,
- * edits are kept optimistically for the session.
+ * response team. Reports are written to the SAME shared store the command
+ * center reads, scoped to this barangay — so an incident filed here appears in
+ * the admin's city-wide queue and on the Flood Map immediately, and the
+ * official never sees another barangay's incidents.
  */
 
 const PRIORITY_LABEL = Object.fromEntries(PRIORITIES.map((p) => [p.value, p.label]))
@@ -33,29 +29,21 @@ const FILTERS = [
   { key: 'resolved', label: 'Resolved' },
 ]
 
-function nowLabel() {
-  return new Date().toLocaleString('en-PH', {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-    hour12: true, timeZone: 'Asia/Manila',
-  })
-}
-
 export default function Incidents() {
   const brgyLabel = officialBarangayLabel()
-  const [items, setItems] = useState([])
+  const myBrgy = getOfficialBarangay()
+  const { incidents, addIncident, updateIncident, removeIncident } = useIncidents()
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [toast, setToast] = useState('')
+  const [confirmDel, setConfirmDel] = useState(null) // incident pending deletion
 
-  // Pull this barangay's incidents from the shared backend; empty until then.
-  useEffect(() => {
-    let active = true
-    safeGet(`/incidents${brgyQuery()}`).then((data) => {
-      if (active && data?.incidents) setItems(data.incidents)
-    })
-    return () => { active = false }
-  }, [])
+  // Strict isolation: only this barangay's incidents from the shared store.
+  const items = useMemo(
+    () => incidents.filter((i) => i.barangay === myBrgy),
+    [incidents, myBrgy],
+  )
 
   const stats = useMemo(() => ({
     open: items.filter((i) => i.status !== 'resolved').length,
@@ -85,40 +73,31 @@ export default function Incidents() {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     const team = f.get('team') || ''
-    const item = {
-      id: `inc-${Date.now()}`,
+    addIncident({
       type: f.get('type'),
-      barangay: getOfficialBarangay(),
+      barangay: myBrgy,
       location: f.get('location').trim(),
       priority: f.get('priority'),
       notes: f.get('notes').trim(),
       team,
       status: team ? 'assigned' : 'new',
-      reported: nowLabel(),
-    }
-    setItems((prev) => [item, ...prev])
-    safeSend('post', '/incidents', item)
+    })
     setShowModal(false)
     flash('Incident logged and forwarded to CDRRMO.')
   }
 
   function assignTeam(id, team) {
-    setItems((prev) => prev.map((i) => {
-      if (i.id !== id) return i
-      let status = i.status
-      if (team && i.status === 'new') status = 'assigned'
-      if (!team && i.status === 'assigned') status = 'new'
-      return { ...i, team, status }
-    }))
-    safeSend('put', `/incidents/${id}`, { team })
+    const cur = items.find((i) => i.id === id)
+    let status = cur?.status
+    if (team && status === 'new') status = 'assigned'
+    if (!team && status === 'assigned') status = 'new'
+    updateIncident(id, { team, status })
   }
   function setStatus(id, status) {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, status } : i)))
-    safeSend('put', `/incidents/${id}`, { status })
+    updateIncident(id, { status })
   }
   function remove(id) {
-    setItems((prev) => prev.filter((i) => i.id !== id))
-    safeSend('del', `/incidents/${id}`)
+    removeIncident(id)
     flash('Incident removed.')
   }
 
@@ -231,7 +210,7 @@ export default function Incidents() {
                         {i.status === 'resolved' && (
                           <button type="button" className="mng-link subtle" onClick={() => setStatus(i.id, i.team ? 'assigned' : 'new')}>Reopen</button>
                         )}
-                        <button type="button" className="mng-link subtle" onClick={() => remove(i.id)}>Delete</button>
+                        <button type="button" className="mng-link subtle" onClick={() => setConfirmDel(i)}>Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -302,6 +281,18 @@ export default function Incidents() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmDel && (
+        <ConfirmDialog
+          title="Delete this incident?"
+          confirmLabel="Delete incident"
+          message={(
+            <>Delete the <b>{confirmDel.type}</b> report{confirmDel.location ? <> at {confirmDel.location}</> : null}? This removes it for the command center too and can't be undone.</>
+          )}
+          onConfirm={() => { remove(confirmDel.id); setConfirmDel(null) }}
+          onCancel={() => setConfirmDel(null)}
+        />
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>

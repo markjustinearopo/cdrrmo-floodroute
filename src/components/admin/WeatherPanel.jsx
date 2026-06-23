@@ -1,4 +1,4 @@
-/* Detailed live weather panel (Open-Meteo / Windy-class data) for the Flood Map
+/* Detailed live weather panel (live Open-Meteo Forecast data) for the Flood Map
    right rail. Replaces the thin rainfall+forecast strip with current conditions,
    today's headline figures, an 8-hour rainfall chart, and a 5-day outlook that
    now starts on the CORRECT day. */
@@ -16,7 +16,6 @@ export function WeatherPanel({ weather, discharge }) {
   const rainHistory = weather.rainHistory || []
   const maxRain = Math.max(...rainHistory, 1)
   const forecast = weather.forecast || []
-  const dischargeText = discharge == null ? '--' : `${discharge.toFixed(1)} m³/s`
 
   return (
     <div className="wx">
@@ -37,7 +36,7 @@ export function WeatherPanel({ weather, discharge }) {
         <WxCell icon={<WindIcon />} label="Wind" value={c.windKmh != null ? `${Math.round(c.windKmh)}` : '--'} unit="km/h" sub={c.windDir != null ? `${windCompass(c.windDir)} · gust ${c.gustKmh != null ? Math.round(c.gustKmh) : '--'}` : ''} />
         <WxCell icon={<CloudIcon />} label="Cloud" value={c.cloud != null ? `${c.cloud}` : '--'} unit="%" />
         <WxCell icon={<GaugeIcon />} label="Pressure" value={c.pressureHpa != null ? `${c.pressureHpa}` : '--'} unit="hPa" />
-        <WxCell icon={<DischargeIcon />} label="River discharge" value={dischargeText} sub="Flood Hub" />
+        <WxCell icon={<DischargeIcon />} label="River discharge" value={discharge != null ? discharge.toFixed(1) : '--'} unit={discharge != null ? 'm³/s' : ''} sub="Open-Meteo" />
       </div>
 
       {/* Today's headline */}
@@ -90,7 +89,7 @@ function WxCell({ icon, label, value, unit, sub }) {
     <div className="wx-cell">
       <div className="wx-cell-top">{icon}<span className="wx-cell-label">{label}</span></div>
       <div className="wx-cell-val">{value}{unit && <span className="wx-cell-unit">{unit}</span>}</div>
-      {sub ? <div className="wx-cell-sub">{sub}</div> : null}
+      <div className="wx-cell-sub">{sub || ' '}</div>
     </div>
   )
 }

@@ -14,15 +14,7 @@
    resident-friendly names.
    ============================================================ */
 
-import {
-  getOfficialBarangay,
-  officialBarangayLabel,
-  safeGet,
-  safeSend,
-  brgyQuery,
-  OFFICIAL_BRGY_KEY,
-} from './barangay.js'
+import { getOfficialBarangay, officialBarangayLabel } from './barangay.js'
 
 export const getResidentBarangay = getOfficialBarangay
 export const residentBarangayLabel = officialBarangayLabel
-export { safeGet, safeSend, brgyQuery, OFFICIAL_BRGY_KEY }

@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import {
-  ROLES, PERMISSION_MODULES, PERMISSION_ACTIONS, DEFAULT_ROLE_PERMS, SAMPLE_USERS, buildPerms,
+  ROLES, PERMISSION_MODULES, PERMISSION_ACTIONS, DEFAULT_ROLE_PERMS, buildPerms,
 } from '../../data/settings.js'
+import { useUsers } from '../../context/AdminDataContext.jsx'
+import db from '../../services/db.js'
 import './Manage.css'
 import './Settings.css'
 
@@ -15,28 +17,64 @@ import './Settings.css'
  * enabling a higher level implies View). The built-in Administrator always has
  * full access and is locked. Custom roles can be added from a base template.
  *
- * Permission maps are held in component state and acknowledged with a toast;
- * they persist to the backend (PUT /roles) once it is connected.
+ * Roles and their permission maps persist to localStorage (PUT /roles later)
+ * so custom roles and edits survive a refresh; the per-role account counts come
+ * live from the shared users store.
  */
 
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj))
 }
 
+const ROLES_KEY = 'cdrrmo_roles'   // localStorage cache (instant render)
+const ROLES_DBKEY = 'role_permissions' // shared app_settings row (the {roles, perms} blob)
+
+function loadRolesState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ROLES_KEY))
+    if (saved?.roles && saved?.perms) return saved
+  } catch { /* fall through to defaults */ }
+  return { roles: ROLES, perms: clone(DEFAULT_ROLE_PERMS) }
+}
+
 export default function Roles() {
-  const [roles, setRoles] = useState(ROLES)
-  const [perms, setPerms] = useState(() => clone(DEFAULT_ROLE_PERMS))
+  const initial = loadRolesState()
+  const { users } = useUsers()
+  const [roles, setRoles] = useState(initial.roles)
+  const [perms, setPerms] = useState(initial.perms)
   const [selected, setSelected] = useState('admin')
   const [dirty, setDirty] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [toast, setToast] = useState('')
 
-  // Seed-derived account counts per role (live counts arrive with the API).
+  // Pull the shared role/permission matrix from Supabase once on mount
+  // (the localStorage cache renders first). Stored as a config blob in
+  // app_settings, distinct from the accounts-role catalog in the roles table.
+  useEffect(() => {
+    let alive = true
+    db.appSettings.get(ROLES_DBKEY).then((remote) => {
+      if (alive && remote?.roles && remote?.perms) {
+        setRoles(remote.roles)
+        setPerms(remote.perms)
+        localStorage.setItem(ROLES_KEY, JSON.stringify(remote))
+      }
+    }).catch((e) => console.error('[Roles] remote load failed', e))
+    return () => { alive = false }
+  }, [])
+
+  // Live account counts per role from the shared users store.
   const counts = useMemo(() => {
     const c = {}
-    for (const u of SAMPLE_USERS) c[u.role] = (c[u.role] || 0) + 1
+    for (const u of users) c[u.role] = (c[u.role] || 0) + 1
     return c
-  }, [])
+  }, [users])
+
+  // Persist roles + permission maps together: local cache + shared app_settings.
+  function persist(nextRoles, nextPerms) {
+    const blob = { roles: nextRoles, perms: nextPerms }
+    localStorage.setItem(ROLES_KEY, JSON.stringify(blob))
+    db.appSettings.set(ROLES_DBKEY, blob).catch((e) => console.error('[Roles] remote save failed', e))
+  }
 
   const role = roles.find((r) => r.value === selected)
   const locked = selected === 'admin'
@@ -59,6 +97,7 @@ export default function Roles() {
   }
 
   function handleSave() {
+    persist(roles, perms)
     setDirty(false)
     flash(`Permissions for ${role.label} saved.`)
   }
@@ -76,8 +115,11 @@ export default function Roles() {
     const label = f.get('label').trim()
     const base = f.get('base')
     const value = `role-${Date.now()}`
-    setRoles((prev) => [...prev, { value, label, desc: f.get('desc').trim(), system: false }])
-    setPerms((prev) => ({ ...prev, [value]: clone(prev[base] || buildPerms()) }))
+    const nextRoles = [...roles, { value, label, desc: f.get('desc').trim(), system: false }]
+    const nextPerms = { ...perms, [value]: clone(perms[base] || buildPerms()) }
+    setRoles(nextRoles)
+    setPerms(nextPerms)
+    persist(nextRoles, nextPerms)
     setSelected(value)
     setShowModal(false)
     flash(`Role “${label}” created.`)
@@ -85,12 +127,12 @@ export default function Roles() {
 
   function deleteRole() {
     const removed = role
-    setRoles((prev) => prev.filter((r) => r.value !== selected))
-    setPerms((prev) => {
-      const next = { ...prev }
-      delete next[selected]
-      return next
-    })
+    const nextRoles = roles.filter((r) => r.value !== selected)
+    const nextPerms = { ...perms }
+    delete nextPerms[selected]
+    setRoles(nextRoles)
+    setPerms(nextPerms)
+    persist(nextRoles, nextPerms)
     setSelected('admin')
     flash(`Role “${removed.label}” deleted.`)
   }

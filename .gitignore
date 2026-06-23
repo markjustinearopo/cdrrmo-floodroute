@@ -3,3 +3,5 @@ dist
 .vite
 *.local
 _manuscript.txt
+.env
+.env.*

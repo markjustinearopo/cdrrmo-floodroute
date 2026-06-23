@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip } from 'react-leaflet'
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePersistedState } from '../../utils/usePersistedState.js'
+import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, GeoJSON } from 'react-leaflet'
+import L from 'leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import {
   CABUYAO_CENTER,
@@ -20,7 +22,16 @@ import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.js
 import { barangayBounds } from '../../data/cabuyaoBarangays.js'
 import { RoadNetworkLayer, useCabuyaoRoads, useRoadStatus } from '../../components/admin/routingHelpers.jsx'
 import { useLiveWeather } from '../../services/weather.js'
-import { SAMPLE_EVAC_CENTERS } from '../../data/cabuyao.js'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
+import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import {
+  useBarangayLayers,
+  addHazardRoadsLayer,
+  updateHazardRoadsData,
+  addEvacCentersLayer,
+  updateEvacCentersData,
+  setMapLayerVisible,
+} from '../../components/admin/mapbox3dHelpers.js'
 import './HazardLayer.css'
 
 /**
@@ -29,24 +40,34 @@ import './HazardLayer.css'
  * A real-time, Project-NOAH-style hazard map: the live flood-risk field
  * (floodRisk.js) is painted as a green→red inundation surface over Cabuyao,
  * with barangay risk markers, the admin's flooded/closed roads, and the open
- * evacuation centres layered on top. Everything is derived live from the three
- * feeds the Conceptual Framework names —
+ * evacuation centres layered on top. Everything is derived live from three
+ * real feeds —
  *
- *   • Google Flood Hub  → river discharge + low-elevation susceptibility
- *   • Windy.com         → rainfall / wind driving the wetness of the field
- *   • OpenStreetMap     → the base map + the road segments
+ *   • Open-Meteo Flood API → river discharge + low-elevation susceptibility
+ *   • Open-Meteo Forecast  → rainfall / wind driving the wetness of the field
+ *   • OpenStreetMap        → the base map + the road segments
  *
  * — and recomputes whenever the feeds refresh, so the colours track the actual
- * weather. No backend required; the production keys plug in on Integrations.
+ * weather. No backend required; all keyless (an optional Open-Meteo API key on
+ * Integrations only raises rate limits).
  */
 
 /* ── Toggleable map overlays ─────────────────────────────────────────────── */
 const LAYER_DEFS = [
-  { key: 'inundation', label: 'Flood Inundation', desc: 'Live modeled flood-risk surface', color: '#2563EB' },
+  { key: 'noahHazard', label: 'NOAH Flood Hazard', desc: 'Project NOAH official 100-yr return-period flood zones', color: '#7C3AED' },
+  { key: 'inundation', label: 'Live Inundation Model', desc: 'Real-time flood-risk surface (Open-Meteo)', color: '#2563EB' },
   { key: 'roadRisk', label: 'Road Network Risk', desc: 'Flooded / closed road segments', color: '#F97316' },
   { key: 'barangays', label: 'Affected Barangays', desc: 'Barangay-level risk classification', color: '#C0181B' },
   { key: 'evacuation', label: 'Evacuation Centers', desc: 'Open shelters & safe zones', color: '#1A7A4A' },
 ]
+
+// Project NOAH 100-yr flood hazard: Var 1=Low 2=Moderate 3=High
+const NOAH_STYLE = {
+  1: { color: '#FBBF24', fillColor: '#FEF9C3', fillOpacity: 0.55, weight: 0.5 },
+  2: { color: '#F97316', fillColor: '#FED7AA', fillOpacity: 0.6,  weight: 0.5 },
+  3: { color: '#C0181B', fillColor: '#FCA5A5', fillOpacity: 0.65, weight: 0.5 },
+}
+const NOAH_LABEL = { 1: 'Low', 2: 'Moderate', 3: 'High' }
 
 /* Risk classification legend — same vocabulary as the Dashboard / Flood Map. */
 const RISK_LEGEND = [
@@ -62,15 +83,37 @@ export default function HazardLayer() {
   const { weather } = useLiveWeather()
   const { roads } = useCabuyaoRoads() // for the flooded/closed-road overlay
   const [statusMap] = useRoadStatus()
+  const { evacuationCenters } = useEvacCenters()
+
+  // ── NOAH static hazard GeoJSON (loaded once from public/) ──
+  const [noahGeo, setNoahGeo] = useState(null)
+  useEffect(() => {
+    fetch('/noah_cabuyao_flood_100yr.geojson')
+      .then((r) => r.json())
+      .then(setNoahGeo)
+      .catch(() => {}) // non-fatal if file absent
+  }, [])
+  const noahStyle = useCallback((f) => NOAH_STYLE[f?.properties?.Var] || NOAH_STYLE[1], [])
 
   // ── Overlay visibility + opacity ──
-  const [visible, setVisible] = useState(() => Object.fromEntries(LAYER_DEFS.map((l) => [l.key, true])))
-  const [opacity, setOpacity] = useState(85)
+  const [visible, setVisible] = usePersistedState('cdrrmo-layers-admin-hazard-visible', Object.fromEntries(LAYER_DEFS.map((l) => [l.key, false])))
+  const [opacity, setOpacity] = usePersistedState('cdrrmo-layers-admin-hazard-opacity', 85)
   const [coords, setCoords] = useState(null)
   const [updated, setUpdated] = useState(formatPHT())
 
   // Focus view + detail card.
   const [selected, setSelected] = useState(null)
+
+  // 2D (Leaflet, default) ⇄ 3D (Mapbox terrain) — shared preference with the
+  // Flood Map. Both views render the SAME live state (toggles, opacity,
+  // selection), so switching never changes what the hazard picture says.
+  const [use3D, setUse3D] = use3DPreference()
+
+  // Canvas renderer with a full-viewport pad: the hazard overlays stay painted
+  // while the map is dragged (the default SVG renderer clips to ~viewport and
+  // blanks the edges mid-pan). Fresh instance per 2D mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const canvasRenderer = useMemo(() => L.canvas({ padding: 1 }), [use3D])
 
   function toggle(key) {
     setVisible((v) => ({ ...v, [key]: !v[key] }))
@@ -82,8 +125,8 @@ export default function HazardLayer() {
   const focusBounds = useMemo(() => (selected ? barangayBounds(selected) : null), [selected])
   const summary = useMemo(() => hazardSummary(field, samples, statusMap), [field, samples, statusMap])
   const openCentres = useMemo(
-    () => SAMPLE_EVAC_CENTERS.filter((c) => c.coords && c.status !== 'closed'),
-    [],
+    () => evacuationCenters.filter((c) => Array.isArray(c.coords) && c.status !== 'closed'),
+    [evacuationCenters],
   )
   const hazardRoads = useMemo(() => {
     if (!roads) return null
@@ -122,34 +165,63 @@ export default function HazardLayer() {
           </div>
           <div className="hz-source">
             <span className="hz-source-dot" />
-            Source: Google Flood Hub · Windy · OpenStreetMap
+            Source: Open-Meteo (Forecast + Flood API) · OpenStreetMap
           </div>
           <div className="hz-updated">
             <span className={`hz-live-dot ${loading ? 'loading' : ''}`} />
             Live · Updated {updated} PHT
           </div>
+          {/* 2D (classic Leaflet) ⇄ 3D (Mapbox terrain) — hidden without a token. */}
+          <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>
 
         {/* ── Map + control panel ── */}
         <div className="hz-body">
           {/* Map */}
           <div className="hz-map-area">
+            {use3D ? (
+              <Hazard3DView
+                samples={samples}
+                field={field}
+                visible={visible}
+                opacity={opacity}
+                selected={selected}
+                onSelect={setSelected}
+                weather={weather}
+                roads={roads}
+                statusMap={statusMap}
+                openCentres={openCentres}
+                onViewChange={setCoords}
+              />
+            ) : (
             <MapContainer
               center={CABUYAO_CENTER}
               zoom={CABUYAO_ZOOM}
               zoomControl={false}
               attributionControl={false}
+              renderer={canvasRenderer}
               className="hz-leaflet"
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.85} />
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
 
-              {/* Live flood-inundation surface — the NOAH-style heat field,
-                  clipped to land so it never spills into Laguna de Bay. */}
-              {visible.inundation && (
-                <InundationGrid cells={field?.cells} opacity={opacity / 100} mode="interior" />
+              {/* Project NOAH official 5-year return-period flood hazard zones */}
+              {visible.noahHazard && noahGeo && (
+                <GeoJSON
+                  key="noah-100yr"
+                  data={noahGeo}
+                  style={noahStyle}
+                  onEachFeature={(f, lyr) => {
+                    const lvl = NOAH_LABEL[f.properties?.Var] ?? 'Unknown'
+                    lyr.bindTooltip(`NOAH 100-yr Flood Zone · ${lvl} Hazard`, { sticky: true, className: 'road-tip' })
+                  }}
+                />
               )}
+
+              {/* Live flood-inundation surface — the NOAH-style honeycomb,
+                  clipped to land so it never spills into Laguna de Bay. */}
+              {visible.inundation && <InundationGrid field={field} opacity={opacity / 100} />}
 
               {/* Affected barangays — the REAL boundary polygons classified by
                   live risk. Click one to focus + open its detail card. */}
@@ -205,6 +277,7 @@ export default function HazardLayer() {
               <FocusController bounds={focusBounds} />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
+            )}
 
             {/* Focused barangay detail card */}
             {selectedSample && (
@@ -216,7 +289,7 @@ export default function HazardLayer() {
               <div className="hz-nodata">
                 <span className="hz-spinner" />
                 <span>Loading live hazard model…</span>
-                <small>Fusing Flood Hub, Windy & elevation over Cabuyao</small>
+                <small>Fusing Open-Meteo forecast, flood & elevation over Cabuyao</small>
               </div>
             )}
             {error && !hasField && (
@@ -297,19 +370,22 @@ export default function HazardLayer() {
               <h3 className="hz-section-title">Hazard Summary</h3>
               <div className="hz-stats">
                 <Stat label="At-Risk Area" value={`${summary.inundatedAreaKm2}`} unit="km²" />
-                <Stat label="Avg Flood Depth" value={summary.avgFloodDepth.toFixed(2)} unit="m" />
+                <Stat label="Est. Avg Depth" value={`~${summary.avgFloodDepth.toFixed(2)}`} unit="m" />
                 <Stat label="High-Risk Brgys" value={`${summary.highRiskZones}`} />
                 <Stat label="Flagged Roads" value={`${summary.affectedRoads}`} />
               </div>
+              <p className="hz-feed-note" style={{ marginTop: '0.5rem' }}>
+                Depths are model estimates (Open-Meteo + terrain), not sensor readings. Verify on the ground before acting.
+              </p>
             </section>
 
-            {/* Live external feed (Open-Meteo Flood API / Flood Hub) */}
+            {/* Live external feed (Open-Meteo Flood API) */}
             <section className="hz-section hz-feed">
               <h3 className="hz-section-title">Live River Discharge</h3>
               <div className="hz-feed-row">
                 <DropletIcon />
                 <span className="hz-feed-val">{dischargeText}</span>
-                <span className="hz-feed-src">Flood Hub</span>
+                <span className="hz-feed-src">Open-Meteo Flood</span>
               </div>
               <p className="hz-feed-note">
                 Modeled discharge near Cabuyao. Feeds the flood-risk model that
@@ -323,6 +399,85 @@ export default function HazardLayer() {
         </div>
       </div>
     </AdminLayout>
+  )
+}
+
+/* ── 3D map view (Mapbox GL) ─────────────────────────────────────────────── */
+/**
+ * The Map3D-backed hazard map: the NOAH-style banded inundation honeycomb,
+ * pulsing barangay risk polygons + ripple markers, the flagged road segments,
+ * the open evacuation centres and the Cabuyao city boundary — all native
+ * Mapbox layers (mapbox3dHelpers), draped onto the 3D terrain so the hazard
+ * colours stay glued to the ground through any camera movement. Driven by the
+ * SAME state as the Leaflet view (toggles, opacity slider, selection), so
+ * switching 2D ⇄ 3D never changes what the map says.
+ */
+function Hazard3DView({
+  samples,
+  field,
+  visible,
+  opacity,
+  selected,
+  onSelect,
+  weather,
+  roads,
+  statusMap,
+  openCentres,
+  onViewChange,
+}) {
+  const { onMapLoad, mapRef, ready } = useBarangayLayers({
+    samples,
+    field,
+    inundation: visible.inundation,
+    fills: visible.barangays,
+    markers: visible.barangays,
+    baseOpacity: opacity / 100,
+    selected,
+    onSelect,
+  })
+
+  // Flagged roads + open evacuation centres ride on the same map once the
+  // barangay layers are up; fresh data re-feeds the sources in place.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    if (!map.getSource('hazard-roads')) addHazardRoadsLayer(map, roads, statusMap, visible.roadRisk)
+    else updateHazardRoadsData(map, roads, statusMap)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, mapRef, roads, statusMap])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    if (!map.getSource('evac-centres')) addEvacCentersLayer(map, openCentres, visible.evacuation)
+    else updateEvacCentersData(map, openCentres)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, mapRef, openCentres])
+
+  // Page layer toggles.
+  useEffect(() => {
+    if (ready && mapRef.current) setMapLayerVisible(mapRef.current, 'hazard-roads', visible.roadRisk)
+  }, [ready, mapRef, visible.roadRisk])
+  useEffect(() => {
+    if (ready && mapRef.current) setMapLayerVisible(mapRef.current, 'evac-centres', visible.evacuation)
+  }, [ready, mapRef, visible.evacuation])
+
+  // Open-Meteo wind: km/h + meteorological degrees → m/s for the particles.
+  const wind = useMemo(
+    () => ({
+      speed: (weather.current.windKmh ?? 0) / 3.6,
+      deg: weather.current.windDir ?? 0,
+    }),
+    [weather],
+  )
+
+  return (
+    <Map3D
+      onMapLoad={onMapLoad}
+      onViewChange={onViewChange}
+      wind={wind}
+      rain={weather.current.rain ?? 0}
+    />
   )
 }
 

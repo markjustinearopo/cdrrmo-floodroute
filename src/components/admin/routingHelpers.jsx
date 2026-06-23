@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
+import ROADS_BUNDLE from '../../data/cabuyaoRoads.json'
 import './routingHelpers.css'
 
 /* ── Cabuyao road-network bounding box (S, W, N, E) ──────────────────────────
@@ -41,6 +42,27 @@ export const ROAD_STATUS = {
   open: { label: 'Passable', line: '#64748B', weight: 3, opacity: 0.5, swatch: '#22C55E' },
   flooded: { label: 'Flooded', line: '#F97316', weight: 5, opacity: 0.95, swatch: '#F97316' },
   blocked: { label: 'Closed', line: '#DC2626', weight: 5, opacity: 0.95, swatch: '#DC2626' },
+  // Proposed-but-not-yet-approved barangay edit — drawn dashed/purple so it
+  // reads as "awaiting CDRRMO approval", clearly distinct from a live condition.
+  pending: { label: 'Pending Approval', line: '#7C3AED', weight: 5, opacity: 0.95, swatch: '#7C3AED', dashArray: '7 7' },
+}
+
+export const ROAD_CLASS_META = {
+  motorway:        { weight: 8, rank: 0, label: 'Expressway' },
+  trunk:           { weight: 6, rank: 1, label: 'Highway' },
+  primary:         { weight: 5, rank: 1, label: 'Primary Road' },
+  secondary:       { weight: 4, rank: 2, label: 'Secondary Road' },
+  tertiary:        { weight: 3, rank: 2, label: 'Tertiary Road' },
+  unclassified:    { weight: 2, rank: 3, label: 'Local Road' },
+  motorway_link:   { weight: 6, rank: 0, label: 'Expressway Ramp' },
+  trunk_link:      { weight: 5, rank: 1, label: 'Highway Ramp' },
+  primary_link:    { weight: 4, rank: 1, label: 'Primary Road Link' },
+  secondary_link:  { weight: 3, rank: 2, label: 'Secondary Road Link' },
+  tertiary_link:   { weight: 2, rank: 2, label: 'Tertiary Road Link' },
+}
+
+export function roadClassMeta(highway) {
+  return ROAD_CLASS_META[highway] || { weight: 2, rank: 3, label: 'Road' }
 }
 
 /* ── Geometry helpers ────────────────────────────────────────────────────── */
@@ -98,20 +120,24 @@ export function routeGeometry(route) {
   return route.points || []
 }
 
-// A human label for a road: its OSM name, or a friendly "Unnamed …" fallback
-// derived from the highway class (many minor Cabuyao ways carry no name tag).
-const HIGHWAY_LABEL = {
-  motorway: 'expressway',
-  trunk: 'highway',
-  primary: 'primary road',
-  secondary: 'secondary road',
-  tertiary: 'tertiary road',
-  unclassified: 'local road',
+/**
+ * The geometry that is currently *active* for dispatch. If the admin set the
+ * override as active and it has geometry, return that; otherwise return the
+ * planned geometry.
+ */
+export function activeRouteGeometry(route) {
+  if (!route) return []
+  if (route.active === 'override' && Array.isArray(route.override) && route.override.length > 1) {
+    return route.override
+  }
+  return routeGeometry(route)
 }
-function roadName(tags) {
-  if (tags?.name) return tags.name
-  const base = (tags?.highway || '').replace(/_link$/, '')
-  return `Unnamed ${HIGHWAY_LABEL[base] || 'road'}`
+
+export function formatMins(mins) {
+  if (!mins || mins < 1) return '<1 min'
+  if (mins < 60) return `${Math.round(mins)} min`
+  const h = Math.floor(mins / 60)
+  return `${h}h ${Math.round(mins % 60)}m`
 }
 
 /* ── Numbered / lettered waypoint pins (custom divIcon, no marker images) ── */
@@ -135,145 +161,44 @@ export function ClickToAddWaypoint({ onAdd, enabled = true }) {
 }
 
 /* ============================================================
-   Cabuyao road network (Overpass API)
+   Cabuyao road network — bundled at build time from cabuyaoRoads.json.
+   The bundle format is { ways: [{i, n, h, g: [lat,lng,lat,lng,...]}] }.
+   We convert it once at module init to a standard GeoJSON FeatureCollection
+   so every consumer (Leaflet layer, routeEngine, routing3d) gets the same
+   { id, name, named, highway, geometry.coordinates: [[lng,lat],...] } shape.
    ============================================================ */
-const OVERPASS_ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
-]
-
-// Arterial + collector roads only (motorway → tertiary, links, unclassified).
-// Residential alleys are deliberately excluded: they're the bulk of the ~8k
-// city ways, aren't the roads CDRRMO routes convoys/evacuations along, and
-// would turn the clickable map into an unreadable hairball.
-const ROAD_QUERY =
-  `[out:json][timeout:30];` +
-  `way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|` +
-  `motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"]` +
-  `(${CABUYAO_BBOX.s},${CABUYAO_BBOX.w},${CABUYAO_BBOX.n},${CABUYAO_BBOX.e});` +
-  `out geom;`
-
-let roadsCache = null
-let roadsPromise = null
-
-function overpassToGeoJSON(data) {
-  const features = (data?.elements || [])
-    .filter((el) => el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length > 1)
-    .map((el) => ({
+function bundleToGeoJSON(bundle) {
+  const features = (bundle.ways || []).map((w) => {
+    const g = w.g || []
+    const coordinates = []
+    for (let i = 0; i + 1 < g.length; i += 2) {
+      coordinates.push([g[i + 1], g[i]]) // [lng, lat] — GeoJSON order
+    }
+    return {
       type: 'Feature',
-      id: el.id,
+      id: w.i,
       properties: {
-        id: el.id,
-        name: roadName(el.tags),
-        named: Boolean(el.tags?.name),
-        highway: el.tags?.highway || 'road',
+        id: w.i,
+        name: w.n || `Unnamed ${w.h || 'road'}`,
+        named: Boolean(w.n),
+        highway: w.h || 'road',
       },
-      geometry: {
-        type: 'LineString',
-        coordinates: el.geometry.map((g) => [g.lon, g.lat]),
-      },
-    }))
+      geometry: { type: 'LineString', coordinates },
+    }
+  })
   return { type: 'FeatureCollection', features }
 }
 
-const delay = (ms) => new Promise((r) => setTimeout(r, ms))
+let roadsCache = bundleToGeoJSON(ROADS_BUNDLE)
 
-// One Overpass attempt, bounded by an AbortController timeout so a slow or
-// hanging mirror can never block the whole load. Returns a FeatureCollection
-// on success, or null on any failure (timeout, 429/504, bad body…).
-async function tryOverpass(endpoint, timeoutMs) {
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'data=' + encodeURIComponent(ROAD_QUERY),
-      signal: ctrl.signal,
-    })
-    if (!res.ok) return null // 429 Too Many Requests / 504 Gateway Timeout / …
-    const fc = overpassToGeoJSON(await res.json())
-    return fc.features.length ? fc : null
-  } catch {
-    return null
-  } finally {
-    clearTimeout(timer)
-  }
+/** Synchronous read of the road network — always available immediately. */
+export function getCabuyaoRoads() {
+  return roadsCache
 }
 
-/**
- * Fetch the Cabuyao road network as GeoJSON LineStrings. Cached at module
- * scope so it's pulled once per session and shared by every routing screen.
- *
- * Overpass commonly answers a cold query with a transient 429/504, so the
- * primary endpoint is retried a few times with backoff before falling back to
- * mirrors (each with a hard timeout — a mirror that simply hangs must not stall
- * the screen, which was the original failure mode).
- */
-export function fetchCabuyaoRoads() {
-  if (roadsCache) return Promise.resolve(roadsCache)
-  if (roadsPromise) return roadsPromise
-
-  roadsPromise = (async () => {
-    const [primary, ...mirrors] = OVERPASS_ENDPOINTS
-
-    // Primary endpoint: up to 3 attempts with backoff for transient errors.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const fc = await tryOverpass(primary, 25000)
-      if (fc) {
-        roadsCache = fc
-        return fc
-      }
-      if (attempt < 2) await delay(1200 * (attempt + 1))
-    }
-
-    // Fallback mirrors: a single bounded attempt each.
-    for (const mirror of mirrors) {
-      const fc = await tryOverpass(mirror, 15000)
-      if (fc) {
-        roadsCache = fc
-        return fc
-      }
-    }
-
-    roadsPromise = null
-    throw new Error('Overpass unavailable')
-  })()
-
-  return roadsPromise
-}
-
-// React wrapper around the cached fetch with loading / error / retry state.
+/** React hook — returns the road network; loading is always false. */
 export function useCabuyaoRoads() {
-  const [roads, setRoads] = useState(roadsCache)
-  const [loading, setLoading] = useState(!roadsCache)
-  const [error, setError] = useState(false)
-  const [nonce, setNonce] = useState(0)
-
-  useEffect(() => {
-    if (roadsCache) {
-      setRoads(roadsCache)
-      setLoading(false)
-      return
-    }
-    let active = true
-    setLoading(true)
-    setError(false)
-    fetchCabuyaoRoads()
-      .then((fc) => active && (setRoads(fc), setLoading(false)))
-      .catch(() => active && (setError(true), setLoading(false)))
-    return () => {
-      active = false
-    }
-  }, [nonce])
-
-  const retry = useCallback(() => {
-    roadsPromise = null
-    setNonce((n) => n + 1)
-  }, [])
-
-  return { roads, loading, error, retry }
+  return { roads: roadsCache, loading: false, error: false, retry: () => {} }
 }
 
 /**
@@ -296,7 +221,7 @@ export function RoadNetworkLayer({ roads, statusMap = {}, onPick, interactive = 
     (id) => {
       const st = statusRef.current[id] || base
       const meta = ROAD_STATUS[st] || ROAD_STATUS.open
-      return { color: meta.line, weight: meta.weight, opacity: meta.opacity, lineCap: 'round' }
+      return { color: meta.line, weight: meta.weight, opacity: meta.opacity, lineCap: 'round', dashArray: meta.dashArray || null }
     },
     [base],
   )

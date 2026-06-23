@@ -3,6 +3,17 @@
    (ported from assets/css/admin/dashboard.css — content parts)
    ============================================================ */
 
+/* The page frame (.main) is a flex column, whose children shrink to fit by
+   default — that compressed the cards (clipping the road map) and stopped the
+   page from ever overflowing, so it couldn't scroll. Pin the dashboard's
+   sections to their natural height so the content overflows and .main scrolls. */
+.main > .stat-cards,
+.main > .insight-bar,
+.main > .two-col,
+.main > .road-card {
+  flex-shrink: 0;
+}
+
 /* ── Stat cards row ── */
 .stat-cards {
   display: grid;
@@ -138,6 +149,10 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* Fixed card height so the inner feed always scrolls instead of stretching
+     the whole page — the two cards stay the same size no matter how many
+     alerts / barangays they hold. */
+  height: 440px;
 }
 .section-hdr {
   display: flex;
@@ -145,6 +160,7 @@
   justify-content: space-between;
   padding: 12px 16px;
   border-bottom: 1px solid #f0eee9;
+  flex-shrink: 0;
 }
 .section-hdr-left {
   display: flex;
@@ -218,6 +234,11 @@
 .alert-list {
   display: flex;
   flex-direction: column;
+  /* Fill the card and scroll on its own; min-height:0 lets the flex child
+     shrink below its content so overflow-y actually kicks in. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 .alert-item {
   display: flex;
@@ -226,6 +247,9 @@
   border-bottom: 1px solid #f7f5f2;
   position: relative;
   overflow: hidden;
+  /* Keep natural height inside the flex-column list so the list scrolls
+     instead of compressing rows to fit (flexbox shrinks children by default). */
+  flex-shrink: 0;
 }
 .alert-item:last-child { border-bottom: none; }
 .alert-stripe {
@@ -270,7 +294,8 @@
 /* Barangay flood status */
 .brgy-list {
   display: flex;
-  max-height: 320px;
+  flex: 1 1 auto;
+  min-height: 0;
   flex-direction: column;
   gap: 0;
   overflow-y: auto;
@@ -281,6 +306,7 @@
   gap: 10px;
   padding: 7px 16px;
   border-bottom: 1px solid #f7f5f2;
+  flex-shrink: 0;
 }
 .brgy-item:last-child { border-bottom: none; }
 .brgy-name {
@@ -321,10 +347,14 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  width: 100%;
+  flex-shrink: 0;
   padding: 9px 12px;
   min-height: 38px;
   background: #fff;
+  border: none;
   border-top: 1px solid #f0eee9;
+  font-family: inherit;
   font-size: 0.75rem;
   font-weight: 700;
   color: #c0181b;
@@ -333,6 +363,20 @@
   white-space: nowrap;
 }
 .view-all-link:hover { background: #fef2f2; color: #a81518; }
+
+/* Clear-a-report action in the road status table */
+.road-clear-btn {
+  border: none;
+  background: none;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #c0181b;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.road-clear-btn:hover { background: #fef2f2; }
 
 /* Toggle switch */
 .toggle {
@@ -368,61 +412,199 @@
 .toggle input:checked + .toggle-slider { background: #16a34a; }
 .toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
 
-/* ── Road Status table ── */
-.road-table-wrap {
-  min-width: 0;
-  background: #fff;
-  border: 1px solid #e5e2dd;
-  border-radius: 12px;
-  overflow: auto;
+/* ── Road Status card (live 2D map + reported-roads list) ── */
+.road-card {
+  /* Overrides the fixed .section-card height — this card sizes to its body. */
+  height: auto;
 }
-.road-table-hdr {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0eee9;
-}
-.road-title {
+.road-hdr-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
-.road-sub { margin-top: 2px; }
-table {
-  width: 100%;
-  min-width: 760px;
-  border-collapse: collapse;
+
+/* Brush selector — pick what a clicked road becomes (Flooded / Closed) */
+.road-brushes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-thead tr { background: #f7f5f2; }
-th {
-  padding: 9px 14px;
-  font-size: 0.6375rem;
+.road-brush-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9a9a9a;
+}
+.road-brush {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid #e5e2dd;
+  border-radius: 7px;
+  background: #fafafa;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  color: #5a5a5a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.road-brush-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.road-brush.flooded .road-brush-dot { background: #f97316; }
+.road-brush.blocked .road-brush-dot { background: #dc2626; }
+.road-brush:hover { background: #f3f1ed; }
+.road-brush.flooded.active { border-color: #f97316; color: #c2410c; background: #fff7ed; }
+.road-brush.blocked.active { border-color: #dc2626; color: #b91c1c; background: #fef2f2; }
+.btn-soft-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: #fafafa;
+  border: 1px solid #e5e2dd;
+  border-radius: 7px;
+  color: #3a3a3a;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-soft-sm:hover { border-color: #c0181b; color: #c0181b; background: #fef2f2; }
+.btn-soft-sm svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.road-card-body {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  min-height: 0;
+}
+
+/* Map column */
+.road-map {
+  position: relative;
+  height: 440px;
+  border-right: 1px solid #f0eee9;
+  background: #eef2f4;
+}
+.road-map-leaflet {
+  width: 100%;
+  height: 100%;
+}
+.road-map-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 500;
+  background: rgba(26, 26, 26, 0.78);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+.road-map-legend {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 500;
+  display: flex;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.93);
+  border: 1px solid #e5e2dd;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+.road-map-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.road-map-legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.road-map-hint {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 500;
+  background: rgba(255, 255, 255, 0.93);
+  border: 1px solid #e5e2dd;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #3a3a3a;
+  pointer-events: none;
+}
+
+/* Reported-roads list column */
+.road-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 440px;
+}
+.road-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+  border-bottom: 1px solid #f0eee9;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #9a9a9a;
-  text-align: left;
-  border-bottom: 1px solid #e5e2dd;
+  flex-shrink: 0;
 }
-td {
-  padding: 11px 14px;
-  font-size: 0.8125rem;
-  color: #3a3a3a;
+.road-list-count {
+  background: #f0eee9;
+  color: #7a7a7a;
+  border-radius: 99px;
+  padding: 1px 8px;
+  font-size: 0.6875rem;
+}
+.road-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.road-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
   border-bottom: 1px solid #f7f5f2;
-  vertical-align: middle;
 }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: #fafaf9; }
-td.road-name { font-weight: 600; color: #1a1a1a; }
-td.depth { font-variant-numeric: tabular-nums; font-weight: 600; }
-td.time-col { color: #9a9a9a; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
-td.empty-table {
-  padding: 22px 14px;
-  color: #9a9a9a;
-  text-align: center;
+.road-list-item:last-child { border-bottom: none; }
+.road-list-main { flex: 1; min-width: 0; }
+.road-list-name {
+  display: block;
   font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.road-list-brgy {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  font-variant-numeric: tabular-nums;
+}
+
 .road-status-badge {
   display: inline-block;
   padding: 3px 10px;
@@ -438,17 +620,16 @@ td.empty-table {
 .road-status-badge.safe { background: #dcfce7; color: #16a34a; }
 
 /* ── Issue modal ── */
-.modal-overlay {
+.dash-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(26, 26, 26, 0.45);
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   z-index: 500;
 }
-.modal-overlay.show { display: flex; }
 .issue-modal {
   width: min(560px, 100%);
   background: #fff;
@@ -465,7 +646,7 @@ td.empty-table {
   padding: 16px 18px;
   border-bottom: 1px solid #f0eee9;
 }
-.modal-close {
+.issue-modal .modal-close {
   width: 30px;
   height: 30px;
   border: 1px solid #e5e2dd;
@@ -477,7 +658,7 @@ td.empty-table {
   cursor: pointer;
   line-height: 1;
 }
-.modal-close:hover { border-color: #c0181b; color: #c0181b; background: #fef2f2; }
+.issue-modal .modal-close:hover { border-color: #c0181b; color: #c0181b; background: #fef2f2; }
 .issue-form {
   display: flex;
   flex-direction: column;
@@ -552,10 +733,17 @@ td.empty-table {
   .two-col { grid-template-columns: 1fr; }
 }
 
+/* Stack the road map above its reported-roads list on narrower screens. */
+@media (max-width: 900px) {
+  .road-card-body { grid-template-columns: 1fr; }
+  .road-map { border-right: none; border-bottom: 1px solid #f0eee9; height: 300px; }
+  .road-list { height: 280px; }
+}
+
 @media (max-width: 760px) {
   .stat-cards { grid-template-columns: 1fr; }
-  .section-hdr,
-  .road-table-hdr { align-items: flex-start; gap: 10px; flex-direction: column; }
+  .section-hdr { align-items: flex-start; gap: 10px; flex-direction: column; }
+  .road-hdr-actions { width: 100%; }
   .brgy-bar-track { width: 96px; }
 }
 

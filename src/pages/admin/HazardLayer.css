@@ -77,6 +77,11 @@
   background: #f59e0b;
   animation: hz-blink 1s ease-in-out infinite;
 }
+/* The 2D/3D switch sits right after the Updated stamp — hz-updated already
+   carries the margin-left:auto, so drop the toggle's own auto margin. */
+.hazard .map3d-viewtoggle {
+  margin-left: 0;
+}
 @keyframes hz-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }

@@ -1,59 +1,107 @@
 import { useMemo, useState } from 'react'
 import { MapContainer, TileLayer, ZoomControl } from 'react-leaflet'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
-import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock, CoordReadout } from '../../components/admin/mapHelpers.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import {
+  CABUYAO_CENTER,
+  CABUYAO_ZOOM,
+  CabuyaoLock,
+  BarangayLock,
+  JurisdictionToggle,
+  CoordReadout,
+} from '../../components/admin/mapHelpers.jsx'
 import {
   ROAD_STATUS,
   RoadNetworkLayer,
   useCabuyaoRoads,
   useRoadStatus,
 } from '../../components/admin/routingHelpers.jsx'
-import { officialBarangayLabel } from '../../data/barangay.js'
+import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
+import { useRoadRequests } from '../../context/AdminDataContext.jsx'
+import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/RoadStatus.css'
 
 /**
  * CDRRMO Barangay — Road Status (Routing).
  *
- * The official tags the passability of roads in their area on the live Cabuyao
- * network (Leaflet + OpenStreetMap via Overpass). Pick a brush — Flooded or
- * Closed — then click roads to set their condition. Conditions are written to
- * the SAME shared store the command center reads, so a road the barangay flags
- * flooded immediately shows up on the admin's road board and feeds route
- * overrides. Automatic flood-aware classification is a planned study.
+ * SAFETY MODEL: a barangay official can NOT change the live shared road map
+ * directly. They PROPOSE changes — pick a brush (Flooded / Closed), click roads
+ * to stage proposed edits (drawn dashed-purple = "pending"), then SUBMIT the
+ * batch to CDRRMO. The command center reviews and approves each request before
+ * it paints the live map that every portal reads. The live conditions shown
+ * here are read-only.
  */
 const BRUSHES = [
   { key: 'flooded', label: 'Flooded', hint: 'Passable with caution / rising water' },
   { key: 'blocked', label: 'Closed', hint: 'Impassable — do not route here' },
 ]
 
+const REQ_BADGE = { pending: 'Pending', approved: 'Approved', rejected: 'Declined' }
+
 export default function RoadStatus() {
   const brgyLabel = officialBarangayLabel()
-  const { roads, loading, error, retry } = useCabuyaoRoads()
-  const [statusMap, { setStatus, clearAll }] = useRoadStatus()
+  const myBrgy = getOfficialBarangay()
+  const { roads } = useCabuyaoRoads()
+  const [statusMap] = useRoadStatus() // live conditions, READ-ONLY here
+  const { roadChangeRequests, submitRoadRequest, removeRoadRequest } = useRoadRequests()
   const [brush, setBrush] = useState('flooded')
+  const [drafts, setDrafts] = useState([]) // [{ wayId, name, status }]
+  const [reason, setReason] = useState('')
+  const [confirmSend, setConfirmSend] = useState(false)
   const [coords, setCoords] = useState(null)
+  const [use3D, setUse3D] = use3DPreference()
+  const [view, setView] = useJurisdictionView()
+  const locked = view === 'mine' && Boolean(myBrgy)
 
-  function paint(props) {
-    const current = statusMap[props.id]
-    setStatus(props.id, current === brush ? 'open' : brush)
+  // Stage/unstage a proposed edit. Clicking a road with the active brush again
+  // removes it; clicking with a different brush re-targets it.
+  function stage(props) {
+    setDrafts((prev) => {
+      const existing = prev.find((d) => d.wayId === props.id)
+      if (existing && existing.status === brush) return prev.filter((d) => d.wayId !== props.id)
+      const without = prev.filter((d) => d.wayId !== props.id)
+      return [...without, { wayId: props.id, name: props.name, status: brush }]
+    })
   }
+
+  // The map shows live conditions plus the official's pending drafts on top
+  // (rendered as the dashed-purple "pending" style so they read as proposals).
+  const mapStatus = useMemo(() => {
+    const merged = { ...statusMap }
+    for (const d of drafts) merged[d.wayId] = 'pending'
+    return merged
+  }, [statusMap, drafts])
 
   const counts = useMemo(() => {
     const c = { flooded: 0, blocked: 0 }
-    Object.values(statusMap).forEach((s) => {
-      if (c[s] != null) c[s]++
-    })
+    Object.values(statusMap).forEach((s) => { if (c[s] != null) c[s]++ })
     const total = roads?.features.length || 0
     return { ...c, total, open: Math.max(total - c.flooded - c.blocked, 0) }
   }, [statusMap, roads])
 
-  const flagged = useMemo(() => {
-    if (!roads) return []
-    const byId = new Map(roads.features.map((f) => [String(f.properties.id), f.properties]))
-    return Object.entries(statusMap)
-      .map(([id, status]) => ({ id, status, name: byId.get(String(id))?.name || `Road #${id}` }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [statusMap, roads])
+  // This official's own submitted requests, newest first.
+  const myRequests = useMemo(
+    () => roadChangeRequests
+      .filter((r) => r.barangay === myBrgy)
+      .sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0)),
+    [roadChangeRequests, myBrgy],
+  )
+  const pendingCount = useMemo(() => myRequests.filter((r) => r.status === 'pending').length, [myRequests])
+
+  function sendDrafts() {
+    drafts.forEach((d) => submitRoadRequest({
+      wayId: d.wayId,
+      roadName: d.name,
+      barangay: myBrgy,
+      requestedStatus: d.status,
+      reason: reason.trim(),
+      requestedBy: `Brgy. ${brgyLabel}`,
+    }))
+    setDrafts([])
+    setReason('')
+    setConfirmSend(false)
+  }
 
   return (
     <BarangayLayout mainClassName="main--flush">
@@ -65,7 +113,7 @@ export default function RoadStatus() {
           </div>
 
           <div className="rs-brushes">
-            <span className="rs-brush-label">Tag roads as</span>
+            <span className="rs-brush-label">Propose</span>
             {BRUSHES.map((b) => (
               <button
                 key={b.key}
@@ -83,12 +131,25 @@ export default function RoadStatus() {
 
           <div className="rs-source">
             <span className="rs-source-dot" />
-            OpenStreetMap · Overpass
+            OpenStreetMap · {roads ? `${roads.features.length.toLocaleString()} roads` : 'Overpass'}
           </div>
+
+          <JurisdictionToggle value={view} onChange={setView} brgyLabel={brgyLabel} />
+          <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>
 
         <div className="rs-body">
           <div className="rs-map-area">
+            {use3D ? (
+              <RoadNetwork3DView
+                key={locked ? `b-${myBrgy}` : 'city'}
+                statusMap={mapStatus}
+                interactive
+                onPick={stage}
+                jurisdiction={locked ? myBrgy : null}
+                onViewChange={setCoords}
+              />
+            ) : (
             <MapContainer
               center={CABUYAO_CENTER}
               zoom={CABUYAO_ZOOM}
@@ -98,32 +159,16 @@ export default function RoadStatus() {
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.8} />
               <ZoomControl position="bottomright" />
-              <CabuyaoLock />
-              {roads && <RoadNetworkLayer roads={roads} statusMap={statusMap} onPick={paint} />}
+              {locked ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
+              {roads && <RoadNetworkLayer roads={roads} statusMap={mapStatus} onPick={stage} />}
               <CoordReadout onChange={setCoords} />
             </MapContainer>
+            )}
 
-            {loading && (
-              <div className="rs-overlay">
-                <span className="rs-spinner" />
-                <span>Loading Cabuyao road network…</span>
-                <small>Fetching live roads from OpenStreetMap (Overpass)</small>
-              </div>
-            )}
-            {error && !loading && (
-              <div className="rs-overlay">
-                <WarnIcon />
-                <span>Couldn't load the road network</span>
-                <small>The Overpass map service may be busy. Please try again.</small>
-                <button type="button" className="rs-retry" onClick={retry}>
-                  Retry
-                </button>
-              </div>
-            )}
-            {roads && !loading && (
+            {roads && (
               <div className="rs-paint-hint">
                 <BrushIcon />
-                Click a road to mark it <b style={{ color: ROAD_STATUS[brush].swatch }}>{ROAD_STATUS[brush].label}</b>
+                Click a road to propose it <b style={{ color: ROAD_STATUS[brush].swatch }}>{ROAD_STATUS[brush].label}</b>
               </div>
             )}
 
@@ -135,8 +180,90 @@ export default function RoadStatus() {
           </div>
 
           <aside className="rs-panel">
+            {/* Proposed edits awaiting submission */}
             <section className="rs-section">
-              <h3 className="rs-section-title">Network Conditions</h3>
+              <div className="rs-flagged-head">
+                <h3 className="rs-section-title">
+                  Proposed Edits
+                  {drafts.length > 0 && <span className="rs-pill rs-pill--pending">{drafts.length}</span>}
+                </h3>
+                {drafts.length > 0 && (
+                  <button type="button" className="rs-clear" onClick={() => setDrafts([])}>Clear</button>
+                )}
+              </div>
+              {drafts.length === 0 ? (
+                <div className="rs-empty">Pick Flooded or Closed above, then click roads on the map to propose a change.</div>
+              ) : (
+                <>
+                  <ul className="rs-flagged">
+                    {drafts.map((d) => (
+                      <li className="rs-flagged-row" key={d.wayId}>
+                        <span className="rs-flagged-line" style={{ background: ROAD_STATUS[d.status].swatch }} />
+                        <span className="rs-flagged-name" title={d.name}>{d.name || `Road #${d.wayId}`}</span>
+                        <span className={`rs-badge ${d.status}`}>{ROAD_STATUS[d.status].label}</span>
+                        <button
+                          type="button"
+                          className="rs-flagged-x"
+                          title="Remove from proposal"
+                          onClick={() => setDrafts((prev) => prev.filter((x) => x.wayId !== d.wayId))}
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <textarea
+                    className="rs-reason"
+                    placeholder="Reason / note for CDRRMO (optional) — e.g. waist-deep flooding near the creek"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    rows={2}
+                  />
+                  <button type="button" className="rs-send" onClick={() => setConfirmSend(true)}>
+                    Send {drafts.length} request{drafts.length > 1 ? 's' : ''} to CDRRMO
+                  </button>
+                </>
+              )}
+            </section>
+
+            {/* This barangay's submitted requests + their decision status */}
+            <section className="rs-section rs-section--grow">
+              <h3 className="rs-section-title">
+                My Requests
+                {pendingCount > 0 && <span className="rs-pill rs-pill--pending">{pendingCount} pending</span>}
+              </h3>
+              {myRequests.length === 0 ? (
+                <div className="rs-empty">No requests yet. Proposed changes you send appear here with their approval status.</div>
+              ) : (
+                <ul className="rs-reqlist">
+                  {myRequests.slice(0, 30).map((r) => (
+                    <li className={`rs-req rs-req--${r.status}`} key={r.id}>
+                      <div className="rs-req-top">
+                        <span className="rs-flagged-line" style={{ background: ROAD_STATUS[r.requestedStatus]?.swatch }} />
+                        <span className="rs-req-name" title={r.roadName}>{r.roadName || `Road #${r.wayId}`}</span>
+                        <span className={`rs-reqbadge ${r.status}`}>{REQ_BADGE[r.status]}</span>
+                      </div>
+                      <div className="rs-req-meta">
+                        Proposed {ROAD_STATUS[r.requestedStatus]?.label} · {r.requestedLabel}
+                      </div>
+                      {r.reason && <div className="rs-req-reason">“{r.reason}”</div>}
+                      {r.status === 'rejected' && r.decisionNote && (
+                        <div className="rs-req-note">CDRRMO: {r.decisionNote}</div>
+                      )}
+                      {r.status !== 'pending' && (
+                        <button type="button" className="rs-req-dismiss" onClick={() => removeRoadRequest(r.id)}>
+                          Dismiss
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/* Live conditions (read-only) */}
+            <section className="rs-section">
+              <h3 className="rs-section-title">Live Conditions</h3>
               <div className="rs-summary">
                 <div className="rs-sum rs-sum--blocked">
                   <div className="rs-sum-val">{counts.blocked}</div>
@@ -151,66 +278,53 @@ export default function RoadStatus() {
                   <div className="rs-sum-lbl">Passable</div>
                 </div>
               </div>
-              <div className="rs-total">{counts.total} road segments mapped</div>
+              <div className="rs-total">Approved by CDRRMO — shared across all portals</div>
             </section>
 
+            {/* Legend */}
             <section className="rs-section">
               <h3 className="rs-section-title">Legend</h3>
               <div className="rs-legend">
-                {Object.entries(ROAD_STATUS).map(([key, m]) => (
+                {['blocked', 'flooded', 'open', 'pending'].map((key) => (
                   <div className="rs-legend-row" key={key}>
-                    <span className="rs-legend-line" style={{ background: m.line, opacity: key === 'open' ? 0.6 : 1 }} />
-                    <span className="rs-legend-name">{m.label}</span>
+                    <span
+                      className="rs-legend-line"
+                      style={{ background: ROAD_STATUS[key].line, opacity: key === 'open' ? 0.6 : 1, borderTop: key === 'pending' ? '2px dashed #7C3AED' : undefined, ...(key === 'pending' ? { background: 'transparent', height: 0 } : {}) }}
+                    />
+                    <span className="rs-legend-name">{key === 'pending' ? 'Your proposal (pending)' : ROAD_STATUS[key].label}</span>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="rs-section rs-section--grow">
-              <div className="rs-flagged-head">
-                <h3 className="rs-section-title">
-                  Flagged Roads
-                  {flagged.length > 0 && <span className="rs-pill">{flagged.length}</span>}
-                </h3>
-                {flagged.length > 0 && (
-                  <button type="button" className="rs-clear" onClick={clearAll}>
-                    Clear all
-                  </button>
-                )}
-              </div>
-              {flagged.length === 0 ? (
-                <div className="rs-empty">No roads flagged. Pick a brush above and click roads on the map.</div>
-              ) : (
-                <ul className="rs-flagged">
-                  {flagged.map((r) => (
-                    <li className="rs-flagged-row" key={r.id}>
-                      <span className="rs-flagged-line" style={{ background: ROAD_STATUS[r.status].swatch }} />
-                      <span className="rs-flagged-name" title={r.name}>{r.name}</span>
-                      <span className={`rs-badge ${r.status}`}>{ROAD_STATUS[r.status].label}</span>
-                      <button
-                        type="button"
-                        className="rs-flagged-x"
-                        title="Set passable"
-                        onClick={() => setStatus(r.id, 'open')}
-                      >
-                        ×
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
             <section className="rs-section rs-note">
               <SparkIcon />
               <span>
-                Conditions you set are shared live with the CDRRMO command center and feed
-                route overrides. Automatic flood-aware classification is a planned study.
+                For everyone's safety, road condition changes you propose take effect only
+                after CDRRMO reviews and approves them.
               </span>
             </section>
           </aside>
         </div>
       </div>
+
+      {confirmSend && (
+        <ConfirmDialog
+          title="Send to CDRRMO?"
+          tone="default"
+          confirmLabel={`Send ${drafts.length} request${drafts.length > 1 ? 's' : ''}`}
+          cancelLabel="Keep editing"
+          message={(
+            <>
+              You're proposing <b>{drafts.length}</b> road condition change{drafts.length > 1 ? 's' : ''} for
+              {' '}<b>Brgy. {brgyLabel}</b>. CDRRMO will review {drafts.length > 1 ? 'them' : 'it'} before
+              {' '}{drafts.length > 1 ? 'they' : 'it'} appear{drafts.length > 1 ? '' : 's'} on the live map.
+            </>
+          )}
+          onConfirm={sendDrafts}
+          onCancel={() => setConfirmSend(false)}
+        />
+      )}
     </BarangayLayout>
   )
 }
@@ -231,15 +345,6 @@ function BrushIcon() {
     <svg viewBox="0 0 24 24">
       <path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08" />
       <path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z" />
-    </svg>
-  )
-}
-function WarnIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-      <line x1="12" y1="9" x2="12" y2="13" />
-      <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   )
 }

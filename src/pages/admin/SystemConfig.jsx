@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { DEPTH_THRESHOLDS } from '../../data/cabuyao.js'
+import db from '../../services/db.js'
 import './Manage.css'
 import './Settings.css'
 
@@ -29,7 +30,6 @@ const DEFAULTS = {
   mapZoom: 13,
   distanceUnit: 'km',
   routingMode: 'manual',
-  sensorInterval: 5,
   retentionDays: 90,
   autoRefresh: true,
   maintenance: false,
@@ -37,10 +37,34 @@ const DEFAULTS = {
   debugLogging: false,
 }
 
+const CONFIG_KEY = 'cdrrmo_system_config' // localStorage cache (instant render)
+const CONFIG_DBKEY = 'system_config'      // shared app_settings row
+
+function loadConfig() {
+  try {
+    return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}) }
+  } catch {
+    return { ...DEFAULTS }
+  }
+}
+
 export default function SystemConfig() {
-  const [cfg, setCfg] = useState(DEFAULTS)
+  const [cfg, setCfg] = useState(loadConfig)
   const [dirty, setDirty] = useState(false)
   const [toast, setToast] = useState('')
+
+  // Pull the shared config from Supabase once on mount (cache renders first).
+  useEffect(() => {
+    let alive = true
+    db.appSettings.get(CONFIG_DBKEY).then((remote) => {
+      if (alive && remote) {
+        const merged = { ...DEFAULTS, ...remote }
+        setCfg(merged)
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(merged))
+      }
+    }).catch((e) => console.error('[SystemConfig] remote load failed', e))
+    return () => { alive = false }
+  }, [])
 
   function set(key, value) {
     setCfg((prev) => ({ ...prev, [key]: value }))
@@ -52,13 +76,17 @@ export default function SystemConfig() {
   }
   function handleSave(e) {
     e.preventDefault()
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)) // optimistic cache
     setDirty(false)
-    flash('Configuration saved — will sync once the backend is connected.')
+    flash('Configuration saved.')
+    db.appSettings.set(CONFIG_DBKEY, cfg).catch(() => flash('Saved locally — backend sync failed.'))
   }
   function handleReset() {
     setCfg(DEFAULTS)
+    localStorage.removeItem(CONFIG_KEY)
     setDirty(false)
     flash('Reverted to default configuration.')
+    db.appSettings.remove(CONFIG_DBKEY).catch((e) => console.error('[SystemConfig] remote reset failed', e))
   }
 
   return (
@@ -132,14 +160,14 @@ export default function SystemConfig() {
 
         <div className="set-cols">
           {/* Flood thresholds */}
-          <Panel icon={<DropletIcon />} title="Flood Risk Thresholds" sub="Measured depth (m) that sets each risk level">
+          <Panel icon={<DropletIcon />} title="Flood Risk Thresholds" sub="Modeled depth (m) that sets each risk level">
             <div className="set-grid-3">
               <ThresholdField label="Low" value={cfg.depthLow} onChange={(v) => set('depthLow', v)} />
               <ThresholdField label="Moderate" value={cfg.depthModerate} onChange={(v) => set('depthModerate', v)} />
               <ThresholdField label="High" value={cfg.depthHigh} onChange={(v) => set('depthHigh', v)} />
             </div>
             <div className="set-field-hint">
-              A barangay is graded by its measured flood depth: Safe below {cfg.depthLow || 0} m, then Low, Moderate and
+              A barangay is graded by its modeled flood depth: Safe below {cfg.depthLow || 0} m, then Low, Moderate and
               High once each threshold is reached. These power the risk badges on the Dashboard, Flood Map and Barangay screens.
             </div>
           </Panel>
@@ -171,13 +199,9 @@ export default function SystemConfig() {
             </div>
           </Panel>
 
-          {/* Data & sensors */}
-          <Panel icon={<ActivityIcon />} title="Data &amp; Sensors" sub="Feed cadence and retention">
+          {/* Data */}
+          <Panel icon={<ActivityIcon />} title="Data" sub="Feed cadence and retention">
             <div className="set-grid">
-              <div className="set-field">
-                <span>Sensor Poll Interval</span>
-                <UnitInput value={cfg.sensorInterval} onChange={(v) => set('sensorInterval', v)} suffix="min" min={1} />
-              </div>
               <div className="set-field">
                 <span>Data Retention</span>
                 <UnitInput value={cfg.retentionDays} onChange={(v) => set('retentionDays', v)} suffix="days" min={1} />
@@ -186,7 +210,7 @@ export default function SystemConfig() {
             <div className="set-toggles">
               <Toggle
                 label="Auto-refresh dashboards"
-                sub="Pull the latest rainfall, water level and risk data on the interval above."
+                sub="Pull the latest rainfall and risk data automatically."
                 checked={cfg.autoRefresh}
                 onChange={(v) => set('autoRefresh', v)}
               />

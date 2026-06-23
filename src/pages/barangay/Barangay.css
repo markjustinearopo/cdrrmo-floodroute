@@ -174,8 +174,12 @@
   display: grid;
   grid-template-columns: 1.55fr 1fr;
   gap: 14px;
-  align-items: start;
+  /* Stretch both columns to the same height so the map lines up with the
+     bottom edge of the quick-actions / recent-alerts column beside it. */
+  align-items: stretch;
 }
+/* Right column of the dashboard grid fills its track so its cards distribute. */
+.bq-grid > .bq { height: 100%; }
 .bq-ops-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -240,10 +244,11 @@
 .bq-mini-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
 
 /* ── Dashboard map ───────────────────────────────────────────────────────── */
-.bq-map-card { padding: 0; overflow: hidden; }
+.bq-map-card { padding: 0; overflow: hidden; height: 100%; }
 .bq-map {
   position: relative;
-  height: 380px;
+  height: 100%;
+  min-height: 380px;
   width: 100%;
 }
 .bq-map .leaflet-container {

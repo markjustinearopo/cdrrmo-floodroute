@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip } from 'react-leaflet'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, Marker, Popup, GeoJSON } from 'react-leaflet'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
+import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
+import { usePersistedState } from '../../utils/usePersistedState.js'
 import {
   CABUYAO_CENTER,
   CABUYAO_ZOOM,
@@ -8,13 +10,20 @@ import {
   RISK_META,
   formatPHT,
   CabuyaoLock,
+  BarangayLock,
+  JurisdictionToggle,
   CoordReadout,
+  LocateControl,
 } from '../../components/admin/mapHelpers.jsx'
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import { BarangayRiskLayer, InundationGrid } from '../../components/admin/BarangayRiskLayer.jsx'
+import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import { useBarangayLayers } from '../../components/admin/mapbox3dHelpers.js'
+import { useEvacCentres3D } from '../../components/admin/routing3d.js'
+import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import { useLiveWeather } from '../../services/weather.js'
-import { SAMPLE_EVAC_CENTERS } from '../../data/cabuyao.js'
-import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
+import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/FloodMap.css'
 
 /**
@@ -30,6 +39,23 @@ import '../admin/FloodMap.css'
 const PANEL_TABS = ['Overview', 'Barangays']
 const RAIN_TICKS = ['-8h', '-7', '-6', '-5', '-4', '-3', '-2', 'Now']
 
+const NOAH_STYLE = {
+  1: { color: '#FBBF24', fillColor: '#FEF9C3', fillOpacity: 0.55, weight: 0.5 },
+  2: { color: '#F97316', fillColor: '#FED7AA', fillOpacity: 0.6,  weight: 0.5 },
+  3: { color: '#C0181B', fillColor: '#FCA5A5', fillOpacity: 0.65, weight: 0.5 },
+}
+const NOAH_LABEL = { 1: 'Low', 2: 'Moderate', 3: 'High' }
+
+// Toggleable map overlays so an official can isolate one picture (e.g. just the
+// flood inundation, or just the evacuation centres). Default on — it's the flood
+// map — but each remembers its state across pages (usePersistedState).
+const FLOOD_LAYERS = [
+  { key: 'noah', label: 'NOAH Flood Zones', color: '#C0181B' },
+  { key: 'inundation', label: 'Flood Inundation', color: '#2563EB' },
+  { key: 'barangays', label: 'Barangay Risk', color: '#F97316' },
+  { key: 'evac', label: 'Evacuation Centres', color: '#1A7A4A' },
+]
+
 export default function FloodMap() {
   const brgyLabel = officialBarangayLabel()
   const myBrgy = getOfficialBarangay()
@@ -37,12 +63,37 @@ export default function FloodMap() {
   const { weather } = useLiveWeather()
   const { field } = useFloodRisk()
 
+  const [noahGeo, setNoahGeo] = useState(null)
+  useEffect(() => {
+    fetch('/noah_cabuyao_flood_100yr.geojson').then((r) => r.json()).then(setNoahGeo).catch(() => {})
+  }, [])
+  const noahStyle = useCallback((f) => NOAH_STYLE[f?.properties?.Var] ?? NOAH_STYLE[1], [])
+
+  const [view, setView] = useJurisdictionView()
+  const [use3D, setUse3D] = use3DPreference()
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-brgy-floodmap', { noah: true, inundation: true, barangays: true, evac: true })
+  const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-brgy-floodmap-intensity', 70)
+  const locked = view === 'mine' && Boolean(myBrgy)
+
   const barangays = useMemo(() => barangayRiskSamples(field), [field])
+  // "My Barangay" view confines the map + panels to the official's own barangay;
+  // "City" view keeps the whole-city situational picture.
+  const panelBarangays = useMemo(
+    () => (locked ? barangays.filter((b) => b.name === myBrgy) : barangays),
+    [barangays, locked, myBrgy],
+  )
   const rainfall = weather.current.rain ?? 0
   const rainHistory = weather.rainHistory
+  // Evacuation centres are city-wide — every official sees the same set, and a
+  // resident may shelter at any open centre regardless of barangay.
+  const { evacuationCenters } = useEvacCenters()
+  const evacMarkers = useMemo(
+    () => evacuationCenters.filter((c) => Array.isArray(c.coords)),
+    [evacuationCenters],
+  )
   const evacuationOpen = useMemo(
-    () => SAMPLE_EVAC_CENTERS.filter((c) => c.status !== 'closed').length,
-    [],
+    () => evacuationCenters.filter((c) => c.status !== 'closed').length,
+    [evacuationCenters],
   )
 
   const [panelTab, setPanelTab] = useState('Overview')
@@ -56,8 +107,8 @@ export default function FloodMap() {
 
   const risk = useMemo(() => {
     const counts = { high: 0, moderate: 0, low: 0, safe: 0 }
-    barangays.forEach((b) => counts[levelFromDepth(b.floodDepth)]++)
-    const total = Math.max(barangays.length, 1)
+    panelBarangays.forEach((b) => counts[levelFromDepth(b.floodDepth)]++)
+    const total = Math.max(panelBarangays.length, 1)
     const pct = Object.fromEntries(
       Object.entries(counts).map(([k, v]) => [k, Math.round((v / total) * 100)]),
     )
@@ -67,7 +118,7 @@ export default function FloodMap() {
       : counts.low > 0 ? 'low'
       : 'safe'
     return { counts, pct, worst }
-  }, [barangays])
+  }, [panelBarangays])
 
   const myLevel = useMemo(
     () => barangays.find((b) => b.name === myBrgy)?.level ?? 'safe',
@@ -95,15 +146,30 @@ export default function FloodMap() {
         <div className="subtab-bar">
           <button type="button" className="subtab active">
             <MapIcon />
-            Brgy. {brgyLabel} · Live Map
+            {locked ? `Brgy. ${brgyLabel} · Jurisdiction` : 'Cabuyao City · Live Map'}
           </button>
           <span className={`bq-juris-badge risk-badge ${myLevel}`} style={{ marginLeft: 'auto', alignSelf: 'center' }}>
             Your barangay: {RISK_META[myLevel].label}
           </span>
+          <JurisdictionToggle value={view} onChange={setView} brgyLabel={brgyLabel} />
+          <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>
 
         <div className="map-panel-wrap">
           <div className="map-area">
+            {use3D ? (
+              <FloodMap3DView
+                key={locked ? `b-${myBrgy}` : 'city'}
+                barangays={panelBarangays}
+                field={field}
+                weather={weather}
+                evac={evacMarkers}
+                layers={layers}
+                intensity={intensity}
+                jurisdiction={locked ? myBrgy : null}
+                onViewChange={setCoords}
+              />
+            ) : (
             <MapContainer
               center={CABUYAO_CENTER}
               zoom={CABUYAO_ZOOM}
@@ -113,12 +179,24 @@ export default function FloodMap() {
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.85} />
               <ZoomControl position="bottomright" />
-              <CabuyaoLock />
+              {locked ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
 
-              <InundationGrid cells={field?.cells} opacity={0.6} mode="interior" />
-              <BarangayRiskLayer samples={barangays} opacity={0.85} />
+              {layers.noah && noahGeo && (
+                <GeoJSON
+                  key="noah-100yr"
+                  data={noahGeo}
+                  style={noahStyle}
+                  onEachFeature={(f, lyr) => {
+                    const lvl = NOAH_LABEL[f.properties?.Var] ?? 'Unknown'
+                    lyr.bindTooltip(`NOAH 100-yr Flood Zone · ${lvl} Hazard`, { sticky: true, className: 'road-tip' })
+                  }}
+                />
+              )}
 
-              {barangays.map((b) => {
+              {layers.inundation && <InundationGrid field={field} opacity={intensity / 100} only={locked ? myBrgy : null} />}
+              {layers.barangays && <BarangayRiskLayer samples={panelBarangays} opacity={Math.max(0.5, intensity / 100)} only={locked ? myBrgy : null} />}
+
+              {layers.barangays && panelBarangays.map((b) => {
                 const mine = b.name === myBrgy
                 return (
                   <CircleMarker
@@ -141,8 +219,32 @@ export default function FloodMap() {
                 )
               })}
 
+              {/* Shared evacuation centres (city-wide) */}
+              {layers.evac && evacMarkers.map((c) => (
+                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacPinIcon(c.status)}>
+                  <Popup>
+                    <strong>{c.name}</strong>
+                    <div style={{ fontSize: '0.6875rem', color: '#7a7a7a' }}>{c.barangay} · {c.status}</div>
+                  </Popup>
+                </Marker>
+              ))}
+
               <CoordReadout onChange={setCoords} />
+              <LocateControl />
             </MapContainer>
+            )}
+
+            {!use3D && (
+              <MapLayerToggles
+                layers={FLOOD_LAYERS.map((l) => ({
+                  ...l,
+                  on: layers[l.key],
+                  onToggle: () => setLayers((v) => ({ ...v, [l.key]: !v[l.key] })),
+                }))}
+                opacity={intensity}
+                onOpacity={setIntensity}
+              />
+            )}
 
             <div className="map-legend">
               <span className="legend-live">Live | Updated {updated} PHT</span>
@@ -181,7 +283,7 @@ export default function FloodMap() {
 
               {panelTab === 'Barangays' && (
                 <div className="brgy-list">
-                  {[...barangays]
+                  {[...panelBarangays]
                     .sort((a, b) => b.floodDepth - a.floodDepth || a.name.localeCompare(b.name))
                     .map((b) => {
                       const mine = b.name === myBrgy
@@ -202,6 +304,33 @@ export default function FloodMap() {
         </div>
       </div>
     </BarangayLayout>
+  )
+}
+
+/* ── 3D map view (Mapbox GL) — same hazard layers, locked to the barangay ─── */
+function FloodMap3DView({ barangays, field, weather, evac = [], layers = { inundation: true, barangays: true, evac: true }, intensity = 70, jurisdiction, onViewChange }) {
+  const { onMapLoad, mapRef, ready } = useBarangayLayers({
+    samples: barangays,
+    field,
+    inundation: layers.inundation,
+    fills: layers.barangays,
+    markers: layers.barangays,
+    baseOpacity: intensity / 100,
+    jurisdiction,
+  })
+  // Shared evacuation centres (city-wide) — same dots the 2D map shows.
+  useEvacCentres3D(mapRef, ready, layers.evac ? evac : [])
+  const wind = useMemo(
+    () => ({ speed: (weather.current.windKmh ?? 0) / 3.6, deg: weather.current.windDir ?? 0 }),
+    [weather],
+  )
+  return (
+    <Map3D
+      onMapLoad={onMapLoad}
+      onViewChange={onViewChange}
+      wind={wind}
+      rain={weather.current.rain ?? 0}
+    />
   )
 }
 

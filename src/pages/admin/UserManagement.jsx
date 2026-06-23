@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { BARANGAYS } from '../../data/cabuyao.js'
 import {
-  ROLES, ROLE_LABEL, USER_STATUSES, USER_STATUS_LABEL, SAMPLE_USERS,
+  ROLES, ROLE_LABEL, USER_STATUSES, USER_STATUS_LABEL,
 } from '../../data/settings.js'
+import { useUsers } from '../../context/AdminDataContext.jsx'
 import './Manage.css'
 import './Settings.css'
 
@@ -13,9 +14,9 @@ import './Settings.css'
  * The roster of system accounts: command-center staff, barangay officers and
  * read-only viewers. Each account carries a role (which drives its permissions
  * on the Permissions & Roles screen), an optional barangay scope and an account
- * status. The list is seeded with a small starter set so the table is usable;
- * records live in component state until the users API (GET/POST/PUT /users) is
- * connected, after which this same shape is fed straight from the database.
+ * status. Records live in the shared AdminDataContext store (seeded with a
+ * starter set, persisted across refreshes), and a whole roster can be brought
+ * in at once with the CSV bulk import.
  */
 
 const FILTERS = [
@@ -33,11 +34,77 @@ function initials(name) {
   return ((parts[0][0] || '') + (parts[1]?.[0] || '')).toUpperCase()
 }
 
+/* ── CSV bulk import ──────────────────────────────────────────────────────
+   Expected columns: Full Name, Email, Role, Barangay Scope, Status.
+   A header row is detected and skipped; role/status accept either the
+   stored value ("officer") or the display label ("Barangay Officer"). */
+function parseCsv(text) {
+  const rows = []
+  let row = [], cell = '', quoted = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++ }
+      else if (ch === '"') quoted = false
+      else cell += ch
+    } else if (ch === '"') quoted = true
+    else if (ch === ',') { row.push(cell); cell = '' }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++
+      row.push(cell); cell = ''
+      if (row.some((c) => c.trim())) rows.push(row)
+      row = []
+    } else cell += ch
+  }
+  row.push(cell)
+  if (row.some((c) => c.trim())) rows.push(row)
+  return rows
+}
+
+const ROLE_BY_TEXT = Object.fromEntries(
+  ROLES.flatMap((r) => [[r.value, r.value], [r.label.toLowerCase(), r.value]]),
+)
+const STATUS_BY_TEXT = Object.fromEntries(
+  USER_STATUSES.flatMap((s) => [[s.value, s.value], [s.label.toLowerCase(), s.value]]),
+)
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function validateCsvRows(rows, existingEmails) {
+  const valid = []
+  const errors = []
+  const seen = new Set()
+  let start = 0
+  // Header row: first cell reads like a column name, not a person.
+  if (rows.length && /name/i.test(rows[0][0] || '')) start = 1
+  for (let r = start; r < rows.length; r++) {
+    const line = r + 1
+    const [name = '', email = '', role = '', barangay = '', status = ''] = rows[r].map((c) => c.trim())
+    if (!name) { errors.push(`Row ${line}: missing full name`); continue }
+    if (!EMAIL_RE.test(email)) { errors.push(`Row ${line}: invalid email "${email}"`); continue }
+    const emailKey = email.toLowerCase()
+    if (existingEmails.has(emailKey)) { errors.push(`Row ${line}: ${email} already has an account`); continue }
+    if (seen.has(emailKey)) { errors.push(`Row ${line}: duplicate email ${email} in file`); continue }
+    const roleVal = ROLE_BY_TEXT[role.toLowerCase()] || (role ? null : 'viewer')
+    if (!roleVal) { errors.push(`Row ${line}: unknown role "${role}"`); continue }
+    const statusVal = STATUS_BY_TEXT[status.toLowerCase()] || (status ? null : 'pending')
+    if (!statusVal) { errors.push(`Row ${line}: unknown status "${status}"`); continue }
+    const brgy = barangay && barangay.toLowerCase() !== 'all'
+      ? BARANGAYS.find((b) => b.toLowerCase() === barangay.toLowerCase())
+      : 'All'
+    if (!brgy) { errors.push(`Row ${line}: unknown barangay "${barangay}"`); continue }
+    seen.add(emailKey)
+    valid.push({ name, email, role: roleVal, barangay: brgy, status: statusVal })
+  }
+  return { valid, errors }
+}
+
 export default function UserManagement() {
-  const [users, setUsers] = useState(SAMPLE_USERS)
+  const { users, addUser, addUsers, updateUser, removeUser } = useUsers()
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // user object, {} for new, or null
+  const [importing, setImporting] = useState(false)
+  const [importPreview, setImportPreview] = useState(null) // { valid, errors, fileName }
   const [toast, setToast] = useState('')
 
   const stats = useMemo(() => ({
@@ -73,30 +140,54 @@ export default function UserManagement() {
       status: f.get('status'),
     }
     if (editing.id) {
-      setUsers((prev) => prev.map((u) => (u.id === editing.id ? { ...u, ...data } : u)))
+      updateUser(editing.id, data)
       flash(`${data.name} updated.`)
     } else {
-      setUsers((prev) => [
-        { id: `usr-${Date.now()}`, lastActive: '—', ...data },
-        ...prev,
-      ])
+      addUser(data)
       flash(`${data.name} added.`)
     }
     setEditing(null)
   }
 
   function toggleStatus(id) {
-    setUsers((prev) => prev.map((u) => {
-      if (u.id !== id) return u
-      const status = u.status === 'suspended' ? 'active' : 'suspended'
-      flash(status === 'suspended' ? `${u.name} suspended.` : `${u.name} reactivated.`)
-      return { ...u, status }
-    }))
+    const u = users.find((x) => x.id === id)
+    if (!u) return
+    const status = u.status === 'suspended' ? 'active' : 'suspended'
+    updateUser(id, { status })
+    flash(status === 'suspended' ? `${u.name} suspended.` : `${u.name} reactivated.`)
   }
   function remove(id) {
     const u = users.find((x) => x.id === id)
-    setUsers((prev) => prev.filter((x) => x.id !== id))
+    removeUser(id)
     flash(`${u?.name || 'Account'} removed.`)
+  }
+
+  /* ── Bulk import ── */
+  function handleImportFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const existing = new Set(users.map((u) => u.email.toLowerCase()))
+      const { valid, errors } = validateCsvRows(parseCsv(String(reader.result)), existing)
+      setImportPreview({ valid, errors, fileName: file.name })
+    }
+    reader.onerror = () => flash('Could not read that file.')
+    reader.readAsText(file)
+    e.target.value = '' // same file can be re-picked after fixing it
+  }
+
+  function commitImport() {
+    if (!importPreview?.valid.length) return
+    addUsers(importPreview.valid)
+    flash(`${importPreview.valid.length} account${importPreview.valid.length === 1 ? '' : 's'} imported.`)
+    setImporting(false)
+    setImportPreview(null)
+  }
+
+  function closeImport() {
+    setImporting(false)
+    setImportPreview(null)
   }
 
   return (
@@ -117,9 +208,14 @@ export default function UserManagement() {
               <div className="mng-sub">Manage CDRRMO system accounts, roles and access</div>
             </div>
           </div>
-          <button type="button" className="mng-btn" onClick={() => setEditing({})}>
-            <PlusIcon /> Add User
-          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" className="mng-btn mng-btn-ghost" onClick={() => setImporting(true)}>
+              <UploadIcon /> Bulk Import
+            </button>
+            <button type="button" className="mng-btn" onClick={() => setEditing({})}>
+              <PlusIcon /> Add User
+            </button>
+          </div>
         </div>
 
         <div className="mng-stats">
@@ -178,7 +274,11 @@ export default function UserManagement() {
                   <tr key={u.id}>
                     <td>
                       <div className="set-user">
-                        <div className={`set-user-av ${u.role === 'admin' ? 'admin' : ''}`}>{initials(u.name)}</div>
+                        <div className={`set-user-av ${u.role === 'admin' ? 'admin' : ''}`}>
+                          {u.avatar
+                            ? <img src={u.avatar} alt={u.name} className="set-user-av-img" />
+                            : initials(u.name)}
+                        </div>
                         <div>
                           <div className="set-user-name">{u.name}</div>
                           <div className="set-user-email">{u.email}</div>
@@ -217,9 +317,69 @@ export default function UserManagement() {
 
         <div className="mng-note">
           <SparkIcon />
-          <span>The roster is seeded with a starter set and kept for this session until the users API is connected. Roles map to the access defined under Permissions &amp; Roles.</span>
+          <span>Accounts persist across refreshes and are shared system-wide. Roles map to the access defined under Permissions &amp; Roles; use Bulk Import to bring in a whole roster from CSV.</span>
         </div>
       </div>
+
+      {/* Bulk import modal */}
+      {importing && (
+        <div className="mng-overlay" onMouseDown={closeImport}>
+          <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Bulk import users" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="mng-modal-head">
+              <div>
+                <div className="mng-modal-title">Bulk Import Users</div>
+                <div className="mng-modal-sub">CSV columns: Full Name, Email, Role, Barangay Scope, Status</div>
+              </div>
+              <button type="button" className="mng-modal-close" onClick={closeImport} aria-label="Close">×</button>
+            </div>
+            <div className="mng-form">
+              <label>
+                CSV File
+                <input type="file" accept=".csv,text/csv" onChange={handleImportFile} />
+              </label>
+              {importPreview && (
+                <>
+                  <div className="mng-detail-notes">
+                    <b>{importPreview.fileName}</b> — {importPreview.valid.length} account{importPreview.valid.length === 1 ? '' : 's'} ready to import
+                    {importPreview.errors.length > 0 && `, ${importPreview.errors.length} row${importPreview.errors.length === 1 ? '' : 's'} skipped`}.
+                  </div>
+                  {importPreview.valid.length > 0 && (
+                    <ul className="mng-import-list">
+                      {importPreview.valid.slice(0, 8).map((u) => (
+                        <li key={u.email}>
+                          <span className="mng-strong">{u.name}</span> · {u.email} · {ROLE_LABEL[u.role]} · {u.barangay}
+                        </li>
+                      ))}
+                      {importPreview.valid.length > 8 && (
+                        <li className="mng-muted">…and {importPreview.valid.length - 8} more</li>
+                      )}
+                    </ul>
+                  )}
+                  {importPreview.errors.length > 0 && (
+                    <ul className="mng-import-list errors">
+                      {importPreview.errors.slice(0, 6).map((err) => <li key={err}>{err}</li>)}
+                      {importPreview.errors.length > 6 && (
+                        <li>…and {importPreview.errors.length - 6} more</li>
+                      )}
+                    </ul>
+                  )}
+                </>
+              )}
+              <div className="mng-form-actions">
+                <button type="button" className="mng-btn mng-btn-ghost" onClick={closeImport}>Cancel</button>
+                <button
+                  type="button"
+                  className="mng-btn"
+                  disabled={!importPreview?.valid.length}
+                  onClick={commitImport}
+                >
+                  Import {importPreview?.valid.length || ''} Account{importPreview?.valid.length === 1 ? '' : 's'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add / edit modal */}
       {editing && (
@@ -289,6 +449,11 @@ function Stat({ color, value, label }) {
 function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+  )
+}
+function UploadIcon() {
+  return (
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
   )
 }
 function SearchIcon() {

@@ -1,0 +1,72 @@
+/* ============================================================
+   Admin — Notifications page list (uses Manage.css for the
+   header / stats / toolbar / card chrome; AdminLayout.css for
+   the shared notif-dot + detail-popup styles).
+   ============================================================ */
+
+.notif-page-list {
+  display: flex;
+  flex-direction: column;
+}
+.notif-page-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 18px;
+  border: none;
+  border-bottom: 1px solid #f0eee9;
+  background: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.notif-page-item:last-child { border-bottom: none; }
+.notif-page-item:hover { background: #faf7f5; }
+.notif-page-item.unread { background: #fef7f7; }
+.notif-page-item.unread:hover { background: #fdeeee; }
+.notif-page-item .notif-dot { margin-top: 6px; }
+
+.notif-page-body {
+  flex: 1;
+  min-width: 0;
+}
+.notif-page-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+.notif-page-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.notif-page-time {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.notif-page-desc {
+  font-size: 0.8125rem;
+  color: #5a5a5a;
+  line-height: 1.45;
+}
+
+.notif-page-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 48px 24px;
+  color: #9a9a9a;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 520px) {
+  .notif-page-row { flex-direction: column; gap: 2px; }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, ZoomControl } from 'react-leaflet'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
@@ -8,18 +8,27 @@ import {
   levelFromDepth,
   RISK_META,
   CabuyaoLock,
+  BarangayLock,
+  LocateControl,
 } from '../../components/admin/mapHelpers.jsx'
-import { officialBarangayLabel, getOfficialBarangay, safeGet, brgyQuery } from '../../data/barangay.js'
+import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
+import { useRoadStatus } from '../../components/admin/routingHelpers.jsx'
+import { useLiveWeather, formatRain } from '../../services/weather.js'
+import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
+import {
+  useAlerts, useEvacCenters, useIncidents, useRoadRequests, useBarangayAssignments,
+} from '../../context/AdminDataContext.jsx'
 import './Barangay.css'
 
 /**
  * CDRRMO Barangay — Dashboard (Monitor landing).
  *
  * The official's at-a-glance picture of THEIR barangay: measured flood risk,
- * a jurisdiction map, the quick actions they reach for in an event, and the
- * latest alerts affecting their area. Every figure starts at zero/none and is
- * filled from the shared backend (GET /barangays, /alerts, /evac-centers);
- * risk follows the measured flood depth, the system-wide single source of truth.
+ * a jurisdiction map locked to their own border, the quick actions they reach
+ * for in an event, and the latest alerts affecting their area. Figures are read
+ * live from the shared system store, scoped to this barangay — the same alerts
+ * and shelters the command center manages. Risk follows the measured flood
+ * depth, the system-wide single source of truth.
  */
 
 const RISK_BLURB = {
@@ -34,26 +43,46 @@ export default function Dashboard() {
   const brgyLabel = officialBarangayLabel()
   const myBrgy = getOfficialBarangay()
 
-  const [floodDepth, setFloodDepth] = useState(0)
-  const [alerts, setAlerts] = useState([])
-  const [openShelters, setOpenShelters] = useState(0)
-  const [evacuees, setEvacuees] = useState(0)
+  const { field } = useFloodRisk()
+  const { alerts: allAlerts } = useAlerts()
+  const { evacuationCenters } = useEvacCenters()
+  const { incidents } = useIncidents()
+  const { roadChangeRequests } = useRoadRequests()
+  const { barangayAssignments } = useBarangayAssignments()
+  const { weather } = useLiveWeather()
+  const [statusMap] = useRoadStatus()
 
-  useEffect(() => {
-    let active = true
-    safeGet('/barangays').then((data) => {
-      if (!active || !data?.barangays) return
-      const mine = data.barangays.find((b) => b.name === myBrgy)
-      if (mine) setFloodDepth(Number(mine.flood_depth ?? mine.floodDepth ?? 0))
-    })
-    safeGet(`/alerts${brgyQuery('isActive=true')}`).then((d) => active && d?.alerts && setAlerts(d.alerts))
-    safeGet(`/evac-centers${brgyQuery()}`).then((d) => {
-      if (!active || !d?.centers) return
-      setOpenShelters(d.centers.filter((c) => c.status === 'open').length)
-      setEvacuees(d.centers.reduce((s, c) => s + Number(c.occupancy || 0), 0))
-    })
-    return () => { active = false }
-  }, [myBrgy])
+  const floodDepth = useMemo(
+    () => barangayRiskSamples(field).find((b) => b.name === myBrgy)?.floodDepth ?? 0,
+    [field, myBrgy],
+  )
+  const alerts = useMemo(
+    () => allAlerts.filter((a) => a.barangay === myBrgy && a.status === 'active'),
+    [allAlerts, myBrgy],
+  )
+  const openShelters = useMemo(
+    () => evacuationCenters.filter((c) => c.barangay === myBrgy && c.status === 'open').length,
+    [evacuationCenters, myBrgy],
+  )
+
+  // Situation snapshot figures, all from the shared store, scoped where it makes sense.
+  const openIncidents = useMemo(
+    () => incidents.filter((i) => i.barangay === myBrgy && i.status !== 'resolved').length,
+    [incidents, myBrgy],
+  )
+  const pendingRoadReqs = useMemo(
+    () => roadChangeRequests.filter((r) => r.barangay === myBrgy && r.status === 'pending').length,
+    [roadChangeRequests, myBrgy],
+  )
+  const liveFlaggedRoads = useMemo(
+    () => Object.values(statusMap).filter((s) => s === 'flooded' || s === 'blocked').length,
+    [statusMap],
+  )
+  // Response readiness: how many of the 6 standard BDRRMC items are marked ready.
+  const readyCount = useMemo(() => {
+    const r = barangayAssignments[myBrgy]?.readiness || {}
+    return Object.values(r).filter(Boolean).length
+  }, [barangayAssignments, myBrgy])
 
   const level = useMemo(() => levelFromDepth(floodDepth), [floodDepth])
   const activeAlerts = alerts.length
@@ -92,7 +121,7 @@ export default function Dashboard() {
             value={RISK_META[level].label}
             label="Current Risk"
           />
-          <Stat color="blue" icon={<DropletIcon />} value={`${floodDepth.toFixed(2)}m`} label="Flood Depth" />
+          <Stat color="blue" icon={<DropletIcon />} value={`~${floodDepth.toFixed(2)}m`} label="Est. Depth" />
           <Stat color="red" icon={<BellIcon />} value={activeAlerts} label="Active Alerts" />
           <Stat color="green" icon={<HomeIcon />} value={openShelters} label="Open Shelters" />
         </div>
@@ -111,7 +140,8 @@ export default function Dashboard() {
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.85} />
                 <ZoomControl position="bottomright" />
-                <CabuyaoLock />
+                {myBrgy ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
+                <LocateControl />
               </MapContainer>
               <div className="bq-map-legend">
                 <div className="bq-legend-item"><span className="bq-legend-line" style={{ background: '#16A34A' }} /> Safe Route</div>
@@ -148,6 +178,38 @@ export default function Dashboard() {
                   View Safe Routes
                   <span className="bq-action-arrow">›</span>
                 </button>
+              </div>
+            </div>
+
+            <div className="bq-panel">
+              <div className="bq-panel-head">
+                <div className="bq-panel-title"><PulseIcon /> Situation Snapshot</div>
+              </div>
+              <div className="bq-kv-grid">
+                <div className="bq-kv">
+                  <div className="bq-kv-label">Open Incidents</div>
+                  <div className="bq-kv-val">{openIncidents}</div>
+                </div>
+                <div className="bq-kv">
+                  <div className="bq-kv-label">Road Requests Pending</div>
+                  <div className="bq-kv-val">{pendingRoadReqs}</div>
+                </div>
+                <div className="bq-kv">
+                  <div className="bq-kv-label">Response Readiness</div>
+                  <div className="bq-kv-val">{readyCount}/6</div>
+                </div>
+                <div className="bq-kv">
+                  <div className="bq-kv-label">Live Rainfall</div>
+                  <div className="bq-kv-val">{formatRain(weather.current.rain)}</div>
+                </div>
+                <div className="bq-kv">
+                  <div className="bq-kv-label">Flagged Roads (City)</div>
+                  <div className="bq-kv-val">{liveFlaggedRoads}</div>
+                </div>
+                <div className="bq-kv">
+                  <div className="bq-kv-label">Open Shelters</div>
+                  <div className="bq-kv-val">{openShelters}</div>
+                </div>
               </div>
             </div>
 
@@ -233,6 +295,13 @@ function BoltIcon() {
   return (
     <svg viewBox="0 0 24 24">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  )
+}
+function PulseIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
     </svg>
   )
 }

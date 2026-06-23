@@ -4,8 +4,8 @@
    • BarangayRiskLayer — the 18 barangay polygons, each filled by its live
      model risk (the authoritative "Affected Barangays" / inundation classifier).
      Clicking a barangay selects it (onSelect) for the focus view + detail card.
-   • InundationGrid — the fine NOAH-style flood-risk surface, clipped to land
-     (interior cells only) so the heat never bleeds past the shoreline.
+   • InundationGrid — the fine NOAH-style honeycomb flood-risk surface,
+     clipped to land so the heat never bleeds past the shoreline.
    • FocusController — flies/locks the map to a barangay's bounds (focus view),
      and restores the city view when cleared.
 
@@ -13,9 +13,10 @@
    ============================================================ */
 
 import { useEffect, useMemo, useRef } from 'react'
-import { GeoJSON, Rectangle, useMap } from 'react-leaflet'
-import { BARANGAY_FEATURES, CABUYAO_LAND_BOUNDS } from '../../data/cabuyaoBarangays.js'
-import { riskColor } from './floodRisk.js'
+import { GeoJSON, Polygon, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import { BARANGAY_FEATURES, CABUYAO_LAND_BOUNDS, barangayAt } from '../../data/cabuyaoBarangays.js'
+import { buildFloodHexes, BAND_FILL } from './floodRisk.js'
 import { RISK_META } from './mapHelpers.jsx'
 
 // Per-class fill opacity — solid enough that yellow reads as yellow and the
@@ -29,19 +30,28 @@ const LEVEL_FILL = { high: 0.7, moderate: 0.64, low: 0.6, safe: 0.5 }
  *  props.interactive— hover highlight + tooltip + click-to-select (default true)
  *  props.onSelect   — (name) => void, fired on barangay click
  *  props.selected   — name of the currently-focused barangay (drawn emphasised)
+ *  props.only       — restrict to a single barangay (jurisdiction view); others
+ *                     are dropped so only the official's own polygon renders
  */
-export function BarangayRiskLayer({ samples, opacity = 1, interactive = true, onSelect, selected }) {
+export function BarangayRiskLayer({ samples, opacity = 1, interactive = true, onSelect, selected, only = null }) {
   const byName = useMemo(() => {
     const m = {}
     for (const s of samples) m[s.name] = s
     return m
   }, [samples])
 
+  const data = useMemo(
+    () => (only
+      ? { ...BARANGAY_FEATURES, features: BARANGAY_FEATURES.features.filter((f) => f.properties.name === only) }
+      : BARANGAY_FEATURES),
+    [only],
+  )
+
   // <GeoJSON> doesn't re-evaluate style on prop change, so remount via a key
   // whenever the risk picture, opacity, or selection changes.
   const sig = useMemo(
-    () => samples.map((s) => `${s.name}:${s.level}:${s.risk.toFixed(2)}`).join('|') + `@${opacity}#${selected || ''}`,
-    [samples, opacity, selected],
+    () => samples.map((s) => `${s.name}:${s.level}:${s.risk.toFixed(2)}`).join('|') + `@${opacity}#${selected || ''}~${only || ''}`,
+    [samples, opacity, selected, only],
   )
 
   const styleFor = (feature) => {
@@ -82,7 +92,7 @@ export function BarangayRiskLayer({ samples, opacity = 1, interactive = true, on
   return (
     <GeoJSON
       key={sig}
-      data={BARANGAY_FEATURES}
+      data={data}
       style={styleFor}
       onEachFeature={onEachFeature}
       interactive={interactive}
@@ -91,23 +101,35 @@ export function BarangayRiskLayer({ samples, opacity = 1, interactive = true, on
 }
 
 /**
- * Land-clipped flood-risk heat surface (the modeled inundation field).
- *  props.cells   — field.cells from floodRisk.js (each carries onLand / interior)
+ * Land-clipped flood-inundation surface: the live risk field rendered as a
+ * fine NOAH-style honeycomb (buildFloodHexes — ~100 m hexagons, banded by
+ * depth class so the colours always match the risk legend).
+ *
+ * All hexes are painted on a dedicated canvas renderer with a full-viewport
+ * pad: one canvas regardless of the page's default renderer (the default SVG
+ * renderer would create thousands of DOM nodes AND clip the surface to the
+ * viewport, blanking the hazard colours at the edges mid-pan).
+ *
+ *  props.field   — the flood-risk field from useFloodRisk()
  *  props.opacity — overlay opacity multiplier (0…1)
- *  props.mode    — 'interior' (cells fully on land, zero lake bleed) | 'onLand'
+ *  props.only    — clip the surface to a single barangay (jurisdiction view)
  */
-export function InundationGrid({ cells = [], opacity = 1, mode = 'interior' }) {
-  const visible = cells.filter((c) => (mode === 'interior' ? c.interior : c.onLand))
-  return visible.map((cell) => (
-    <Rectangle
-      key={cell.key}
-      bounds={cell.bounds}
+export function InundationGrid({ field, opacity = 1, only = null }) {
+  const hexes = useMemo(() => {
+    const all = buildFloodHexes(field)
+    return only ? all.filter((h) => barangayAt(h.center[0], h.center[1]) === only) : all
+  }, [field, only])
+  const renderer = useMemo(() => L.canvas({ padding: 1 }), [])
+  return hexes.map((hex) => (
+    <Polygon
+      key={hex.key}
+      positions={hex.ring}
+      renderer={renderer}
+      interactive={false}
       pathOptions={{
         stroke: false,
-        // Stronger than before so the surface reads clearly even at low risk.
-        fillColor: riskColor(cell.risk),
-        fillOpacity: Math.min(0.92, opacity * (0.3 + 0.55 * cell.risk)),
-        interactive: false,
+        fillColor: RISK_META[hex.band].color,
+        fillOpacity: Math.min(0.92, opacity * BAND_FILL[hex.band]),
       }}
     />
   ))

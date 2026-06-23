@@ -22,7 +22,7 @@ import {
 } from './floodRisk.js'
 import { barangayAreaKm2, barangayAt } from '../../data/cabuyaoBarangays.js'
 import { fetchBarangayRainHistory } from '../../services/weather.js'
-import { SAMPLE_EVAC_CENTERS } from '../../data/cabuyao.js'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import './barangayDetail.css'
 
 export function BarangayDetailCard({ sample, onClose }) {
@@ -44,15 +44,16 @@ export function BarangayDetailCard({ sample, onClose }) {
     return () => { active = false }
   }, [sample.name, lat, lng])
 
+  const { evacuationCenters } = useEvacCenters()
   const elevation = useMemo(() => elevationAt(lat, lng), [lat, lng])
   const susceptibility = useMemo(() => Math.round(susceptibilityAt(lat, lng) * 100), [lat, lng])
   const area = useMemo(() => barangayAreaKm2(sample.name), [sample.name])
   const evac = useMemo(
     () =>
-      SAMPLE_EVAC_CENTERS.filter(
-        (c) => c.barangay === sample.name || (c.coords && barangayAt(c.coords[0], c.coords[1]) === sample.name),
+      evacuationCenters.filter(
+        (c) => c.barangay === sample.name || (Array.isArray(c.coords) && barangayAt(c.coords[0], c.coords[1]) === sample.name),
       ),
-    [sample.name],
+    [evacuationCenters, sample.name],
   )
 
   const trend = useMemo(() => {
@@ -81,7 +82,7 @@ export function BarangayDetailCard({ sample, onClose }) {
       <div className="bdc-body">
         {/* Headline metrics */}
         <div className="bdc-metrics">
-          <Metric label="Est. flood depth" value={sample.floodDepth.toFixed(2)} unit="m" tone={sample.level} />
+          <Metric label="Est. flood depth" value={`~${sample.floodDepth.toFixed(2)}`} unit="m" tone={sample.level} />
           <Metric label="Ground elevation" value={`${elevation}`} unit="m" />
           <Metric label="Susceptibility" value={`${susceptibility}`} unit="%" />
           <Metric label="Land area" value={`${area}`} unit="km²" />

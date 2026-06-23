@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { usePersistedState } from '../../utils/usePersistedState.js'
 import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip } from 'react-leaflet'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
 import {
@@ -16,7 +17,7 @@ import {
 } from '../../components/admin/floodRisk.js'
 import { BarangayRiskLayer, InundationGrid } from '../../components/admin/BarangayRiskLayer.jsx'
 import { useLiveWeather } from '../../services/weather.js'
-import { SAMPLE_EVAC_CENTERS } from '../../data/cabuyao.js'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import '../admin/HazardLayer.css'
 
@@ -25,7 +26,7 @@ import '../admin/HazardLayer.css'
  *
  * Read-only view of the live flood-hazard overlay so a resident can see which
  * areas are flood-prone — Leaflet + OpenStreetMap with the REAL barangay
- * boundaries classified by the live flood-risk model (Google Flood Hub × Windy
+ * boundaries classified by the live flood-risk model (Open-Meteo Flood × Forecast
  * × OpenStreetMap + bundled Cabuyao terrain). The resident's own barangay is
  * highlighted; every barangay is drawn at its true location, never in the lake.
  */
@@ -49,9 +50,10 @@ export default function HazardLayer() {
 
   const { field, loading, error, refresh } = useFloodRisk()
   const { weather } = useLiveWeather()
+  const { evacuationCenters } = useEvacCenters()
 
-  const [visible, setVisible] = useState(() => Object.fromEntries(LAYER_DEFS.map((l) => [l.key, true])))
-  const [opacity, setOpacity] = useState(70)
+  const [visible, setVisible] = usePersistedState('cdrrmo-layers-res-hazard-visible', Object.fromEntries(LAYER_DEFS.map((l) => [l.key, false])))
+  const [opacity, setOpacity] = usePersistedState('cdrrmo-layers-res-hazard-opacity', 70)
   const [coords, setCoords] = useState(null)
   const [updated, setUpdated] = useState(formatPHT())
 
@@ -62,8 +64,8 @@ export default function HazardLayer() {
   const samples = useMemo(() => barangayRiskSamples(field), [field])
   const summary = useMemo(() => hazardSummary(field, samples, {}), [field, samples])
   const openCentres = useMemo(
-    () => SAMPLE_EVAC_CENTERS.filter((c) => c.coords && c.status !== 'closed'),
-    [],
+    () => evacuationCenters.filter((c) => Array.isArray(c.coords) && c.status !== 'closed'),
+    [evacuationCenters],
   )
   const mine = useMemo(() => samples.find((s) => s.name === myBrgy), [samples, myBrgy])
   const myLevel = mine?.level ?? 'safe'
@@ -93,7 +95,7 @@ export default function HazardLayer() {
           </div>
           <div className="hz-source">
             <span className="hz-source-dot" />
-            Source: Google Flood Hub · Windy · OpenStreetMap
+            Source: Open-Meteo (Forecast + Flood API) · OpenStreetMap
           </div>
           <div className="hz-updated">
             <span className={`hz-live-dot ${loading ? 'loading' : ''}`} />
@@ -114,9 +116,7 @@ export default function HazardLayer() {
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
 
-              {visible.inundation && (
-                <InundationGrid cells={field?.cells} opacity={opacity / 100} mode="interior" />
-              )}
+              {visible.inundation && <InundationGrid field={field} opacity={opacity / 100} />}
               {visible.barangays && (
                 <BarangayRiskLayer samples={samples} opacity={Math.max(0.45, opacity / 100)} />
               )}
@@ -143,7 +143,7 @@ export default function HazardLayer() {
               <div className="hz-nodata">
                 <span className="hz-spinner" />
                 <span>Loading live hazard model…</span>
-                <small>Fusing Flood Hub, Windy & terrain over Cabuyao</small>
+                <small>Fusing Open-Meteo forecast, flood & terrain over Cabuyao</small>
               </div>
             )}
             {error && !hasField && (
@@ -172,7 +172,7 @@ export default function HazardLayer() {
                   </div>
                   <div className="hz-stat-lbl">Brgy. {brgyLabel}</div>
                 </div>
-                <Stat label="Est. Flood Depth" value={(mine?.floodDepth ?? 0).toFixed(2)} unit="m" />
+                <Stat label="Est. Flood Depth" value={`~${(mine?.floodDepth ?? 0).toFixed(2)}`} unit="m" />
               </div>
             </section>
 
@@ -232,10 +232,13 @@ export default function HazardLayer() {
               <h3 className="hz-section-title">Hazard Summary</h3>
               <div className="hz-stats">
                 <Stat label="At-Risk Area" value={`${summary.inundatedAreaKm2}`} unit="km²" />
-                <Stat label="Avg Flood Depth" value={summary.avgFloodDepth.toFixed(2)} unit="m" />
+                <Stat label="Est. Avg Depth" value={`~${summary.avgFloodDepth.toFixed(2)}`} unit="m" />
                 <Stat label="High-Risk Brgys" value={`${summary.highRiskZones}`} />
                 <Stat label="Affected Brgys" value={`${counts.barangays}`} />
               </div>
+              <p className="hz-feed-note" style={{ marginTop: '0.5rem' }}>
+                Depths are model estimates (Open-Meteo + terrain), not sensor readings.
+              </p>
             </section>
 
             <section className="hz-section hz-feed">
@@ -243,7 +246,7 @@ export default function HazardLayer() {
               <div className="hz-feed-row">
                 <DropletIcon />
                 <span className="hz-feed-val">{dischargeText}</span>
-                <span className="hz-feed-src">Flood Hub</span>
+                <span className="hz-feed-src">Open-Meteo Flood</span>
               </div>
               <p className="hz-feed-note">
                 Modeled discharge near Cabuyao. Feeds the flood-risk model that

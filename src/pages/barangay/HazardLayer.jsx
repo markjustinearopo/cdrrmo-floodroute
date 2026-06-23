@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { usePersistedState } from '../../utils/usePersistedState.js'
 import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip } from 'react-leaflet'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
 import {
@@ -7,6 +8,8 @@ import {
   RISK_META,
   formatPHT,
   CabuyaoLock,
+  BarangayLock,
+  JurisdictionToggle,
   CoordReadout,
 } from '../../components/admin/mapHelpers.jsx'
 import {
@@ -15,9 +18,11 @@ import {
   hazardSummary,
 } from '../../components/admin/floodRisk.js'
 import { BarangayRiskLayer, InundationGrid } from '../../components/admin/BarangayRiskLayer.jsx'
+import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import { useBarangayLayers, addEvacCentersLayer, updateEvacCentersData, setMapLayerVisible } from '../../components/admin/mapbox3dHelpers.js'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import { useLiveWeather } from '../../services/weather.js'
-import { SAMPLE_EVAC_CENTERS } from '../../data/cabuyao.js'
-import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
+import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/HazardLayer.css'
 
 /**
@@ -25,7 +30,7 @@ import '../admin/HazardLayer.css'
  *
  * The official reads the SAME live hazard picture the command center works
  * from — Leaflet + OpenStreetMap with the real barangay boundaries classified
- * by the live flood-risk model (Google Flood Hub × Windy × OpenStreetMap +
+ * by the live flood-risk model (Open-Meteo Flood × Forecast × OpenStreetMap +
  * bundled Cabuyao terrain). It is read-only here; the official's own barangay
  * is highlighted. Nothing is painted over Laguna de Bay — every barangay is
  * drawn at its true location.
@@ -50,23 +55,34 @@ export default function HazardLayer() {
 
   const { field, loading, error, refresh } = useFloodRisk()
   const { weather } = useLiveWeather()
+  const { evacuationCenters } = useEvacCenters()
 
-  const [visible, setVisible] = useState(() => Object.fromEntries(LAYER_DEFS.map((l) => [l.key, true])))
-  const [opacity, setOpacity] = useState(70)
+  const [visible, setVisible] = usePersistedState('cdrrmo-layers-brgy-hazard-visible', Object.fromEntries(LAYER_DEFS.map((l) => [l.key, false])))
+  const [opacity, setOpacity] = usePersistedState('cdrrmo-layers-brgy-hazard-opacity', 70)
   const [coords, setCoords] = useState(null)
   const [updated, setUpdated] = useState(formatPHT())
+  const [view, setView] = useJurisdictionView()
+  const [use3D, setUse3D] = use3DPreference()
+  const locked = view === 'mine' && Boolean(myBrgy)
 
   function toggle(key) {
     setVisible((v) => ({ ...v, [key]: !v[key] }))
   }
 
-  const samples = useMemo(() => barangayRiskSamples(field), [field])
-  const summary = useMemo(() => hazardSummary(field, samples, {}), [field, samples])
-  const openCentres = useMemo(
-    () => SAMPLE_EVAC_CENTERS.filter((c) => c.coords && c.status !== 'closed'),
-    [],
+  const allSamples = useMemo(() => barangayRiskSamples(field), [field])
+  // "My Barangay" view confines the hazard picture to the official's own barangay.
+  const samples = useMemo(
+    () => (locked ? allSamples.filter((s) => s.name === myBrgy) : allSamples),
+    [allSamples, locked, myBrgy],
   )
-  const myLevel = useMemo(() => samples.find((s) => s.name === myBrgy)?.level ?? 'safe', [samples, myBrgy])
+  const summary = useMemo(() => hazardSummary(field, samples, {}), [field, samples])
+  // City-wide: an official sees every open centre, since residents may shelter
+  // at any of them regardless of barangay.
+  const openCentres = useMemo(
+    () => evacuationCenters.filter((c) => Array.isArray(c.coords) && c.status !== 'closed'),
+    [evacuationCenters],
+  )
+  const myLevel = useMemo(() => allSamples.find((s) => s.name === myBrgy)?.level ?? 'safe', [allSamples, myBrgy])
 
   const counts = useMemo(() => ({
     inundation: field?.cells?.filter((c) => c.onLand && c.risk >= 0.34).length || 0,
@@ -93,16 +109,31 @@ export default function HazardLayer() {
           </div>
           <div className="hz-source">
             <span className="hz-source-dot" />
-            Source: Google Flood Hub · Windy · OpenStreetMap
+            Source: Open-Meteo (Forecast + Flood API) · OpenStreetMap
           </div>
           <div className="hz-updated">
             <span className={`hz-live-dot ${loading ? 'loading' : ''}`} />
             Live · Updated {updated} PHT
           </div>
+          <JurisdictionToggle value={view} onChange={setView} brgyLabel={brgyLabel} />
+          <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>
 
         <div className="hz-body">
           <div className="hz-map-area">
+            {use3D ? (
+              <Hazard3DView
+                key={locked ? `b-${myBrgy}` : 'city'}
+                samples={samples}
+                field={field}
+                visible={visible}
+                opacity={opacity}
+                weather={weather}
+                openCentres={openCentres}
+                jurisdiction={locked ? myBrgy : null}
+                onViewChange={setCoords}
+              />
+            ) : (
             <MapContainer
               center={CABUYAO_CENTER}
               zoom={CABUYAO_ZOOM}
@@ -112,13 +143,11 @@ export default function HazardLayer() {
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.85} />
               <ZoomControl position="bottomright" />
-              <CabuyaoLock />
+              {locked ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
 
-              {visible.inundation && (
-                <InundationGrid cells={field?.cells} opacity={opacity / 100} mode="interior" />
-              )}
+              {visible.inundation && <InundationGrid field={field} opacity={opacity / 100} only={locked ? myBrgy : null} />}
               {visible.barangays && (
-                <BarangayRiskLayer samples={samples} opacity={Math.max(0.45, opacity / 100)} />
+                <BarangayRiskLayer samples={samples} opacity={Math.max(0.45, opacity / 100)} only={locked ? myBrgy : null} />
               )}
               {visible.evacuation &&
                 openCentres.map((c) => (
@@ -138,12 +167,13 @@ export default function HazardLayer() {
 
               <CoordReadout onChange={setCoords} />
             </MapContainer>
+            )}
 
             {loading && !hasField && (
               <div className="hz-nodata">
                 <span className="hz-spinner" />
                 <span>Loading live hazard model…</span>
-                <small>Fusing Flood Hub, Windy & terrain over Cabuyao</small>
+                <small>Fusing Open-Meteo forecast, flood & terrain over Cabuyao</small>
               </div>
             )}
             {error && !hasField && (
@@ -175,7 +205,7 @@ export default function HazardLayer() {
                 </div>
                 <Stat
                   label="Est. Flood Depth"
-                  value={(samples.find((s) => s.name === myBrgy)?.floodDepth ?? 0).toFixed(2)}
+                  value={`~${(samples.find((s) => s.name === myBrgy)?.floodDepth ?? 0).toFixed(2)}`}
                   unit="m"
                 />
               </div>
@@ -237,10 +267,13 @@ export default function HazardLayer() {
               <h3 className="hz-section-title">Hazard Summary</h3>
               <div className="hz-stats">
                 <Stat label="At-Risk Area" value={`${summary.inundatedAreaKm2}`} unit="km²" />
-                <Stat label="Avg Flood Depth" value={summary.avgFloodDepth.toFixed(2)} unit="m" />
+                <Stat label="Est. Avg Depth" value={`~${summary.avgFloodDepth.toFixed(2)}`} unit="m" />
                 <Stat label="High-Risk Brgys" value={`${summary.highRiskZones}`} />
                 <Stat label="Affected Brgys" value={`${counts.barangays}`} />
               </div>
+              <p className="hz-feed-note" style={{ marginTop: '0.5rem' }}>
+                Depths are model estimates (Open-Meteo + terrain), not sensor readings. Verify on the ground before acting.
+              </p>
             </section>
 
             <section className="hz-section hz-feed">
@@ -248,7 +281,7 @@ export default function HazardLayer() {
               <div className="hz-feed-row">
                 <DropletIcon />
                 <span className="hz-feed-val">{dischargeText}</span>
-                <span className="hz-feed-src">Flood Hub</span>
+                <span className="hz-feed-src">Open-Meteo Flood</span>
               </div>
               <p className="hz-feed-note">
                 Modeled discharge near Cabuyao. Feeds the flood-risk model that
@@ -262,6 +295,40 @@ export default function HazardLayer() {
         </div>
       </div>
     </BarangayLayout>
+  )
+}
+
+/* ── 3D map view (Mapbox GL) — same hazard layers, locked to the barangay ─── */
+function Hazard3DView({ samples, field, visible, opacity, weather, openCentres, jurisdiction, onViewChange }) {
+  const { onMapLoad, mapRef, ready } = useBarangayLayers({
+    samples,
+    field,
+    inundation: visible.inundation,
+    fills: visible.barangays,
+    markers: visible.barangays,
+    baseOpacity: opacity / 100,
+    jurisdiction,
+  })
+
+  // Open evacuation centres ride on the same map once the barangay layers are up.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map) return
+    if (!map.getSource('evac-centres')) addEvacCentersLayer(map, openCentres, visible.evacuation)
+    else updateEvacCentersData(map, openCentres)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, mapRef, openCentres])
+  useEffect(() => {
+    if (ready && mapRef.current) setMapLayerVisible(mapRef.current, 'evac-centres', visible.evacuation)
+  }, [ready, mapRef, visible.evacuation])
+
+  const wind = useMemo(
+    () => ({ speed: (weather.current.windKmh ?? 0) / 3.6, deg: weather.current.windDir ?? 0 }),
+    [weather],
+  )
+
+  return (
+    <Map3D onMapLoad={onMapLoad} onViewChange={onViewChange} wind={wind} rain={weather.current.rain ?? 0} />
   )
 }
 

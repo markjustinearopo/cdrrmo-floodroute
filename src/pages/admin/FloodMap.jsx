@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip } from 'react-leaflet'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { usePersistedState } from '../../utils/usePersistedState.js'
+import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, Polyline, Marker, Popup, GeoJSON } from 'react-leaflet'
+import L from 'leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import {
   CABUYAO_CENTER,
@@ -11,7 +13,7 @@ import {
   CoordReadout,
 } from '../../components/admin/mapHelpers.jsx'
 import { useLiveWeather } from '../../services/weather.js'
-import { useFloodRisk, barangayRiskSamples, riskColor } from '../../components/admin/floodRisk.js'
+import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import { BarangayRiskLayer, InundationGrid, FocusController } from '../../components/admin/BarangayRiskLayer.jsx'
 import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
@@ -24,19 +26,32 @@ import {
   formatDistance,
   useRoutes,
 } from '../../components/admin/routingHelpers.jsx'
-import { SAMPLE_EVAC_CENTERS } from '../../data/cabuyao.js'
+import { useAlerts, useEvacCenters, useIncidents, useRoadReports } from '../../context/AdminDataContext.jsx'
+import { useRoadStatus, getCabuyaoRoads } from '../../components/admin/routingHelpers.jsx'
+import SystemModulesPanel from '../../components/admin/SystemModulesPanel.jsx'
+import IncidentReportsPanel from '../../components/admin/IncidentReportsPanel.jsx'
+import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import { useBarangayLayers } from '../../components/admin/mapbox3dHelpers.js'
+import { useEvacCentres3D } from '../../components/admin/routing3d.js'
 import './FloodMap.css'
 
 /**
  * CDRRMO Admin — Flood Map (React port of admin/flood-map.html).
  *
+ * When a Mapbox token is configured (VITE_MAPBOX_TOKEN) the user can switch
+ * to the 3D view — Mapbox GL dark basemap with 3D terrain, the barangay risk
+ * polygons pulsing on elevated risk, the NOAH-style banded inundation surface
+ * and the city boundary as native terrain-draped layers, plus the animated
+ * wind-particle / rainfall-radar overlays. Without a token (Mapbox is a paid
+ * subscription) the 2D react-leaflet + OSM map below is the whole experience —
+ * it renders the exact same live hazard data, so the screen always works.
+ *
  * The Conceptual Framework specifies Leaflet.js + OpenStreetMap for all
- * mapping, so the live map below uses react-leaflet over OSM tiles centred on
- * Cabuyao City. Every figure (alerts, blocked roads, rainfall, risk index)
- * starts at zero/empty — real values will arrive from the Node/Express +
- * PostgreSQL/PostGIS (Supabase) backend together with the Open-Meteo and
- * Google Flood Hub feeds. The local state mirrors the shape the API will
- * return so the render code stays put once that wiring lands.
+ * mapping, so the fallback map uses react-leaflet over OSM tiles centred on
+ * Cabuyao City. Rainfall, wind, river discharge and the risk index are read
+ * live from the Open-Meteo Forecast + Flood APIs; alerts and blocked roads
+ * come from the shared admin store. The local state mirrors the shape the API
+ * returns so the render code stays put as more backend wiring lands.
  *
  * The Cabuyao boundary lock, coordinate readout and risk vocabulary are
  * shared with the other admin map screens via ../../components/admin/mapHelpers.
@@ -53,33 +68,83 @@ const PANEL_TABS = ['Overview', 'Weather', 'Alerts', 'Routes', 'Barangays']
 // Eight hourly buckets for the rainfall mini-chart (-8h … Now).
 const RAIN_TICKS = ['-8h', '-7', '-6', '-5', '-4', '-3', '-2', 'Now']
 
+// Operational-overlay vocabularies (shared with the Incident Reports panel).
+const INCIDENT_PRIORITY_COLOR = { critical: '#dc2626', high: '#f97316', medium: '#eab308', low: '#3b82f6' }
+const EVAC_STATUS_LABEL = { open: 'Open', full: 'Full', closed: 'Closed' }
+const EVAC_STATUS_COLOR = { open: '#16a34a', full: '#f97316', closed: '#dc2626' }
+
+// House-shaped evacuation-centre pin, tinted by status (divIcon — no images).
+const evacIconCache = {}
+function evacIcon(status) {
+  if (evacIconCache[status]) return evacIconCache[status]
+  const color = EVAC_STATUS_COLOR[status] || '#16a34a'
+  const icon = L.divIcon({
+    className: 'fm-evac-divicon',
+    html: `<span class="fm-evac-pin" style="background:${color}">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </span>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  })
+  evacIconCache[status] = icon
+  return icon
+}
+
+const NOAH_STYLE = {
+  1: { color: '#FBBF24', fillColor: '#FEF9C3', fillOpacity: 0.55, weight: 0.5 },
+  2: { color: '#F97316', fillColor: '#FED7AA', fillOpacity: 0.6,  weight: 0.5 },
+  3: { color: '#C0181B', fillColor: '#FCA5A5', fillOpacity: 0.65, weight: 0.5 },
+}
+const NOAH_LABEL = { 1: 'Low', 2: 'Moderate', 3: 'High' }
+
 export default function FloodMap() {
   // ── Live feeds ──
   const { weather } = useLiveWeather()
   const { field } = useFloodRisk()
   const [routes] = useRoutes()
 
-  const [alerts] = useState([])
-  const [roads] = useState([])
-  // Barangay flood depths sampled live from the Flood Hub × Windy risk field.
+  // ── NOAH 100-yr flood hazard zones ──
+  const [noahGeo, setNoahGeo] = useState(null)
+  useEffect(() => {
+    fetch('/noah_cabuyao_flood_100yr.geojson').then((r) => r.json()).then(setNoahGeo).catch(() => {})
+  }, [])
+  const noahStyle = useCallback((f) => NOAH_STYLE[f?.properties?.Var] ?? NOAH_STYLE[1], [])
+
+  // ── Shared store ──
+  const { alerts, resolveAlert } = useAlerts()
+  const { incidents, updateIncident } = useIncidents()
+  const { evacuationCenters, updateEvacCenter } = useEvacCenters()
+  const { roadReports } = useRoadReports()
+  const [roadStatus] = useRoadStatus()
+  const roadNetwork = useMemo(() => getCabuyaoRoads(), [])
+
+  // Barangay flood depths sampled live from the Open-Meteo flood × forecast risk field.
   const barangays = useMemo(() => barangayRiskSamples(field), [field])
   const rainfall = weather.current.rain ?? 0 // mm/hr
   const rainHistory = weather.rainHistory
+  const activeAlertList = useMemo(() => alerts.filter((a) => a.status === 'active'), [alerts])
   const evacuationOpen = useMemo(
-    () => SAMPLE_EVAC_CENTERS.filter((c) => c.status !== 'closed').length,
-    [],
+    () => evacuationCenters.filter((c) => c.status !== 'closed').length,
+    [evacuationCenters],
   )
 
   // ── UI state ──
   const [subtab, setSubtab] = useState('live')
   const [panelTab, setPanelTab] = useState('Overview')
+  // 3D map is opt-in: the classic Leaflet map stays the default view.
+  const [use3D, setUse3D] = use3DPreference()
   const [coords, setCoords] = useState(null) // {lat, lng, zoom}
   const [updated, setUpdated] = useState(formatPHT())
 
+  // Overlay visibility (incidents / roads / evac / routes) — independent of the
+  // hazard layer toggles below so the operational pins can be shown or hidden.
+  const [overlays, setOverlays] = usePersistedState('cdrrmo-layers-admin-floodmap-overlays', { incidents: false, roads: false, evac: false, routes: false })
+  const toggleOverlay = (k) => setOverlays((v) => ({ ...v, [k]: !v[k] }))
+
   // Layer visibility + intensity (the on-map toggle control). Default: clean
   // barangay classification + markers; inundation heat off so colours don't mix.
-  const [layers, setLayers] = useState({ barangays: true, inundation: false, markers: true })
-  const [intensity, setIntensity] = useState(85)
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-admin-floodmap-layers', { barangays: false, inundation: false, markers: false })
+  const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-admin-floodmap-intensity', 85)
   const toggleLayer = (k) => setLayers((v) => ({ ...v, [k]: !v[k] }))
 
   // Focus view + detail card.
@@ -87,16 +152,45 @@ export default function FloodMap() {
   const selectedSample = useMemo(() => barangays.find((b) => b.name === selected) || null, [barangays, selected])
   const focusBounds = useMemo(() => (selected ? barangayBounds(selected) : null), [selected])
 
+  // Canvas renderer with a full-viewport pad: the hazard overlays stay painted
+  // while the map is dragged (the default SVG renderer clips to ~viewport and
+  // blanks the edges mid-pan). Fresh instance per 2D mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const canvasRenderer = useMemo(() => L.canvas({ padding: 1 }), [use3D])
+
   // Refresh the "Updated --:-- PHT" stamp every minute.
   useEffect(() => {
     const id = setInterval(() => setUpdated(formatPHT()), 60_000)
     return () => clearInterval(id)
   }, [])
 
-  // ── Derived figures (all resolve to 0 with empty data) ──
-  const activeAlerts = alerts.filter((a) => a.level !== 'safe').length
-  const blockedRoads = roads.filter((r) => r.status === 'closed').length
-  const safeRoutes = roads.filter((r) => r.status === 'passable').length
+  // Incidents that carry a mapped location → markers.
+  const mappedIncidents = useMemo(
+    () => incidents.filter((i) => Array.isArray(i.coords) && i.status !== 'resolved'),
+    [incidents],
+  )
+
+  // Flagged road segments (painted on Road Status + named Dashboard reports),
+  // resolved to drawable polylines with a status colour.
+  const flaggedRoadLines = useMemo(() => {
+    if (!roadNetwork) return []
+    const byId = new Map(roadNetwork.features.map((f) => [String(f.properties.id), f]))
+    const reportByWay = new Map(roadReports.filter((r) => r.wayId != null).map((r) => [String(r.wayId), r]))
+    return Object.entries(roadStatus)
+      .map(([id, status]) => {
+        const f = byId.get(String(id))
+        if (!f) return null
+        const latlngs = f.geometry.coordinates.map(([lng, lat]) => [lat, lng])
+        const report = reportByWay.get(String(id))
+        return { id, status, name: report?.name || f.properties.name, latlngs }
+      })
+      .filter(Boolean)
+  }, [roadNetwork, roadStatus, roadReports])
+
+  // ── Derived figures ──
+  const activeAlerts = activeAlertList.length
+  const blockedRoads = flaggedRoadLines.filter((r) => r.status === 'blocked').length
+  const safeRoutes = routes.length
 
   const risk = useMemo(() => {
     const counts = { high: 0, moderate: 0, low: 0, safe: 0 }
@@ -129,7 +223,7 @@ export default function FloodMap() {
     ? `Elevated Flood Risk: ${elevated.slice(0, 3).join(', ')}${elevated.length > 3 ? '…' : ''}`
     : 'No elevated flood risk reported.'
 
-  // ── 4-day forecast from the live Windy/Open-Meteo feed (emoji + high temp).
+  // ── 4-day forecast from the live Open-Meteo feed (emoji + high temp).
   //    The full, detailed outlook lives in the Weather tab. ──
   const forecast = useMemo(() => {
     if (weather.forecast.length) {
@@ -162,17 +256,38 @@ export default function FloodMap() {
               {label}
             </button>
           ))}
+          {/* 2D (classic Leaflet) ⇄ 3D (Mapbox terrain) — only the live map. */}
+          {subtab === 'live' && <MapViewToggle value={use3D} onChange={setUse3D} />}
         </div>
 
-        {/* ── Map + Right panel ── */}
+        {/* System Modules + Incident Reports subtabs render full-bleed panels. */}
+        {subtab === 'modules' && <SystemModulesPanel />}
+        {subtab === 'incidents' && <IncidentReportsPanel />}
+
+        {/* ── Map + Right panel (Live Map subtab) ── */}
+        {subtab === 'live' && (
         <div className="map-panel-wrap">
           {/* Map */}
           <div className="map-area">
+            {use3D ? (
+              <FloodMap3DView
+                barangays={barangays}
+                field={field}
+                layers={layers}
+                intensity={intensity}
+                selected={selected}
+                onSelect={setSelected}
+                weather={weather}
+                evac={overlays.evac ? evacuationCenters : []}
+                onViewChange={setCoords}
+              />
+            ) : (
             <MapContainer
               center={CABUYAO_CENTER}
               zoom={CABUYAO_ZOOM}
               zoomControl={false}
               attributionControl={false}
+              renderer={canvasRenderer}
               className="floodmap-leaflet"
             >
               <TileLayer
@@ -182,11 +297,22 @@ export default function FloodMap() {
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
 
-              {/* Land-clipped NOAH-style heat surface (Flood Hub × Windy) —
-                  toggle so it never has to compete with the classification. */}
-              {layers.inundation && (
-                <InundationGrid cells={field?.cells} opacity={intensity / 100} mode="interior" />
+              {/* Project NOAH official 5-year return-period flood hazard zones (always on) */}
+              {noahGeo && (
+                <GeoJSON
+                  key="noah-100yr"
+                  data={noahGeo}
+                  style={noahStyle}
+                  onEachFeature={(f, lyr) => {
+                    const lvl = NOAH_LABEL[f.properties?.Var] ?? 'Unknown'
+                    lyr.bindTooltip(`NOAH 100-yr Flood Zone · ${lvl} Hazard`, { sticky: true, className: 'road-tip' })
+                  }}
+                />
               )}
+
+              {/* Land-clipped NOAH-style honeycomb surface (Open-Meteo flood × forecast) —
+                  toggle so it never has to compete with the classification. */}
+              {layers.inundation && <InundationGrid field={field} opacity={intensity / 100} />}
 
               {/* The 18 REAL barangay polygons, coloured by live risk. Click one
                   to focus the map on it and open its detail card. */}
@@ -218,9 +344,117 @@ export default function FloodMap() {
                   </CircleMarker>
                 ))}
 
+              {/* ── Operational overlays (shared store) ── */}
+
+              {/* Flagged road segments: closed = solid red, flooded = dashed orange */}
+              {overlays.roads && flaggedRoadLines.map((r) => (
+                <Polyline
+                  key={`road-${r.id}`}
+                  positions={r.latlngs}
+                  pathOptions={{
+                    color: r.status === 'blocked' ? '#dc2626' : '#f97316',
+                    weight: 5,
+                    opacity: 0.95,
+                    dashArray: r.status === 'blocked' ? null : '8 7',
+                  }}
+                >
+                  {r.name && (
+                    <Tooltip sticky>
+                      <b>{r.name}</b><br />{r.status === 'blocked' ? 'Closed' : 'Flooded'}
+                    </Tooltip>
+                  )}
+                </Polyline>
+              ))}
+
+              {/* Saved routes as polylines (toggle in the overlay control) */}
+              {overlays.routes && routes.map((r) => {
+                const geom = routeGeometry(r)
+                if (geom.length < 2) return null
+                return (
+                  <Polyline
+                    key={`route-${r.id}`}
+                    positions={geom}
+                    pathOptions={{ color: ROUTE_TYPES[r.type]?.color || '#1a3a7a', weight: 4, opacity: 0.85 }}
+                  >
+                    <Tooltip sticky>
+                      <b>{r.name}</b><br />
+                      {formatDistance(pathLengthMeters(geom))}{r.destination ? ` → ${r.destination}` : ''}
+                    </Tooltip>
+                  </Polyline>
+                )
+              })}
+
+              {/* Evacuation centres: open = green, full = orange, closed = red */}
+              {overlays.evac && evacuationCenters.filter((c) => Array.isArray(c.coords)).map((c) => (
+                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacIcon(c.status)}>
+                  <Popup>
+                    <div className="fm-popup">
+                      <strong>{c.name}</strong>
+                      <div className="fm-popup-sub">{c.barangay} · {EVAC_STATUS_LABEL[c.status] || c.status}</div>
+                      <div className="fm-occ-track">
+                        <div
+                          className="fm-occ-fill"
+                          style={{ width: `${c.capacity ? Math.min(100, (c.occupancy / c.capacity) * 100) : 0}%` }}
+                        />
+                      </div>
+                      <div className="fm-popup-row">{(c.occupancy || 0).toLocaleString()} / {(c.capacity || 0).toLocaleString()} evacuees</div>
+                      {c.manager && <div className="fm-popup-row">Manager: {c.manager}</div>}
+                      <div className="fm-popup-actions">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const v = window.prompt(`Update occupancy for ${c.name}`, String(c.occupancy || 0))
+                            if (v == null) return
+                            const occ = Math.max(0, Number(v) || 0)
+                            const status = c.capacity && occ >= c.capacity ? 'full' : c.status === 'full' ? 'open' : c.status
+                            updateEvacCenter(c.id, { occupancy: occ, status })
+                          }}
+                        >
+                          Update occupancy
+                        </button>
+                        {c.status !== 'closed'
+                          ? <button type="button" onClick={() => updateEvacCenter(c.id, { status: 'closed' })}>Close centre</button>
+                          : <button type="button" onClick={() => updateEvacCenter(c.id, { status: 'open' })}>Reopen</button>}
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+
+              {/* Incident markers, colour-coded + sized by priority */}
+              {overlays.incidents && mappedIncidents.map((inc) => {
+                const color = INCIDENT_PRIORITY_COLOR[inc.priority] || '#3b82f6'
+                return (
+                  <CircleMarker
+                    key={`inc-${inc.id}`}
+                    center={inc.coords}
+                    radius={inc.priority === 'critical' ? 10 : inc.priority === 'high' ? 8 : 6}
+                    pathOptions={{ color, weight: 2, fillColor: color, fillOpacity: 0.65 }}
+                  >
+                    <Popup>
+                      <div className="fm-popup">
+                        <strong>{inc.type}</strong>
+                        <div className="fm-popup-sub">{inc.location || inc.barangay}</div>
+                        <div className="fm-popup-row">Priority: {inc.priority} · {inc.status}</div>
+                        <div className="fm-popup-row">Team: {inc.team || '—'}</div>
+                        <div className="fm-popup-actions">
+                          {inc.status === 'assigned' && (
+                            <button type="button" onClick={() => updateIncident(inc.id, { status: 'in-progress' })}>Start</button>
+                          )}
+                          {inc.status !== 'resolved' && (
+                            <button type="button" onClick={() => updateIncident(inc.id, { status: 'resolved' })}>Resolve</button>
+                          )}
+                        </div>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                )
+              })}
+
               <FocusController bounds={focusBounds} />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
+            )}
 
             {/* On-map layer toggles + intensity */}
             <MapLayerToggles
@@ -230,6 +464,10 @@ export default function FloodMap() {
                 { key: 'barangays', label: 'Barangay Risk', color: '#c0181b', on: layers.barangays, onToggle: () => toggleLayer('barangays') },
                 { key: 'inundation', label: 'Flood Inundation', color: '#2563eb', on: layers.inundation, onToggle: () => toggleLayer('inundation') },
                 { key: 'markers', label: 'Risk Markers', color: '#1a7a4a', on: layers.markers, onToggle: () => toggleLayer('markers') },
+                { key: 'incidents', label: 'Incidents', color: '#dc2626', on: overlays.incidents, onToggle: () => toggleOverlay('incidents') },
+                { key: 'roads', label: 'Blocked Roads', color: '#f97316', on: overlays.roads, onToggle: () => toggleOverlay('roads') },
+                { key: 'evac', label: 'Evacuation', color: '#16a34a', on: overlays.evac, onToggle: () => toggleOverlay('evac') },
+                { key: 'routes', label: 'Routes', color: '#1a3a7a', on: overlays.routes, onToggle: () => toggleOverlay('routes') },
               ]}
             />
 
@@ -242,11 +480,11 @@ export default function FloodMap() {
             <div className="map-legend">
               <span className="legend-live">Live | Updated {updated} PHT</span>
               <span className="legend-ramp" aria-hidden="true">
-                <i style={{ background: riskColor(0.05) }} />
-                <i style={{ background: riskColor(0.4) }} />
-                <i style={{ background: riskColor(0.7) }} />
-                <i style={{ background: riskColor(0.95) }} />
-                <small>Low → High</small>
+                <i style={{ background: RISK_META.safe.color }} />
+                <i style={{ background: RISK_META.low.color }} />
+                <i style={{ background: RISK_META.moderate.color }} />
+                <i style={{ background: RISK_META.high.color }} />
+                <small>Safe → High</small>
               </span>
             </div>
 
@@ -287,12 +525,29 @@ export default function FloodMap() {
                 <WeatherPanel weather={weather} discharge={weather.discharge} />
               )}
 
-              {panelTab === 'Alerts' && (
-                <EmptyPanel
-                  title="No active alerts"
-                  sub="Flood hazard alerts issued by CDRRMO will appear here."
-                />
-              )}
+              {panelTab === 'Alerts' &&
+                (activeAlertList.length === 0 ? (
+                  <EmptyPanel
+                    title="No active alerts"
+                    sub="Flood hazard alerts issued by CDRRMO will appear here."
+                  />
+                ) : (
+                  <div className="brgy-list">
+                    {activeAlertList.map((a) => (
+                      <div className="fm-alert-row" key={a.id}>
+                        <div className={`fm-alert-stripe ${a.level}`} />
+                        <div className="fm-alert-body">
+                          <div className="fm-alert-top">
+                            <span className="fm-alert-title">{a.title}</span>
+                            <button type="button" className="fm-alert-resolve" onClick={() => resolveAlert(a.id)}>Resolve</button>
+                          </div>
+                          <div className="fm-alert-meta">{a.barangay} · {a.issued}</div>
+                          {a.message && <div className="fm-alert-msg">{a.message}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
 
               {panelTab === 'Routes' &&
                 (routes.length === 0 ? (
@@ -342,11 +597,64 @@ export default function FloodMap() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Banner reflects current barangay risk (no issues by default). */}
         <span className="sr-only">{bannerText}</span>
       </div>
     </AdminLayout>
+  )
+}
+
+/* ── 3D map view (Mapbox GL) ─────────────────────────────────────────────── */
+/**
+ * The Map3D-backed live map: pulsing barangay risk polygons + ripple markers,
+ * the NOAH-style banded inundation surface, and the Cabuyao city boundary —
+ * all native Mapbox layers (mapbox3dHelpers), draped onto the 3D terrain so
+ * they stay glued to the ground through any camera movement. Mirrors the
+ * Leaflet view's layer toggles, opacity slider and click-to-focus exactly.
+ */
+function FloodMap3DView({
+  barangays,
+  field,
+  layers,
+  intensity,
+  selected,
+  onSelect,
+  weather,
+  evac = [],
+  onViewChange,
+}) {
+  const { onMapLoad, mapRef, ready } = useBarangayLayers({
+    samples: barangays,
+    field,
+    inundation: layers.inundation,
+    fills: layers.barangays,
+    markers: layers.markers,
+    baseOpacity: intensity / 100,
+    selected,
+    onSelect,
+  })
+
+  // Shared evacuation centres (city-wide) — same dots the 2D Leaflet map shows.
+  useEvacCentres3D(mapRef, ready, evac)
+
+  // Open-Meteo wind: km/h + meteorological degrees → m/s for the particles.
+  const wind = useMemo(
+    () => ({
+      speed: (weather.current.windKmh ?? 0) / 3.6,
+      deg: weather.current.windDir ?? 0,
+    }),
+    [weather],
+  )
+
+  return (
+    <Map3D
+      onMapLoad={onMapLoad}
+      onViewChange={onViewChange}
+      wind={wind}
+      rain={weather.current.rain ?? 0}
+    />
   )
 }
 

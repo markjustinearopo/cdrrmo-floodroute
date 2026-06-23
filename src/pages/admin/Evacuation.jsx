@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
-import { BARANGAYS, EVAC_STATUSES, SAMPLE_EVAC_CENTERS } from '../../data/cabuyao.js'
+import { BARANGAYS, EVAC_STATUSES } from '../../data/cabuyao.js'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
+import EvacLocationPicker from '../../components/admin/EvacLocationPicker.jsx'
 import './Manage.css'
 
 /**
@@ -10,8 +12,9 @@ import './Manage.css'
  * table is seeded with a starter set; the assignment work is naming the
  * barangay each centre serves, recording a manager and contact, setting
  * capacity and updating live occupancy and open/full/closed status. Records
- * live in component state until the evacuation API (Conceptual Framework)
- * is connected.
+ * live in the shared AdminDataContext store, so the Flood Map markers and
+ * the Auto Route destination list see every change instantly and the data
+ * persists across refreshes.
  */
 
 const STATUS_LABEL = Object.fromEntries(EVAC_STATUSES.map((s) => [s.value, s.label]))
@@ -33,7 +36,7 @@ function occClass(occupancy, capacity, status) {
 }
 
 export default function Evacuation() {
-  const [centers, setCenters] = useState(() => SAMPLE_EVAC_CENTERS.map((c) => ({ ...c })))
+  const { evacuationCenters: centers, addEvacCenter, updateEvacCenter, removeEvacCenter } = useEvacCenters()
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // center object, 'new', or null
@@ -62,32 +65,8 @@ export default function Evacuation() {
     setTimeout(() => setToast(''), 2600)
   }
 
-  function handleSave(e) {
-    e.preventDefault()
-    const f = new FormData(e.currentTarget)
-    const capacity = Math.max(0, Number(f.get('capacity')) || 0)
-    const occupancy = Math.max(0, Number(f.get('occupancy')) || 0)
-    const data = {
-      name: f.get('name').trim(),
-      barangay: f.get('barangay'),
-      capacity,
-      occupancy,
-      status: f.get('status'),
-      manager: f.get('manager').trim(),
-      contact: f.get('contact').trim(),
-    }
-    if (current) {
-      setCenters((prev) => prev.map((c) => (c.id === current.id ? { ...c, ...data } : c)))
-      flash(`${data.name} updated.`)
-    } else {
-      setCenters((prev) => [{ id: `ec-${Date.now()}`, ...data }, ...prev])
-      flash(`${data.name} added.`)
-    }
-    setEditing(null)
-  }
-
   function remove(id) {
-    setCenters((prev) => prev.filter((c) => c.id !== id))
+    removeEvacCenter(id)
     flash('Evacuation centre removed.')
   }
 
@@ -104,7 +83,7 @@ export default function Evacuation() {
             </div>
             <div>
               <div className="mng-title">Evacuation</div>
-              <div className="mng-sub">Assign centres to barangays and track capacity &amp; occupancy</div>
+              <div className="mng-sub">Register city-wide evacuation centres — pin location, track capacity &amp; occupancy</div>
             </div>
           </div>
           <button type="button" className="mng-btn" onClick={() => setEditing('new')}>
@@ -148,7 +127,7 @@ export default function Evacuation() {
             <thead>
               <tr>
                 <th>Evacuation Centre</th>
-                <th>Barangay Served</th>
+                <th>Barangay (Location)</th>
                 <th>Occupancy</th>
                 <th>Manager</th>
                 <th>Status</th>
@@ -200,70 +179,139 @@ export default function Evacuation() {
 
         <div className="mng-note">
           <SparkIcon />
-          <span>Centres shown are a starter set. Changes are kept for this session until the backend is connected.</span>
+          <span>Centres are city-wide — any resident may shelter at any centre, regardless of barangay. They appear as markers on the Flood Map and as Auto Route destinations, and changes persist across refreshes.</span>
         </div>
       </div>
 
-      {/* Add / manage modal */}
+      {/* Add / manage modal — with a pin-the-location map */}
       {editing && (
-        <div className="mng-overlay" onMouseDown={() => setEditing(null)}>
-          <div className="mng-modal" role="dialog" aria-modal="true" aria-label={current ? 'Manage centre' : 'Add centre'} onMouseDown={(e) => e.stopPropagation()}>
-            <div className="mng-modal-head">
-              <div>
-                <div className="mng-modal-title">{current ? `Manage · ${current.name}` : 'Add Evacuation Centre'}</div>
-                <div className="mng-modal-sub">Assignment, capacity and live occupancy</div>
-              </div>
-              <button type="button" className="mng-modal-close" onClick={() => setEditing(null)} aria-label="Close">×</button>
-            </div>
-            <form className="mng-form" onSubmit={handleSave}>
-              <label>
-                Centre Name
-                <input name="name" type="text" defaultValue={current?.name || ''} placeholder="e.g. Cabuyao Central School" required />
-              </label>
-              <label>
-                Barangay Served
-                <select name="barangay" required defaultValue={current?.barangay || ''}>
-                  <option value="" disabled>Select Barangay</option>
-                  {BARANGAYS.map((b) => <option key={b}>{b}</option>)}
-                </select>
-              </label>
-              <div className="mng-form-grid">
-                <label>
-                  Capacity
-                  <input name="capacity" type="number" min="0" step="10" defaultValue={current?.capacity ?? 0} required />
-                </label>
-                <label>
-                  Current Occupancy
-                  <input name="occupancy" type="number" min="0" step="1" defaultValue={current?.occupancy ?? 0} required />
-                </label>
-              </div>
-              <div className="mng-form-grid">
-                <label>
-                  Centre Manager
-                  <input name="manager" type="text" defaultValue={current?.manager || ''} placeholder="e.g. Maria Santos" />
-                </label>
-                <label>
-                  Contact Number
-                  <input name="contact" type="tel" defaultValue={current?.contact || ''} placeholder="0917 000 0000" />
-                </label>
-              </div>
-              <label>
-                Status
-                <select name="status" defaultValue={current?.status || 'open'}>
-                  {EVAC_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </label>
-              <div className="mng-form-actions">
-                <button type="button" className="mng-btn mng-btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
-                <button type="submit" className="mng-btn">{current ? 'Save Changes' : 'Add Centre'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EvacCentreModal
+          center={current}
+          addEvacCenter={addEvacCenter}
+          updateEvacCenter={updateEvacCenter}
+          onClose={() => setEditing(null)}
+          onSaved={(name, isNew) => {
+            setEditing(null)
+            flash(isNew ? `${name} added — now visible on every map.` : `${name} updated.`)
+          }}
+        />
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </AdminLayout>
+  )
+}
+
+/* ============================================================
+   Add / Manage Evacuation Centre — modal with a "drop the pin" map.
+
+   The admin pins the centre's EXACT location on the map (centres are
+   city-wide, so the map is locked to the whole city, not one barangay)
+   and fills in the details. Saving goes through the shared store, so the
+   centre appears instantly on the Flood Map and as an Auto Route
+   destination for every portal.
+   ============================================================ */
+function EvacCentreModal({ center, addEvacCenter, updateEvacCenter, onClose, onSaved }) {
+  const isNew = !center
+  const [pin, setPin] = useState(Array.isArray(center?.coords) ? center.coords : null)
+  const [status, setStatus] = useState(center?.status || 'open')
+
+  function handleSave(e) {
+    e.preventDefault()
+    if (!pin) return // map location is required
+    const f = new FormData(e.currentTarget)
+    const data = {
+      name: f.get('name').trim(),
+      barangay: f.get('barangay'),
+      capacity: Math.max(0, Number(f.get('capacity')) || 0),
+      occupancy: Math.max(0, Number(f.get('occupancy')) || 0),
+      status,
+      manager: f.get('manager').trim(),
+      contact: f.get('contact').trim(),
+      coords: pin,
+    }
+    if (center) updateEvacCenter(center.id, data)
+    else addEvacCenter(data)
+    onSaved(data.name, isNew)
+  }
+
+  return (
+    <div className="mng-overlay" onMouseDown={onClose}>
+      <div
+        className="mng-modal mng-modal--map"
+        role="dialog"
+        aria-modal="true"
+        aria-label={center ? 'Manage centre' : 'Add centre'}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="mng-modal-head">
+          <div>
+            <div className="mng-modal-title">{center ? `Manage · ${center.name}` : 'Add Evacuation Centre'}</div>
+            <div className="mng-modal-sub">Click the map to pin its exact location · city-wide centre</div>
+          </div>
+          <button type="button" className="mng-modal-close" onClick={onClose} aria-label="Close">×</button>
+        </div>
+
+        <div className="mng-modal-body">
+          {/* Pin-the-location map (shared picker) */}
+          <div className="mng-modal-mapcol">
+            <EvacLocationPicker value={pin} onChange={setPin} status={status} />
+          </div>
+
+          {/* Centre details */}
+          <form className="mng-form" onSubmit={handleSave}>
+            <label>
+              Centre Name
+              <input name="name" type="text" defaultValue={center?.name || ''} placeholder="e.g. Cabuyao Central School" required />
+            </label>
+            <label>
+              Barangay (Location)
+              <select name="barangay" required defaultValue={center?.barangay || ''}>
+                <option value="" disabled>Select Barangay</option>
+                {BARANGAYS.map((b) => <option key={b}>{b}</option>)}
+              </select>
+            </label>
+            <div className="mng-form-grid">
+              <label>
+                Capacity
+                <input name="capacity" type="number" min="0" step="10" defaultValue={center?.capacity ?? 0} required />
+              </label>
+              <label>
+                Current Occupancy
+                <input name="occupancy" type="number" min="0" step="1" defaultValue={center?.occupancy ?? 0} required />
+              </label>
+            </div>
+            <div className="mng-form-grid">
+              <label>
+                Centre Manager
+                <input name="manager" type="text" defaultValue={center?.manager || ''} placeholder="e.g. Maria Santos" />
+              </label>
+              <label>
+                Contact Number
+                <input name="contact" type="tel" defaultValue={center?.contact || ''} placeholder="0917 000 0000" />
+              </label>
+            </div>
+            <label>
+              Status
+              <select name="status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                {EVAC_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </label>
+
+            <div className={`mng-pinned ${pin ? 'set' : ''}`}>
+              {pin
+                ? `Location pinned at ${pin[0].toFixed(5)}, ${pin[1].toFixed(5)}`
+                : 'Pin the location on the map to enable saving.'}
+            </div>
+
+            <div className="mng-form-actions">
+              <button type="button" className="mng-btn mng-btn-ghost" onClick={onClose}>Cancel</button>
+              <button type="submit" className="mng-btn" disabled={!pin}>{center ? 'Save Changes' : 'Add Centre'}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   )
 }
 

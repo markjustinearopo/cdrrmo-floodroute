@@ -1,12 +1,11 @@
 /* ============================================================
    Live weather + hydrology feed for the whole system.
 
-   One cached round-trip to Open-Meteo (keyless) standing in for the two
-   external feeds the Conceptual Framework names:
-     • Windy.com         → current rainfall, wind & gusts, the 8-hour
+   Real, live data from the keyless Open-Meteo APIs (no fabricated values):
+     • Open-Meteo Forecast API → current rainfall, wind & gusts, the 8-hour
        rainfall history and the multi-day forecast.
-     • Google Flood Hub  → river discharge near Cabuyao (Open-Meteo Flood
-       API), the hydrological driver behind the hazard model.
+     • Open-Meteo Flood API    → river discharge near Cabuyao (GloFAS /
+       Copernicus model), the hydrological driver behind the hazard model.
 
    Everything the admin chrome shows live — the topbar Rainfall/Wind chips,
    the Dashboard rainfall card, the Flood Map rain bars & forecast — reads
@@ -14,9 +13,9 @@
    calls per session no matter how many screens mount. Fail-soft: any feed
    that doesn't answer leaves its fields null and the UI shows "--".
 
-   The Integrations screen is where the production Windy / Flood Hub API
-   keys would be plugged in; until then these keyless endpoints supply the
-   same shape of data.
+   Both feeds run keyless by default. The Integrations screen lets an
+   operator paste an Open-Meteo API key for higher rate limits, but no key
+   is required and no data is mocked.
    ============================================================ */
 
 import { useCallback, useEffect, useState } from 'react'

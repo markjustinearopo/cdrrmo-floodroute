@@ -23,6 +23,8 @@
   margin-top: 12px;
 }
 .wx-cell {
+  display: flex;
+  flex-direction: column;
   background: #faf8f4;
   border: 1px solid #efeae1;
   border-radius: 10px;
@@ -30,9 +32,11 @@
 }
 .wx-cell-top { display: flex; align-items: center; gap: 5px; color: #c0181b; }
 .wx-cell-label { font-size: 0.6rem; color: #7a7a7a; font-weight: 600; }
-.wx-cell-val { font-family: var(--font-display, inherit); font-weight: 800; font-size: 1.05rem; color: #1a2a4a; margin-top: 3px; }
+.wx-cell-val { font-family: var(--font-display, inherit); font-weight: 800; font-size: 1.05rem; color: #1a2a4a; margin-top: 3px; white-space: nowrap; }
 .wx-cell-unit { font-size: 0.58rem; font-weight: 700; color: #9a9a9a; margin-left: 2px; }
-.wx-cell-sub { font-size: 0.58rem; color: #8a8a8a; margin-top: 1px; }
+/* Always reserve the sub line so cells with/without a sub stay the same
+   height and their values line up across each grid row. */
+.wx-cell-sub { font-size: 0.58rem; color: #8a8a8a; margin-top: 1px; min-height: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .wx-today { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
 .wx-pill { background: #fff; border: 1px solid #eee7dc; border-radius: 9px; padding: 7px 4px; text-align: center; }

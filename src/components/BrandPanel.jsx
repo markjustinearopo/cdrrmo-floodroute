@@ -2,16 +2,12 @@
  * Shared left-side branding panel used by the Login and Register pages.
  * The shield is the original inline SVG from the static markup.
  *
- * Stat numbers are dummy figures in the design; per the project rule they
- * start at 0 here and will be populated from the database later.
+ * The barangay + evacuation-centre figures are LIVE counts from Supabase
+ * (fall back to a sensible default while loading / offline).
  */
 
-const STATS = [
-  // 18 barangays served (per design); other figures stay 0 until wired to the DB.
-  { value: '18', label: 'Barangay' },
-  { value: '0', label: 'Evacuation center' },
-  { value: '24/7', label: 'Monitoring', navy: true },
-]
+import { useEffect, useState } from 'react'
+import db from '../services/db.js'
 
 export function ShieldLogo() {
   return (
@@ -24,6 +20,22 @@ export function ShieldLogo() {
 }
 
 export default function BrandPanel() {
+  const [counts, setCounts] = useState({ barangays: 18, evac: 0 })
+
+  useEffect(() => {
+    let alive = true
+    db.ref.counts()
+      .then((c) => { if (alive) setCounts(c) })
+      .catch((e) => console.error('[BrandPanel] counts failed', e))
+    return () => { alive = false }
+  }, [])
+
+  const stats = [
+    { value: String(counts.barangays), label: 'Barangay' },
+    { value: String(counts.evac), label: 'Evacuation center' },
+    { value: '24/7', label: 'Monitoring', navy: true },
+  ]
+
   return (
     <div className="brand-panel">
       <ShieldLogo />
@@ -37,7 +49,7 @@ export default function BrandPanel() {
       </p>
 
       <div className="stats-row">
-        {STATS.map((s) => (
+        {stats.map((s) => (
           <div key={s.label} className={`stat-box ${s.navy ? 'stat-navy' : ''}`}>
             <span className="stat-number">{s.value}</span>
             <span className="stat-label">{s.label}</span>

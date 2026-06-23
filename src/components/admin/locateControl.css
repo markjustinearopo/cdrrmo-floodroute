@@ -1,0 +1,61 @@
+/* ============================================================
+   LocateControl — the on-map "Locate me" button + denial message.
+   Rides on Leaflet's .leaflet-bar chrome (white box, rounded, shadow).
+   ============================================================ */
+
+.locate-control {
+  position: relative;
+}
+
+.locate-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: #1a2a4a;
+  background: #fff;
+  cursor: pointer;
+}
+.locate-btn:hover {
+  background: #f3f4f6;
+  color: #c0181b;
+}
+.locate-btn.loading {
+  color: #c0181b;
+  pointer-events: none;
+}
+.locate-btn.loading svg {
+  animation: locate-spin 0.9s linear infinite;
+  transform-origin: 50% 50%;
+}
+@keyframes locate-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Inline denial / status message, shown briefly under the button. */
+.locate-msg {
+  display: none;
+  position: absolute;
+  top: 40px;
+  right: 0;
+  max-width: 220px;
+  padding: 7px 10px;
+  background: #1a2a4a;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  border-radius: 8px;
+  text-align: left;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+}
+.locate-msg.show {
+  display: block;
+  animation: locate-fade 0.18s ease both;
+}
+@keyframes locate-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

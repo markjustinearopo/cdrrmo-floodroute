@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { BARANGAYS, ALERT_LEVELS } from '../../data/cabuyao.js'
+import { useAlerts, nowLabel } from '../../context/AdminDataContext.jsx'
+import { sendAlertEmail } from '../../services/emailAlert.js'
 import './Manage.css'
 
 /**
  * CDRRMO Admin — Alerts.
  *
  * Manage (issue / resolve / withdraw) the flood-hazard alerts broadcast to
- * each barangay. Alerts are events, so the list starts empty and the admin
- * creates them here; records live in component state until the POST /alerts
- * endpoint (Conceptual Framework) is connected, after which this same shape
- * is fed straight from the database.
+ * each barangay. Alerts live in the shared AdminDataContext store, so an
+ * alert issued here appears instantly on the Dashboard feed and the Flood
+ * Map's Alerts panel, persists across refreshes, and an alert can be
+ * scheduled to auto-issue at a future time.
  */
 
 const LEVEL_LABEL = { high: 'High', moderate: 'Moderate', safe: 'All Clear' }
@@ -20,21 +22,23 @@ const FILTERS = [
   { key: 'active', label: 'Active' },
   { key: 'high', label: 'High' },
   { key: 'moderate', label: 'Moderate' },
+  { key: 'scheduled', label: 'Scheduled' },
   { key: 'resolved', label: 'Resolved' },
 ]
 
-function nowLabel() {
-  return new Date().toLocaleString('en-PH', {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-    hour12: true, timeZone: 'Asia/Manila',
-  })
+// datetime-local needs "YYYY-MM-DDTHH:mm" — pre-fill ~1 hour from now.
+function defaultScheduleValue() {
+  const d = new Date(Date.now() + 60 * 60 * 1000)
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 16)
 }
 
 export default function Alerts() {
-  const [alerts, setAlerts] = useState([])
+  const { alerts, addAlert, updateAlert, resolveAlert, removeAlert } = useAlerts()
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
   const [toast, setToast] = useState('')
 
   const stats = useMemo(() => ({
@@ -49,6 +53,7 @@ export default function Alerts() {
     return alerts.filter((a) => {
       if (filter === 'active' && a.status !== 'active') return false
       if (filter === 'resolved' && a.status !== 'resolved') return false
+      if (filter === 'scheduled' && a.status !== 'scheduled') return false
       if (filter === 'high' && a.level !== 'high') return false
       if (filter === 'moderate' && a.level !== 'moderate') return false
       if (q && !(`${a.title} ${a.barangay} ${a.message}`.toLowerCase().includes(q))) return false
@@ -65,28 +70,41 @@ export default function Alerts() {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     const alert = {
-      id: `al-${Date.now()}`,
       title: f.get('title').trim(),
       barangay: f.get('barangay'),
       level: f.get('level'),
       message: f.get('message').trim(),
-      issued: nowLabel(),
-      status: 'active',
     }
-    setAlerts((prev) => [alert, ...prev])
+    // "Schedule for later": the alert queues and auto-issues when due
+    // (the shared store promotes it on the next real-time refresh tick).
+    const when = scheduling ? new Date(f.get('when')).getTime() : null
+    if (when && when > Date.now()) {
+      alert.status = 'scheduled'
+      alert.scheduledFor = when
+      alert.issued = `Scheduled · ${nowLabel(when)}`
+    }
+    addAlert(alert)
+    // Fire email for immediately-active alerts; scheduled ones email when they auto-promote.
+    if (alert.status !== 'scheduled') {
+      sendAlertEmail({ level: alert.level, title: alert.title, message: alert.message, barangay: alert.barangay })
+        .catch(console.warn)
+    }
     setShowModal(false)
-    flash(`Alert issued for ${alert.barangay}.`)
+    setScheduling(false)
+    flash(alert.status === 'scheduled'
+      ? `Alert scheduled for ${alert.barangay} at ${nowLabel(when)}.`
+      : `Alert issued for ${alert.barangay}.`)
   }
 
   function resolve(id) {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'resolved' } : a)))
+    resolveAlert(id)
     flash('Alert marked resolved.')
   }
   function reopen(id) {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'active' } : a)))
+    updateAlert(id, { status: 'active', issued: nowLabel(), issuedAt: Date.now() })
   }
   function remove(id) {
-    setAlerts((prev) => prev.filter((a) => a.id !== id))
+    removeAlert(id)
     flash('Alert withdrawn.')
   }
 
@@ -183,9 +201,13 @@ export default function Alerts() {
                     <td><span className={`mng-badge ${a.status}`}>{a.status}</span></td>
                     <td>
                       <div className="mng-row-actions">
-                        {a.status === 'active' ? (
+                        {a.status === 'active' && (
                           <button type="button" className="mng-link" onClick={() => resolve(a.id)}>Resolve</button>
-                        ) : (
+                        )}
+                        {a.status === 'scheduled' && (
+                          <button type="button" className="mng-link" onClick={() => reopen(a.id)}>Issue now</button>
+                        )}
+                        {a.status === 'resolved' && (
                           <button type="button" className="mng-link subtle" onClick={() => reopen(a.id)}>Reopen</button>
                         )}
                         <button type="button" className="mng-link subtle" onClick={() => remove(a.id)}>Withdraw</button>
@@ -200,13 +222,13 @@ export default function Alerts() {
 
         <div className="mng-note">
           <SparkIcon />
-          <span>Alerts are kept in this session until the backend alert service is connected.</span>
+          <span>Alerts are shared system-wide: they appear on the Dashboard feed and the Flood Map, persist across refreshes, and scheduled alerts auto-issue at their set time.</span>
         </div>
       </div>
 
       {/* Issue modal */}
       {showModal && (
-        <div className="mng-overlay" onMouseDown={() => setShowModal(false)}>
+        <div className="mng-overlay" onMouseDown={() => { setShowModal(false); setScheduling(false) }}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Issue Alert" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -239,9 +261,23 @@ export default function Alerts() {
                 Message
                 <textarea name="message" rows={3} placeholder="Affected areas, water level and evacuation advice." required />
               </label>
+              <label className="mng-check">
+                <input
+                  type="checkbox"
+                  checked={scheduling}
+                  onChange={(e) => setScheduling(e.target.checked)}
+                />
+                <span>Schedule for later — queue this alert and issue it automatically</span>
+              </label>
+              {scheduling && (
+                <label>
+                  Issue At
+                  <input name="when" type="datetime-local" defaultValue={defaultScheduleValue()} required />
+                </label>
+              )}
               <div className="mng-form-actions">
-                <button type="button" className="mng-btn mng-btn-ghost" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="mng-btn">Issue Alert</button>
+                <button type="button" className="mng-btn mng-btn-ghost" onClick={() => { setShowModal(false); setScheduling(false) }}>Cancel</button>
+                <button type="submit" className="mng-btn">{scheduling ? 'Schedule Alert' : 'Issue Alert'}</button>
               </div>
             </form>
           </div>
