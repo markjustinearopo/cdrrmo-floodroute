@@ -1,0 +1,318 @@
+/* ============================================================
+   CDRRMO Admin — Reports (report builder + printable document)
+   ============================================================ */
+
+.reports {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+/* ── Builder panel (screen only) ── */
+.report-builder {
+  width: 320px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 12px;
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 14px;
+  padding: 16px;
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
+}
+.report-builder .rb-head h2 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin: 0;
+}
+.report-builder .rb-head p {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  margin: 2px 0 14px;
+}
+.rb-group { margin-bottom: 14px; }
+.rb-row { display: flex; gap: 10px; }
+.rb-row .rb-group { flex: 1 1 0; min-width: 0; }
+.rb-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #5a5a5a;
+  margin-bottom: 6px;
+}
+.rb-hint { font-size: 0.6875rem; color: #9a9a9a; line-height: 1.45; margin-bottom: 7px; }
+.rb-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #e5e2dd;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  color: #1a1a1a;
+  background: #fafafa;
+}
+.rb-input:focus { outline: none; border-color: #c0181b; background: #fff; }
+
+.rb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rb-chip {
+  padding: 5px 10px;
+  border: 1.5px solid #e5e2dd;
+  background: #fafafa;
+  border-radius: 9999px;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #5a5a5a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rb-chip:hover { border-color: #c0181b; }
+.rb-chip.on { background: #fef2f2; border-color: #c0181b; color: #c0181b; }
+
+.rb-checks { display: flex; flex-direction: column; gap: 7px; }
+.rb-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.8125rem;
+  color: #3a3a3a;
+  cursor: pointer;
+}
+.rb-check input { width: 15px; height: 15px; accent-color: #c0181b; cursor: pointer; }
+
+.rb-generate {
+  width: 100%;
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px;
+  border: none;
+  border-radius: 10px;
+  background: #c0181b;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rb-generate:hover { background: #a81518; }
+.rb-generate svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.rb-foot { font-size: 0.6875rem; color: #9a9a9a; line-height: 1.5; margin-top: 10px; }
+
+/* ── Document stage ── */
+.report-stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 30px;
+}
+.report-doc {
+  width: 100%;
+  max-width: 850px;
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  padding: 34px 38px;
+  color: #1a1a1a;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Letterhead */
+.rd-header { display: flex; align-items: center; gap: 14px; }
+.rd-logo { width: 58px; height: 58px; object-fit: contain; flex-shrink: 0; }
+.rd-org { flex: 1 1 auto; min-width: 0; }
+.rd-org-name {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: #1a2a4a;
+  line-height: 1.15;
+}
+.rd-org-sub { font-size: 0.75rem; color: #6a6a6a; margin-top: 3px; }
+.rd-seal {
+  flex-shrink: 0;
+  width: 54px; height: 54px;
+  border: 2px solid #c0181b;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.6875rem;
+  color: #c0181b;
+  letter-spacing: 0.03em;
+}
+.rd-rule { height: 3px; background: linear-gradient(90deg, #c0181b 0 60%, #1a2a4a 60% 100%); border-radius: 2px; margin: 12px 0 18px; }
+
+/* Title block */
+.rd-titleblock { margin-bottom: 20px; }
+.rd-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: #1a1a1a;
+}
+.rd-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 24px;
+  font-size: 0.75rem;
+  color: #4a4a4a;
+}
+.rd-meta b { color: #1a1a1a; }
+
+/* Sections */
+.rd-section { margin-bottom: 22px; break-inside: avoid; }
+.rd-sec-title {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #1a2a4a;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid #ece8e0;
+}
+
+/* Summary stats */
+.rd-stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 9px;
+  margin-bottom: 12px;
+}
+.rd-stat {
+  border: 1px solid #ece8e0;
+  border-radius: 9px;
+  padding: 10px 6px;
+  text-align: center;
+  background: #fbfaf7;
+}
+.rd-stat-n {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #c0181b;
+  font-variant-numeric: tabular-nums;
+}
+.rd-stat-l { font-size: 0.625rem; color: #6a6a6a; margin-top: 5px; line-height: 1.25; }
+.rd-para { font-size: 0.8125rem; line-height: 1.6; color: #2a2a2a; margin: 0; }
+
+/* Map */
+.rd-map {
+  width: 100%;
+  height: auto;
+  border: 1px solid #ece8e0;
+  border-radius: 8px;
+  display: block;
+}
+.rd-map-lbl { font-size: 8px; font-family: var(--font-body); fill: #3a3a3a; font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 2px; }
+.rd-maplegend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 9px; }
+.rd-leg { display: inline-flex; align-items: center; gap: 6px; font-size: 0.6875rem; color: #4a4a4a; font-weight: 600; }
+.rd-leg i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+/* Tables */
+.rd-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.rd-table thead th {
+  text-align: left;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6a6a6a;
+  padding: 6px 8px;
+  border-bottom: 1.5px solid #ddd7cc;
+  background: #f7f5f0;
+}
+.rd-table tbody td { padding: 6px 8px; border-bottom: 1px solid #f0ece4; color: #2a2a2a; vertical-align: top; }
+.rd-table tbody tr:nth-child(even) td { background: #fcfbf8; }
+.rd-strong { font-weight: 700; color: #1a1a1a; }
+.rd-depth { font-weight: 800; font-family: var(--font-display); }
+
+.rd-badge, .rd-status, .rd-lvl {
+  display: inline-block;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  color: #fff;
+}
+.rd-status.open { background: #16a34a; }
+.rd-status.full { background: #f97316; }
+.rd-status.closed { background: #dc2626; }
+.rd-lvl.high { background: #c0181b; }
+.rd-lvl.moderate { background: #f97316; }
+.rd-lvl.low { background: #ca8a04; }
+.rd-lvl.safe { background: #16a34a; }
+
+.rd-empty { font-size: 0.8125rem; color: #9a9a9a; font-style: italic; padding: 4px 0; }
+
+.rd-footer {
+  margin-top: 26px;
+  padding-top: 10px;
+  border-top: 1px solid #ece8e0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.625rem;
+  color: #9a9a9a;
+}
+
+/* ============================================================
+   Print — flow ONLY the document, sharp and chrome-free.
+
+   The document is left in normal flow (not position:absolute) so it
+   paginates across pages; the app chrome + scroll containers are hidden
+   and unclamped so nothing clips the report.
+   ============================================================ */
+@media print {
+  /* Hide the app shell + the builder. */
+  .alert-banner, .topbar, .sidebar, .report-builder { display: none !important; }
+
+  /* Unclamp every scroll/flex container between <body> and the document so the
+     full report flows onto as many A4 pages as it needs. */
+  html, body, .body-wrap, .main, .reports, .report-stage {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+  }
+
+  .report-doc {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  /* Keep logical blocks together; let long tables break but never mid-row. */
+  .rd-section { break-inside: avoid; }
+  .rd-header, .rd-titleblock, .rd-stats, .rd-map { break-inside: avoid; }
+  .rd-table { break-inside: auto; }
+  .rd-table thead { display: table-header-group; } /* repeat headers per page */
+  .rd-table tr { break-inside: avoid; }
+
+  @page { size: A4; margin: 12mm; }
+}

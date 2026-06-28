@@ -12,8 +12,9 @@ import {
   routeGeometry,
   useCabuyaoRoads,
   useRoadStatus,
+  useTrafficStatus,
 } from '../../components/admin/routingHelpers.jsx'
-import { useRouteGraph, planRoute, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
+import { useRouteGraph, planRoute, DEFAULT_ALPHA, DEFAULT_BETA } from '../../components/admin/routeEngine.js'
 import { useFloodRisk } from '../../components/admin/floodRisk.js'
 import { useSavedRoutes } from '../../context/AdminDataContext.jsx'
 import './RoutePlanning.css'
@@ -38,6 +39,7 @@ export default function RoutePlanning() {
   const graph = useRouteGraph(roads)
   const { field } = useFloodRisk()
   const [statusMap] = useRoadStatus()
+  const [trafficMap] = useTrafficStatus()
 
   // ── Draft route being drawn on the map ──
   const [type, setType] = useState('evacuation')
@@ -97,7 +99,10 @@ export default function RoutePlanning() {
     if (!graph || graph.size === 0) {
       return flash(roadsLoading ? 'Road network still loading…' : 'Road network unavailable.')
     }
-    const opts = { riskAt: field?.riskAt, statusMap, alpha: DEFAULT_ALPHA }
+    // Vehicle routes (relief/response) steer around congestion; on-foot
+    // evacuation ignores car traffic (β = 0).
+    const beta = type === 'evacuation' ? 0 : DEFAULT_BETA
+    const opts = { riskAt: field?.riskAt, statusMap, trafficMap, alpha: DEFAULT_ALPHA, beta }
     let line = []
     let gaps = 0
     for (let i = 1; i < points.length; i++) {

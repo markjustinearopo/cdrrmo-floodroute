@@ -5,7 +5,9 @@ import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import AdminDashboard from './pages/admin/Dashboard.jsx'
 import AdminFloodMap from './pages/admin/FloodMap.jsx'
+import AdminFloodAreas from './pages/admin/FloodAreas.jsx'
 import AdminHazardLayer from './pages/admin/HazardLayer.jsx'
+import AdminReports from './pages/admin/Reports.jsx'
 import AdminAutoRoute from './pages/admin/AutoRoute.jsx'
 import AdminRoutePlanning from './pages/admin/RoutePlanning.jsx'
 import AdminRoadStatus from './pages/admin/RoadStatus.jsx'
@@ -61,7 +63,9 @@ export default function App() {
       <Route element={<RequireAuth group="admin" />}>
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/flood-map" element={<AdminFloodMap />} />
+        <Route path="/admin/flood-areas" element={<AdminFloodAreas />} />
         <Route path="/admin/hazard-layer" element={<AdminHazardLayer />} />
+        <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/auto-route" element={<AdminAutoRoute />} />
         <Route path="/admin/route-planning" element={<AdminRoutePlanning />} />
         <Route path="/admin/road-status" element={<AdminRoadStatus />} />

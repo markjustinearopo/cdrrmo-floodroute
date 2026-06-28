@@ -22,6 +22,7 @@ import {
 } from 'react'
 import { INTEGRATION_CATALOG } from '../data/integrations.js'
 import { BARANGAY_CENTROIDS } from '../data/cabuyaoBarangays.js'
+import { SEED_FLOOD_AREAS } from '../data/floodAreas.js'
 import db from '../services/db.js'
 import supabase from '../services/supabase.js'
 
@@ -125,6 +126,9 @@ const REMOTE_LOADERS = {
   },
   barangayAssignments: () => db.appSettings.get('barangay_assignments', {}),
   roadChangeRequests: () => db.appSettings.get('road_change_requests', []),
+  // Documented flood-prone areas (depth in feet). Falls back to the seeded
+  // historical record until an admin edit first persists the key.
+  floodAreas: () => db.appSettings.get('flood_areas', SEED_FLOOD_AREAS),
 }
 
 /* ── Context ─────────────────────────────────────────────────────────────── */
@@ -134,6 +138,8 @@ const EMPTY = {
   alerts: [], incidents: [], evacuationCenters: [], users: [],
   notifications: [], integrations: [], roadReports: [], savedRoutes: [], barangayAssignments: {},
   roadChangeRequests: [],
+  // Seeded so the historical flood-prone areas paint on every map from first render.
+  floodAreas: SEED_FLOOD_AREAS,
 }
 
 function reducer(state, action) {
@@ -432,7 +438,7 @@ export function AdminDataProvider({ children }) {
       return painted
         ? db.roadStatus.setWay(saved.wayId, painted, {
             name: saved.name, barangay: saved.barangay, depth: saved.depth,
-            reason: saved.reason, reportedBy: saved.reportedBy,
+            depthFt: saved.depthFt, reason: saved.reason, reportedBy: saved.reportedBy,
           })
         : db.roadStatus.removeWay(saved.wayId)
     })
@@ -561,6 +567,34 @@ export function AdminDataProvider({ children }) {
     persist('roadChangeRequests', () => db.appSettings.set('road_change_requests', next))
   }, [optimistic, persist])
 
+  /* ── Flood-prone areas (depth in feet; shared via app_settings) ──────────────
+     Admins set these like road status: pin a location, record the depth in feet
+     and the cause. The whole list is persisted as one app-settings blob so it
+     syncs to every portal via the 6s poll, exactly like the road requests. */
+  const addFloodArea = useCallback((area) => {
+    const now = Date.now()
+    const saved = { id: `fa-${now}-${Math.random().toString(36).slice(2, 6)}`, updatedAt: now, ...area }
+    const next = [saved, ...stateRef.current.floodAreas]
+    optimistic('floodAreas', next)
+    notify('moderate', 'Flood-prone area added', `${saved.name} (${saved.barangay})`)
+    persist('floodAreas', () => db.appSettings.set('flood_areas', next))
+    return saved
+  }, [optimistic, persist, notify])
+
+  const updateFloodArea = useCallback((id, updates) => {
+    const next = stateRef.current.floodAreas.map((a) => (
+      a.id === id ? { ...a, ...updates, updatedAt: Date.now() } : a
+    ))
+    optimistic('floodAreas', next)
+    persist('floodAreas', () => db.appSettings.set('flood_areas', next))
+  }, [optimistic, persist])
+
+  const removeFloodArea = useCallback((id) => {
+    const next = stateRef.current.floodAreas.filter((a) => a.id !== id)
+    optimistic('floodAreas', next)
+    persist('floodAreas', () => db.appSettings.set('flood_areas', next))
+  }, [optimistic, persist])
+
   const value = useMemo(() => ({
     ...state,
     isLoading,
@@ -572,6 +606,7 @@ export function AdminDataProvider({ children }) {
     assignBarangay,
     reportRoad, removeRoadReport,
     submitRoadRequest, approveRoadRequest, rejectRoadRequest, removeRoadRequest,
+    addFloodArea, updateFloodArea, removeFloodArea,
     setIntegration,
     notify, markNotificationsRead,
     addSavedRoute, updateSavedRoute, removeSavedRoute,
@@ -583,6 +618,7 @@ export function AdminDataProvider({ children }) {
     addUser, addUsers, updateUser, removeUser,
     assignBarangay, reportRoad, removeRoadReport,
     submitRoadRequest, approveRoadRequest, rejectRoadRequest, removeRoadRequest,
+    addFloodArea, updateFloodArea, removeFloodArea,
     setIntegration, notify, markNotificationsRead,
     addSavedRoute, updateSavedRoute, removeSavedRoute,
   ])
@@ -641,6 +677,15 @@ export function useRoadRequests() {
 export function useIntegrations() {
   const { integrations, setIntegration } = useAdminData()
   return { integrations, setIntegration }
+}
+
+/**
+ * Documented flood-prone areas (depth in feet). Admins (CDRRMO) get the full
+ * CRUD; the barangay/resident maps consume `floodAreas` read-only.
+ */
+export function useFloodAreas() {
+  const { floodAreas, addFloodArea, updateFloodArea, removeFloodArea } = useAdminData()
+  return { floodAreas, addFloodArea, updateFloodArea, removeFloodArea }
 }
 
 /**

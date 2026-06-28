@@ -425,6 +425,8 @@ function reportFromRow(r) {
     // UI status mirrors the painted value: flooded↔caution, blocked↔closed.
     status: r.status === 'blocked' ? 'closed' : 'caution',
     depth: r.flood_depth_m != null ? Number(r.flood_depth_m) : undefined,
+    // Flood depth in FEET — the unit CDRRMO records and the UI displays.
+    depthFt: r.flood_depth_ft != null ? Number(r.flood_depth_ft) : undefined,
     reason: r.reason || '',
     updatedAt: epochOf(r.reported_at),
     updated: label(r.reported_at),
@@ -444,6 +446,7 @@ export const roadStatusDb = {
       name: meta.name ?? null,
       barangay: meta.barangay ?? null,
       flood_depth_m: meta.depth ?? null,
+      flood_depth_ft: meta.depthFt ?? null,
       reason: meta.reason ?? null,
       reported_by: meta.reportedBy ?? null,
       reported_at: new Date().toISOString(),

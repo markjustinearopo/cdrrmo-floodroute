@@ -1,26 +1,28 @@
 /* ============================================================
    Map3D — shared Mapbox GL JS 3D map.
 
-   The 3D command-center renderer behind the Flood Map and Hazard Layer:
-   a dark Mapbox basemap with real 3D terrain (Terrain-DEM v1, exaggerated
-   so the Laguna de Bay depression and the western ridge barangays read
-   physically), plus the animated canvas overlays (wind particles,
-   rainfall radar) sized to the map.
+   The 3D command-center renderer behind the Flood Map, Hazard Layer and
+   the routing screens. Two basemaps (see BASEMAPS):
+
+     • 'navigation' — the FRESH / MODERN routing look: Mapbox STANDARD
+       style (v3) — photoreal, fully-built 3D buildings city-wide (not just
+       OSM's exposed footprints), realistic lighting + ambient shadows, a
+       bright "day" preset. This is the engaging, memorable map.
+     • 'dark'       — the command-center hazard look: classic dark-v11 with
+       exaggerated 3D terrain (the Laguna de Bay basin vs. the western ridge
+       barangays read physically) and the layered hazard fills.
 
    Every hazard layer (inundation surface, barangay risk fills, roads,
    markers, city boundary — see mapbox3dHelpers.js) is a NATIVE Mapbox
-   source/layer, never a screen-space overlay: native layers are draped
-   onto the 3D terrain by the renderer itself, so the hazard colours stay
-   glued to the ground through any pan / pitch / rotate. (The previous
-   Deck.gl overlay drew at sea level and slid off the exaggerated terrain
-   whenever the camera moved.)
+   source/layer draped onto the terrain by the renderer, so the hazard
+   colours stay glued to the ground through any pan / pitch / rotate.
 
    Raw `mapboxgl` via useRef + useEffect — not react-map-gl — so the pages
-   keep full imperative control (sources, layers, paint-property pulses).
+   keep full imperative control (sources, layers, paint pulses, camera).
 
-   Token comes from VITE_MAPBOX_TOKEN. Pages must gate on hasMapboxToken():
-   without a token they keep rendering their classic Leaflet map, so the
-   system never loses its hazard picture over a missing key.
+   Token comes from VITE_MAPBOX_TOKEN; pages gate on hasMapboxToken() and
+   keep their Leaflet map when it's absent, so a missing key never blanks
+   the hazard picture.
    ============================================================ */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -32,6 +34,23 @@ import RainfallRadar from './RainfallRadar.jsx'
 import './Map3D.css'
 
 export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || ''
+
+/* The two looks. 'navigation' = Mapbox Standard (3D buildings + lighting are
+   built into the style, so no custom extrusion layer is needed and coverage is
+   complete). 'dark' = classic style + exaggerated DEM terrain. */
+const BASEMAPS = {
+  navigation: {
+    style: 'mapbox://styles/mapbox/standard',
+    standard: true, // configured via setConfigProperty after load
+    lightPreset: 'day',
+    terrain: 0, // Standard renders its own 3D city — keep it flat + crisp
+  },
+  dark: {
+    style: 'mapbox://styles/mapbox/dark-v11',
+    standard: false,
+    terrain: 2.5, // exaggeration — dramatize the basin vs. ridge
+  },
+}
 
 let warnedNoToken = false
 
@@ -118,6 +137,7 @@ export default function Map3D({
   rain,
   children,
   className = '',
+  basemap = 'navigation',
 }) {
   const wrapRef = useRef(null)
   const containerRef = useRef(null)
@@ -135,13 +155,15 @@ export default function Map3D({
   useEffect(() => {
     if (!MAPBOX_TOKEN || !containerRef.current) return undefined
     mapboxgl.accessToken = MAPBOX_TOKEN
+    const cfg = BASEMAPS[basemap] || BASEMAPS.navigation
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
+      style: cfg.style,
       ...CABUYAO_3D_VIEW,
       maxBounds: CABUYAO_MAX_BOUNDS,
       minZoom: 10.5,
+      maxPitch: 75, // allow the dramatic, immersive follow-camera tilt
       antialias: true,
       attributionControl: false,
     })
@@ -152,20 +174,45 @@ export default function Map3D({
       // Dev console handle for debugging layer/render state.
       if (import.meta.env.DEV) window.__cdrrmoMap3d = map
 
-      // 3D terrain — Laguna de Bay basin vs. the Tagaytay-ridge barangays.
-      map.addSource('mapbox-dem', {
-        type: 'raster-dem',
-        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-        tileSize: 512,
-        maxzoom: 14,
-      })
-      map.setTerrain({ source: 'mapbox-dem', exaggeration: 2.5 })
-      map.setFog({ range: [0.5, 10], color: 'hsl(220, 30%, 10%)', 'horizon-blend': 0.1 })
+      if (cfg.standard) {
+        // Mapbox Standard style — drive its built-in 3D city + lighting.
+        try {
+          map.setConfigProperty('basemap', 'lightPreset', cfg.lightPreset || 'day')
+          map.setConfigProperty('basemap', 'show3dObjects', true) // full 3D buildings
+          map.setConfigProperty('basemap', 'showPointOfInterestLabels', true)
+        } catch {
+          /* config is style polish — never block the map on it */
+        }
+      }
+
+      // 3D terrain — Laguna de Bay basin vs. the Tagaytay-ridge barangays —
+      // only on the classic 'dark' command-center basemap.
+      if (cfg.terrain > 0) {
+        if (!map.getSource('mapbox-dem')) {
+          map.addSource('mapbox-dem', {
+            type: 'raster-dem',
+            url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+            tileSize: 512,
+            maxzoom: 14,
+          })
+        }
+        try {
+          map.setTerrain({ source: 'mapbox-dem', exaggeration: cfg.terrain })
+          map.setFog({ range: [0.5, 10], color: 'hsl(220, 30%, 10%)', 'horizon-blend': 0.1 })
+        } catch {
+          /* terrain/fog are additive eye-candy — never block the map on them */
+        }
+      }
 
       onMapLoadRef.current?.(map)
     })
 
     map.on('click', (e) => onMapClickRef.current?.(e.lngLat, e))
+
+    // Surface tile/style/source failures instead of hanging silently.
+    map.on('error', (e) => {
+      if (import.meta.env.DEV) console.warn('[Map3D] Mapbox error:', e?.error?.message || e?.error || e)
+    })
 
     // Throttled: camera animations (route reveal) jump the map every frame,
     // and each jump fires moveend — don't re-render the page 60×/s for a
@@ -186,7 +233,9 @@ export default function Map3D({
       mapRef.current = null
       map.remove()
     }
-  }, [])
+    // Re-create the map if the basemap choice changes (dark ⇄ navigation).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basemap])
 
   // Track the container size for the canvas overlays (Mapbox itself resizes
   // via its own trackResize observer).

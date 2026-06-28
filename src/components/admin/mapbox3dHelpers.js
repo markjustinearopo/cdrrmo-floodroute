@@ -516,7 +516,8 @@ const NOAH_FILL_OPACITY = [
  * overlays stay visible above the static hazard zones.
  * Fail-soft: if the fetch fails or the map is torn down, nothing breaks.
  */
-export function addNoahHazardLayer(map) {
+export function addNoahHazardLayer(map, { visible = false } = {}) {
+  const vis = visible ? 'visible' : 'none'
   fetch('/noah_cabuyao_flood_100yr.geojson')
     .then((r) => r.json())
     .then((data) => {
@@ -529,6 +530,7 @@ export function addNoahHazardLayer(map) {
             id: 'noah-hazard-fill',
             type: 'fill',
             source: 'noah-hazard',
+            layout: { visibility: vis },
             paint: {
               'fill-color': NOAH_FILL_COLOR,
               'fill-opacity': NOAH_FILL_OPACITY,
@@ -541,6 +543,7 @@ export function addNoahHazardLayer(map) {
             id: 'noah-hazard-line',
             type: 'line',
             source: 'noah-hazard',
+            layout: { visibility: vis },
             paint: {
               'line-color': NOAH_LINE_COLOR,
               'line-width': 0.8,
@@ -554,6 +557,12 @@ export function addNoahHazardLayer(map) {
       }
     })
     .catch(() => {})
+}
+
+/** Toggle the NOAH hazard fill + outline together (both layers move as one). */
+export function setNoahVisible(map, on) {
+  setMapLayerVisible(map, 'noah-hazard-fill', on)
+  setMapLayerVisible(map, 'noah-hazard-line', on)
 }
 
 /* ── Flagged roads + evacuation centres (Hazard Layer 3D) ────────────────── */
@@ -718,6 +727,7 @@ export function useBarangayLayers({
   samples,
   field = null,
   inundation = false,
+  noah = false,
   fills = true,
   markers = true,
   baseOpacity = 0.85,
@@ -734,12 +744,14 @@ export function useBarangayLayers({
   const samplesRef = useRef(samples)
   const fieldRef = useRef(field)
   const inundationRef = useRef(inundation)
+  const noahRef = useRef(noah)
   const opacityRef = useRef(baseOpacity)
   const onSelectRef = useRef(onSelect)
   const jurisdictionRef = useRef(jurisdiction)
   samplesRef.current = samples
   fieldRef.current = field
   inundationRef.current = inundation
+  noahRef.current = noah
   opacityRef.current = baseOpacity
   onSelectRef.current = onSelect
   jurisdictionRef.current = jurisdiction
@@ -747,7 +759,7 @@ export function useBarangayLayers({
   const onMapLoad = useCallback((map) => {
     mapRef.current = map
     const juris = jurisdictionRef.current
-    addNoahHazardLayer(map)
+    addNoahHazardLayer(map, { visible: noahRef.current })
     addInundationLayer(map, fieldRef.current, opacityRef.current, inundationRef.current, juris)
     addBarangayLayers(map, samplesRef.current, opacityRef.current, juris)
     // "My Barangay" view locks to the own border; "City" keeps the city boundary.
@@ -787,6 +799,9 @@ export function useBarangayLayers({
   useEffect(() => {
     if (ready && mapRef.current) setMapLayerVisible(mapRef.current, 'inundation-fill', inundation)
   }, [inundation, ready])
+  useEffect(() => {
+    if (ready && mapRef.current) setNoahVisible(mapRef.current, noah)
+  }, [noah, ready])
   useEffect(() => {
     if (ready && mapRef.current) {
       applyBarangayOpacity(mapRef.current, baseOpacity)

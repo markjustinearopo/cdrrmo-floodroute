@@ -1,0 +1,79 @@
+/* Flood-prone area map popup + legend — global so the styling applies in every
+   Leaflet popup pane (admin / barangay / resident maps + the manage screen). */
+
+.fa-popup {
+  min-width: 180px;
+  max-width: 240px;
+  font-family: var(--font-body, system-ui, sans-serif);
+}
+.fa-popup-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8125rem;
+  color: #1a1a1a;
+}
+.fa-popup-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.fa-popup-sub {
+  margin-top: 2px;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+  font-weight: 600;
+}
+.fa-popup-depth {
+  margin: 7px 0 4px;
+  font-size: 1.125rem;
+  font-weight: 800;
+  font-family: var(--font-display, var(--font-body));
+}
+.fa-popup-depth-lbl {
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.fa-popup-row {
+  font-size: 0.6875rem;
+  color: #4a4a4a;
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.fa-popup-row b { color: #1a1a1a; }
+.fa-popup-notes {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #efece6;
+  font-size: 0.6875rem;
+  color: #5a5a5a;
+  line-height: 1.5;
+}
+.fa-popup-foot {
+  margin-top: 6px;
+  font-size: 0.625rem;
+  color: #9a9a9a;
+  font-style: italic;
+}
+
+.fa-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.fa-legend-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  color: #4a4a4a;
+  font-weight: 600;
+}
+.fa-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}

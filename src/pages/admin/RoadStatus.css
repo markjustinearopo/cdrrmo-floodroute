@@ -42,6 +42,33 @@
   stroke-linecap: round;
 }
 
+/* Board mode toggle (Conditions ⇄ Traffic) — segmented pill */
+.road-status .rs-mode-seg {
+  display: inline-flex;
+  padding: 3px;
+  background: #f0eee9;
+  border-radius: 9999px;
+  gap: 2px;
+}
+.road-status .rs-mode {
+  border: none;
+  background: none;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #7a7a7a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.road-status .rs-mode:hover { color: #3a3a3a; }
+.road-status .rs-mode.active {
+  background: #fff;
+  color: #1a1a1a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 /* Brush selector */
 .road-status .rs-brushes {
   display: flex;
@@ -310,6 +337,9 @@
 .road-status .rs-sum--blocked { background: #fef2f2; border-color: #fbd5d5; }
 .road-status .rs-sum--flooded { background: #fff7ed; border-color: #fde2c4; }
 .road-status .rs-sum--open { background: #f0fdf4; border-color: #c8efd6; }
+.road-status .rs-sum--gridlock { background: #fef2f2; border-color: #f3c7c7; }
+.road-status .rs-sum--moderate { background: #fefce8; border-color: #faecbf; }
+.road-status .rs-sum--clear { background: #f0fdf4; border-color: #c8efd6; }
 .road-status .rs-sum-val {
   font-family: var(--font-display);
   font-size: 1.35rem;
@@ -320,6 +350,9 @@
 .road-status .rs-sum--blocked .rs-sum-val { color: #dc2626; }
 .road-status .rs-sum--flooded .rs-sum-val { color: #ea580c; }
 .road-status .rs-sum--open .rs-sum-val { color: #16a34a; }
+.road-status .rs-sum--gridlock .rs-sum-val { color: #991b1b; }
+.road-status .rs-sum--moderate .rs-sum-val { color: #a16207; }
+.road-status .rs-sum--clear .rs-sum-val { color: #16a34a; }
 .road-status .rs-sum-lbl {
   font-size: 0.5625rem;
   font-weight: 700;
@@ -424,6 +457,11 @@
 }
 .road-status .rs-badge.flooded { background: #ffedd5; color: #c2410c; }
 .road-status .rs-badge.blocked { background: #fee2e2; color: #b91c1c; }
+/* Traffic badges take their tint from the level swatch (--c). */
+.road-status .rs-badge--traffic {
+  background: color-mix(in srgb, var(--c) 16%, #fff);
+  color: color-mix(in srgb, var(--c) 78%, #1a1a1a);
+}
 .road-status .rs-flagged-x {
   width: 20px;
   height: 20px;
@@ -439,6 +477,62 @@
 .road-status .rs-flagged-x:hover {
   background: #fef2f2;
   color: #c0181b;
+}
+
+/* Flagged-row name as an edit button + recorded depth chip */
+.road-status .rs-flagged-edit {
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-body);
+}
+.road-status .rs-flagged-edit:hover { color: #c0181b; }
+.road-status .rs-flagged-depth {
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 800;
+  color: #ea580c;
+  background: #fff7ed;
+  border: 1px solid #fde2c4;
+  border-radius: 9999px;
+  padding: 1px 6px;
+}
+
+/* Road-condition modal — status segmented control */
+.rcm-status { display: flex; gap: 7px; margin-top: 4px; }
+.rcm-status-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 6px;
+  border: 1.5px solid #e5e2dd;
+  background: #fafafa;
+  border-radius: 9px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #5a5a5a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rcm-status-btn .rcm-status-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--c);
+  flex-shrink: 0;
+}
+.rcm-status-btn:hover { border-color: var(--c); }
+.rcm-status-btn.on {
+  border-color: var(--c);
+  color: #1a1a1a;
+  background: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent);
 }
 
 .road-status .rs-empty {

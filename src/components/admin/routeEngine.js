@@ -29,6 +29,35 @@ import { haversineMeters } from './routingHelpers.jsx'
    will happily take a detour up to that factor longer to stay dry. */
 export const DEFAULT_ALPHA = 8
 
+/* ── Traffic congestion model — the second hazard, orthogonal to flooding ──
+   A road can be both flooded AND congested; the two are kept in separate maps
+   and both feed the same cost. Each level carries two numbers:
+
+     • penalty ∈ [0, 1] — added to the cost multiplier exactly like flood risk,
+       so the search detours around congestion (scaled by DEFAULT_BETA below).
+     • factor  ∈ (0, 1] — the fraction of free-flow speed the road still moves
+       at, so the ETA is honest about time lost crawling through a jam.
+
+   "Clear" is simply the ABSENCE of an entry — no penalty, full speed — exactly
+   how an un-flagged road has no flood condition. This is the property that
+   makes the whole feature additive: with an empty trafficMap every route is
+   identical to the flood-only engine. */
+export const TRAFFIC_LEVELS = {
+  light:    { penalty: 0.15, factor: 0.85 },
+  moderate: { penalty: 0.40, factor: 0.65 },
+  heavy:    { penalty: 0.75, factor: 0.40 },
+  gridlock: { penalty: 1.00, factor: 0.15 },
+}
+const CLEAR_TRAFFIC = { penalty: 0, factor: 1 }
+// Severity order, worst last — used to surface the worst jam along a route.
+const TRAFFIC_RANK = { light: 1, moderate: 2, heavy: 3, gridlock: 4 }
+
+/* How hard to steer away from congestion, relative to plain distance. Flood
+   risk (DEFAULT_ALPHA = 8) deliberately outranks it: getting out of the water
+   comes before time lost to traffic, so a gridlocked-but-dry road (cost ×5)
+   still beats a flooded one (cost ×9). */
+export const DEFAULT_BETA = 4
+
 // Coordinates are merged into shared graph nodes at ~0.1 m precision.
 // Overpass returns the endpoints of connecting ways with identical
 // coordinates (they are the same OSM node), so rounding here stitches the
@@ -323,11 +352,24 @@ export function edgeRisk(edge, { riskAt, statusMap }) {
   return risk
 }
 
-function makeCost(opts, alpha) {
+/**
+ * Per-edge congestion, read from the manual traffic map ({ wayId: level }).
+ * Returns the level's { penalty, factor }; an un-flagged road is CLEAR
+ * (no penalty, full speed). Pure lookup — no live feed yet (that is Phase 3).
+ */
+export function edgeTraffic(edge, { trafficMap } = {}) {
+  const level = trafficMap?.[edge.wayId]
+  return TRAFFIC_LEVELS[level] || CLEAR_TRAFFIC
+}
+
+function makeCost(opts, alpha, beta) {
   return (edge) => {
     const risk = edgeRisk(edge, opts)
-    if (!isFinite(risk)) return Infinity
-    return edge.d * (1 + alpha * risk)
+    if (!isFinite(risk)) return Infinity // blocked road — impassable
+    const traffic = edgeTraffic(edge, opts)
+    // Cost stays ≥ the segment's true length (every term is ≥ 0), so the
+    // straight-line heuristic remains admissible and A* still finds the optimum.
+    return edge.d * (1 + alpha * risk + beta * traffic.penalty)
   }
 }
 
@@ -341,7 +383,13 @@ function decorate(graph, result, opts) {
   // follows (the "via" turn sheet shown on the Auto Route panel).
   let floodedSegments = 0
   const flooded = new Set()
-  let driveMins = 0
+  let driveMins = 0 // congestion-aware ETA
+  let freeFlowMins = 0 // ETA if every road moved at free-flow speed
+  let congestedSegments = 0
+  const congested = new Set()
+  let worstTraffic = null // worst level encountered along the path
+  let worstTrafficM = 0 // metres spent at that worst level
+  let worstTrafficRoad = null // name of the worst-congested road
   const via = []
   for (let i = 1; i < result.nodes.length; i++) {
     const edge = findEdge(adj[result.nodes[i - 1]], result.nodes[i])
@@ -351,8 +399,25 @@ function decorate(graph, result, opts) {
       floodedSegments++
       flooded.add(edge.wayId)
     }
-    driveMins += (edge.d / 1000 / (edge.kmh || 25)) * 60
     const info = wayInfo?.get(edge.wayId)
+    // Free-flow minutes for this segment, then stretched by the traffic factor
+    // so the headline ETA reflects the jam, not the empty-road ideal.
+    const ffMins = (edge.d / 1000 / (edge.kmh || 25)) * 60
+    const traffic = edgeTraffic(edge, opts)
+    freeFlowMins += ffMins
+    driveMins += ffMins / traffic.factor
+    const level = opts.trafficMap?.[edge.wayId]
+    if (level) {
+      congestedSegments++
+      congested.add(edge.wayId)
+      if (!worstTraffic || TRAFFIC_RANK[level] > TRAFFIC_RANK[worstTraffic]) {
+        worstTraffic = level
+        worstTrafficM = edge.d
+        worstTrafficRoad = info?.name || null
+      } else if (level === worstTraffic) {
+        worstTrafficM += edge.d
+      }
+    }
     if (info?.named) {
       const last = via[via.length - 1]
       if (last && last.name === info.name) last.m += edge.d
@@ -371,7 +436,14 @@ function decorate(graph, result, opts) {
     floodedSegments,
     floodedWays: [...flooded],
     nodeCount: result.nodes.length,
-    driveMins, // class-aware vehicle ETA (expressway fast, alleys slow)
+    driveMins, // congestion-aware vehicle ETA (expressway fast, alleys/jams slow)
+    freeFlowMins, // the same trip with no congestion — baseline for the delay
+    trafficDelayMins: Math.max(0, driveMins - freeFlowMins), // minutes lost to jams
+    congestedSegments,
+    congestedWays: [...congested],
+    worstTraffic, // worst level along the path ('light'…'gridlock') or null
+    worstTrafficM, // metres spent at that worst level
+    worstTrafficRoad, // friendly name of the worst-congested road, if any
     viaRoads, // ordered named roads the path follows: [{ name, m }, …]
   }
 }
@@ -396,6 +468,7 @@ function decorate(graph, result, opts) {
 export function planRoute(graph, start, goal, opts = {}) {
   if (!graph || graph.size === 0) return { ok: false, reason: 'no-network' }
   const alpha = opts.alpha ?? DEFAULT_ALPHA
+  const beta = opts.beta ?? DEFAULT_BETA
   const riskOf = (edge) => {
     const r = edgeRisk(edge, opts)
     return isFinite(r) ? r : 1
@@ -406,7 +479,7 @@ export function planRoute(graph, start, goal, opts = {}) {
   if (sNode < 0 || gNode < 0) return { ok: false, reason: 'no-network' }
   if (sNode === gNode) return { ok: false, reason: 'too-close' }
 
-  const safeRaw = aStar(graph, sNode, gNode, makeCost(opts, alpha), riskOf)
+  const safeRaw = aStar(graph, sNode, gNode, makeCost(opts, alpha, beta), riskOf)
   if (!safeRaw) return { ok: false, reason: 'no-path' }
 
   // Pure-distance path for comparison (alpha = 0 ⇒ cost = length), still

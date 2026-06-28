@@ -3,7 +3,7 @@ import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { BARANGAYS, INCIDENT_TYPES, PRIORITIES, RESPONSE_TEAMS } from '../../data/cabuyao.js'
 import { useIncidents, useSavedRoutes } from '../../context/AdminDataContext.jsx'
 import { CABUYAO_CENTER } from '../../components/admin/mapHelpers.jsx'
-import { getCabuyaoRoads, useRoadStatus, formatDistance } from '../../components/admin/routingHelpers.jsx'
+import { getCabuyaoRoads, useRoadStatus, useTrafficStatus, formatDistance } from '../../components/admin/routingHelpers.jsx'
 import { getGraph, planRoute } from '../../components/admin/routeEngine.js'
 import { useFloodRisk } from '../../components/admin/floodRisk.js'
 import './Manage.css'
@@ -61,6 +61,7 @@ export default function Incidents() {
   const { incidents: items, addIncident, updateIncident, removeIncident } = useIncidents()
   const [, { addRoute }] = useSavedRoutes()
   const [roadStatusMap] = useRoadStatus()
+  const [trafficMap] = useTrafficStatus()
   const { field } = useFloodRisk()
 
   const [filter, setFilter] = useState('all')
@@ -167,6 +168,7 @@ export default function Incidents() {
     const plan = planRoute(graph, CABUYAO_CENTER, inc.coords, {
       riskAt: field ? (lat, lng) => field.riskAt(lat, lng) : undefined,
       statusMap: roadStatusMap,
+      trafficMap, // responders drive — steer the convoy around jams
     })
     if (!plan.ok) return flash('No drivable route found to this incident.')
     addRoute({

@@ -21,8 +21,10 @@ import {
   RoadNetworkLayer,
   useCabuyaoRoads,
   useRoadStatus,
+  useTrafficStatus,
+  TRAFFIC_STATUS,
 } from '../../components/admin/routingHelpers.jsx'
-import { useRouteGraph, planRoute, planToNearestSafe, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
+import { useRouteGraph, planRoute, planToNearestSafe, DEFAULT_ALPHA, DEFAULT_BETA } from '../../components/admin/routeEngine.js'
 import {
   useFloodRisk,
   riskLevel,
@@ -43,6 +45,7 @@ import {
   updateHazardRoadsData,
   addCityBoundary,
   addNoahHazardLayer,
+  setNoahVisible,
 } from '../../components/admin/mapbox3dHelpers.js'
 import {
   useMap3DSetup,
@@ -87,6 +90,7 @@ export default function AutoRoute() {
   const graph = useRouteGraph(roads)
   const { field, loading: fieldLoading, refresh: refreshField } = useFloodRisk()
   const [statusMap] = useRoadStatus()
+  const [trafficMap] = useTrafficStatus()
   const [, { addRoute }] = useSavedRoutes()
   const { evacuationCenters } = useEvacCenters()
 
@@ -107,6 +111,7 @@ export default function AutoRoute() {
   const [showHazards, setShowHazards] = usePersistedState('cdrrmo-layers-admin-autoroute-hazards', false)
   const [showCentres, setShowCentres] = usePersistedState('cdrrmo-layers-admin-autoroute-centres', false)
   const [showFastest, setShowFastest] = usePersistedState('cdrrmo-layers-admin-autoroute-fastest', false)
+  const [showTraffic, setShowTraffic] = usePersistedState('cdrrmo-layers-admin-autoroute-traffic', false)
 
   const [name, setName] = useState('')
   const [coords, setCoords] = useState(null)
@@ -165,9 +170,26 @@ export default function AutoRoute() {
   }, [roads, statusMap])
   const hazardCount = Object.keys(statusMap).length
 
+  // Congested roads overlay (painted on Road Status → Traffic), shown with the
+  // navigation-style ramp on its own toggle so it never muddles the flood layer.
+  const trafficRoads = useMemo(() => {
+    if (!roads) return null
+    const ids = new Set(Object.keys(trafficMap))
+    if (ids.size === 0) return null
+    return {
+      type: 'FeatureCollection',
+      features: roads.features.filter((f) => ids.has(String(f.properties.id))),
+    }
+  }, [roads, trafficMap])
+  const trafficCount = Object.keys(trafficMap).length
+
+  // Traffic only weighs on VEHICLE routes — evacuation is on foot, so
+  // car congestion neither detours nor slows it (β = 0). Convoy/response
+  // routes drive, so they steer around jams (β = DEFAULT_BETA).
+  const beta = type === 'evacuation' ? 0 : DEFAULT_BETA
   const routeOpts = useMemo(
-    () => ({ riskAt: live.riskAt, statusMap, alpha }),
-    [live, statusMap, alpha],
+    () => ({ riskAt: live.riskAt, statusMap, trafficMap, alpha, beta }),
+    [live, statusMap, trafficMap, alpha, beta],
   )
 
   function generate() {
@@ -340,6 +362,11 @@ export default function AutoRoute() {
                 <RoadNetworkLayer roads={hazardRoads} statusMap={statusMap} interactive={false} />
               )}
 
+              {/* Live traffic congestion (Road Status → Traffic board) */}
+              {showTraffic && trafficRoads && (
+                <RoadNetworkLayer roads={trafficRoads} trafficMap={trafficMap} view="traffic" interactive={false} />
+              )}
+
               {/* Evacuation centres */}
               {showCentres &&
                 openCentres.map((c) => {
@@ -500,6 +527,7 @@ export default function AutoRoute() {
               <div className="ar-toggles">
                 <Toggle label="Flood-risk heat" on={showRisk} onChange={() => setShowRisk((v) => !v)} />
                 <Toggle label={`Road hazards${hazardCount ? ` (${hazardCount})` : ''}`} on={showHazards} onChange={() => setShowHazards((v) => !v)} />
+                <Toggle label={`Live traffic${trafficCount ? ` (${trafficCount})` : ''}`} on={showTraffic} onChange={() => setShowTraffic((v) => !v)} />
                 <Toggle label="Evac centres" on={showCentres} onChange={() => setShowCentres((v) => !v)} />
                 <Toggle label="Show shortest" on={showFastest} onChange={() => setShowFastest((v) => !v)} />
               </div>
@@ -536,6 +564,22 @@ export default function AutoRoute() {
                     <b>&nbsp;· {safe.floodedSegments} flagged segment{safe.floodedSegments > 1 ? 's' : ''}</b>
                   )}
                 </div>
+
+                {/* Congestion readout — vehicle routes only (β &gt; 0). */}
+                {type !== 'evacuation' && (safe.trafficDelayMins >= 0.5 || safe.congestedSegments > 0) && (
+                  <div className="ar-trafficline">
+                    <span
+                      className="ar-trafficdot"
+                      style={{ background: TRAFFIC_STATUS[safe.worstTraffic]?.swatch || '#94A3B8' }}
+                    />
+                    {safe.trafficDelayMins >= 0.5
+                      ? <>+{Math.round(safe.trafficDelayMins)} min lost to traffic</>
+                      : <>Routed clear of congestion</>}
+                    {safe.worstTraffic && safe.worstTrafficRoad && (
+                      <b>&nbsp;· {TRAFFIC_STATUS[safe.worstTraffic].label.toLowerCase()} near {safe.worstTrafficRoad}</b>
+                    )}
+                  </div>
+                )}
 
                 {/* Safest vs shortest */}
                 <div className="ar-compare">
@@ -676,7 +720,9 @@ function AutoRoute3DView({
 
   const { onMapLoad, mapRef, ready } = useMap3DSetup((map) => {
     const v = initRef.current
-    addNoahHazardLayer(map)
+    // NOAH hazard zones ride the same "Flood-risk heat" toggle as the rest of
+    // the flood context — off by default so the route + roads stay legible.
+    addNoahHazardLayer(map, { visible: v.showRisk })
     addInundationLayer(map, v.live, 0.4, v.showRisk)
     addBarangayLayers(map, v.riskSamples, 0.35)
     setBarangayVisibility(map, { fills: v.showRisk, markers: false })
@@ -715,6 +761,7 @@ function AutoRoute3DView({
     if (!ready || !mapRef.current) return
     setBarangayVisibility(mapRef.current, { fills: showRisk, markers: false })
     setMapLayerVisible(mapRef.current, 'inundation-fill', showRisk)
+    setNoahVisible(mapRef.current, showRisk)
   }, [showRisk, ready, mapRef])
   useEffect(() => {
     if (ready && mapRef.current) setMapLayerVisible(mapRef.current, 'hazard-roads', showHazards)
@@ -798,6 +845,7 @@ function AutoRoute3DView({
 
   return (
     <Map3D
+      basemap="navigation"
       onMapLoad={onMapLoad}
       onViewChange={onViewChange}
       onMapClick={(lngLat, e) => {

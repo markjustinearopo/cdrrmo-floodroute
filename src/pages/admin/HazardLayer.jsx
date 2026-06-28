@@ -429,6 +429,7 @@ function Hazard3DView({
     samples,
     field,
     inundation: visible.inundation,
+    noah: visible.noahHazard,
     fills: visible.barangays,
     markers: visible.barangays,
     baseOpacity: opacity / 100,

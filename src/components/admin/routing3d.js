@@ -119,8 +119,11 @@ function firstSymbolLayerId(map) {
  * labels are symbol layers and stay on.
  */
 export function hideBasemapRoads(map) {
+  // Mapbox styles named the source-layer 'road'; OSM vector styles (CARTO /
+  // OpenFreeMap, OpenMapTiles schema) call it 'transportation'. Hide either.
+  const ROAD_SRC_LAYERS = new Set(['road', 'transportation'])
   for (const layer of map.getStyle()?.layers || []) {
-    if (layer.type === 'line' && layer['source-layer'] === 'road') {
+    if (layer.type === 'line' && ROAD_SRC_LAYERS.has(layer['source-layer'])) {
       map.setLayoutProperty(layer.id, 'visibility', 'none')
     }
   }

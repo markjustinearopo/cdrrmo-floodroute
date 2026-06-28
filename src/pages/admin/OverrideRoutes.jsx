@@ -13,8 +13,9 @@ import {
   RoadNetworkLayer,
   useCabuyaoRoads,
   useRoadStatus,
+  useTrafficStatus,
 } from '../../components/admin/routingHelpers.jsx'
-import { useRouteGraph, planRoute } from '../../components/admin/routeEngine.js'
+import { useRouteGraph, planRoute, DEFAULT_BETA } from '../../components/admin/routeEngine.js'
 import { useFloodRisk } from '../../components/admin/floodRisk.js'
 import { useSavedRoutes } from '../../context/AdminDataContext.jsx'
 import './OverrideRoutes.css'
@@ -40,6 +41,7 @@ export default function OverrideRoutes() {
   const graph = useRouteGraph(roads)
   const { field } = useFloodRisk()
   const [roadStatus] = useRoadStatus()
+  const [trafficMap] = useTrafficStatus()
 
   const [selectedId, setSelectedId] = useState(null)
   const [override, setOverride] = useState([]) // [[lat,lng], …]
@@ -111,7 +113,9 @@ export default function OverrideRoutes() {
     if (!waypoints || waypoints.length < 2) return flash('This route has no endpoints to re-route.')
 
     // High avoidance weight: take a meaningful detour to stay out of the water.
-    const opts = { riskAt: field?.riskAt, statusMap: roadStatus, alpha: 14 }
+    // Traffic weighs in for vehicle routes; an on-foot evacuation ignores it.
+    const beta = selected.type === 'evacuation' ? 0 : DEFAULT_BETA
+    const opts = { riskAt: field?.riskAt, statusMap: roadStatus, trafficMap, alpha: 14, beta }
     let line = []
     let gaps = 0
     for (let i = 1; i < waypoints.length; i++) {

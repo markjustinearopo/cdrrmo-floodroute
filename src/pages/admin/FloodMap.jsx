@@ -17,6 +17,7 @@ import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodR
 import { BarangayRiskLayer, InundationGrid, FocusController } from '../../components/admin/BarangayRiskLayer.jsx'
 import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
+import { FloodAreaMarkers } from '../../components/admin/FloodAreasLayer.jsx'
 import { WeatherPanel } from '../../components/admin/WeatherPanel.jsx'
 import { barangayBounds } from '../../data/cabuyaoBarangays.js'
 import {
@@ -26,7 +27,7 @@ import {
   formatDistance,
   useRoutes,
 } from '../../components/admin/routingHelpers.jsx'
-import { useAlerts, useEvacCenters, useIncidents, useRoadReports } from '../../context/AdminDataContext.jsx'
+import { useAlerts, useEvacCenters, useIncidents, useRoadReports, useFloodAreas } from '../../context/AdminDataContext.jsx'
 import { useRoadStatus, getCabuyaoRoads } from '../../components/admin/routingHelpers.jsx'
 import SystemModulesPanel from '../../components/admin/SystemModulesPanel.jsx'
 import IncidentReportsPanel from '../../components/admin/IncidentReportsPanel.jsx'
@@ -115,6 +116,7 @@ export default function FloodMap() {
   const { incidents, updateIncident } = useIncidents()
   const { evacuationCenters, updateEvacCenter } = useEvacCenters()
   const { roadReports } = useRoadReports()
+  const { floodAreas } = useFloodAreas()
   const [roadStatus] = useRoadStatus()
   const roadNetwork = useMemo(() => getCabuyaoRoads(), [])
 
@@ -141,9 +143,11 @@ export default function FloodMap() {
   const [overlays, setOverlays] = usePersistedState('cdrrmo-layers-admin-floodmap-overlays', { incidents: false, roads: false, evac: false, routes: false })
   const toggleOverlay = (k) => setOverlays((v) => ({ ...v, [k]: !v[k] }))
 
-  // Layer visibility + intensity (the on-map toggle control). Default: clean
-  // barangay classification + markers; inundation heat off so colours don't mix.
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-admin-floodmap-layers', { barangays: false, inundation: false, markers: false })
+  // Layer visibility + intensity (the on-map toggle control). Default: the
+  // Project NOAH hazard zones + the documented flood-prone areas on (the city's
+  // standing reference); barangay classification + inundation heat off so the
+  // colours don't compete until toggled.
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-admin-floodmap-layers-v2', { noah: true, floodAreas: true, barangays: false, inundation: false, markers: false })
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-admin-floodmap-intensity', 85)
   const toggleLayer = (k) => setLayers((v) => ({ ...v, [k]: !v[k] }))
 
@@ -182,7 +186,7 @@ export default function FloodMap() {
         if (!f) return null
         const latlngs = f.geometry.coordinates.map(([lng, lat]) => [lat, lng])
         const report = reportByWay.get(String(id))
-        return { id, status, name: report?.name || f.properties.name, latlngs }
+        return { id, status, name: report?.name || f.properties.name, depthFt: report?.depthFt, latlngs }
       })
       .filter(Boolean)
   }, [roadNetwork, roadStatus, roadReports])
@@ -297,8 +301,8 @@ export default function FloodMap() {
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
 
-              {/* Project NOAH official 5-year return-period flood hazard zones (always on) */}
-              {noahGeo && (
+              {/* Project NOAH official flood hazard zones — now a toggleable layer */}
+              {layers.noah && noahGeo && (
                 <GeoJSON
                   key="noah-100yr"
                   data={noahGeo}
@@ -309,6 +313,9 @@ export default function FloodMap() {
                   }}
                 />
               )}
+
+              {/* Documented flood-prone areas (depth in feet) */}
+              {layers.floodAreas && <FloodAreaMarkers areas={floodAreas} />}
 
               {/* Land-clipped NOAH-style honeycomb surface (Open-Meteo flood × forecast) —
                   toggle so it never has to compete with the classification. */}
@@ -361,6 +368,7 @@ export default function FloodMap() {
                   {r.name && (
                     <Tooltip sticky>
                       <b>{r.name}</b><br />{r.status === 'blocked' ? 'Closed' : 'Flooded'}
+                      {r.depthFt != null && <> · {r.depthFt} ft</>}
                     </Tooltip>
                   )}
                 </Polyline>
@@ -461,6 +469,8 @@ export default function FloodMap() {
               opacity={intensity}
               onOpacity={setIntensity}
               layers={[
+                { key: 'noah', label: 'Project NOAH Hazard', color: '#c0181b', on: layers.noah, onToggle: () => toggleLayer('noah') },
+                { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#b91c1c', on: layers.floodAreas, onToggle: () => toggleLayer('floodAreas') },
                 { key: 'barangays', label: 'Barangay Risk', color: '#c0181b', on: layers.barangays, onToggle: () => toggleLayer('barangays') },
                 { key: 'inundation', label: 'Flood Inundation', color: '#2563eb', on: layers.inundation, onToggle: () => toggleLayer('inundation') },
                 { key: 'markers', label: 'Risk Markers', color: '#1a7a4a', on: layers.markers, onToggle: () => toggleLayer('markers') },
@@ -629,6 +639,7 @@ function FloodMap3DView({
     samples: barangays,
     field,
     inundation: layers.inundation,
+    noah: layers.noah,
     fills: layers.barangays,
     markers: layers.markers,
     baseOpacity: intensity / 100,

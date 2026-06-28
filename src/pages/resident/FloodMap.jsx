@@ -17,7 +17,8 @@ import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodR
 import { BarangayRiskLayer, InundationGrid } from '../../components/admin/BarangayRiskLayer.jsx'
 import { useLiveWeather } from '../../services/weather.js'
 import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
-import { useEvacCenters } from '../../context/AdminDataContext.jsx'
+import { FloodAreaMarkers } from '../../components/admin/FloodAreasLayer.jsx'
+import { useEvacCenters, useFloodAreas } from '../../context/AdminDataContext.jsx'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import '../admin/FloodMap.css'
 
@@ -43,7 +44,8 @@ const RAIN_TICKS = ['-8h', '-7', '-6', '-5', '-4', '-3', '-2', 'Now']
 // Toggleable overlays so a resident can isolate one layer (e.g. just flood
 // inundation, or just evacuation centres). On by default; state persists.
 const FLOOD_LAYERS = [
-  { key: 'noah', label: 'NOAH Flood Zones', color: '#C0181B' },
+  { key: 'noah', label: 'Project NOAH Hazard', color: '#C0181B' },
+  { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#B91C1C' },
   { key: 'inundation', label: 'Flood Inundation', color: '#2563EB' },
   { key: 'barangays', label: 'Barangay Risk', color: '#F97316' },
   { key: 'evac', label: 'Evacuation Centres', color: '#1A7A4A' },
@@ -66,6 +68,7 @@ export default function FloodMap() {
   const rainfall = weather.current.rain ?? 0
   const rainHistory = weather.rainHistory
   const { evacuationCenters } = useEvacCenters()
+  const { floodAreas } = useFloodAreas()
   const evacMarkers = useMemo(
     () => evacuationCenters.filter((c) => Array.isArray(c.coords)),
     [evacuationCenters],
@@ -78,7 +81,7 @@ export default function FloodMap() {
   const [panelTab, setPanelTab] = useState('Overview')
   const [coords, setCoords] = useState(null)
   const [updated, setUpdated] = useState(formatPHT())
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-res-floodmap', { noah: true, inundation: true, barangays: true, evac: true })
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-res-floodmap-v2', { noah: true, floodAreas: true, inundation: true, barangays: true, evac: true })
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-res-floodmap-intensity', 70)
 
   useEffect(() => {
@@ -158,6 +161,8 @@ export default function FloodMap() {
                   }}
                 />
               )}
+
+              {layers.floodAreas && <FloodAreaMarkers areas={floodAreas} />}
 
               {layers.inundation && <InundationGrid field={field} opacity={intensity / 100} />}
               {layers.barangays && <BarangayRiskLayer samples={barangays} opacity={Math.max(0.5, intensity / 100)} />}

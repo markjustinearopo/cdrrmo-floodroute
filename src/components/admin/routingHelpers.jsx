@@ -47,6 +47,20 @@ export const ROAD_STATUS = {
   pending: { label: 'Pending Approval', line: '#7C3AED', weight: 5, opacity: 0.95, swatch: '#7C3AED', dashArray: '7 7' },
 }
 
+/* ── Traffic congestion vocabulary (the rendering side of TRAFFIC_LEVELS) ────
+   Orthogonal to ROAD_STATUS — a road can be both flooded and congested — so it
+   lives in its own map and is only ever drawn on the dedicated "Traffic" view,
+   never mixed with the flood colours. The ramp is the familiar navigation-app
+   green→amber→orange→maroon so severity reads instantly, and is deliberately
+   kept clear of the flood orange/red. Levels & order mirror TRAFFIC_LEVELS in
+   routeEngine.js (penalty + speed factor live there; colours live here). */
+export const TRAFFIC_STATUS = {
+  light:    { label: 'Light',    hint: 'Slow but flowing',        line: '#A3E635', weight: 4, opacity: 0.9,  swatch: '#A3E635' },
+  moderate: { label: 'Moderate', hint: 'Heavy but moving',         line: '#FACC15', weight: 5, opacity: 0.95, swatch: '#FACC15' },
+  heavy:    { label: 'Heavy',    hint: 'Crawling — long delays',   line: '#FB923C', weight: 6, opacity: 0.96, swatch: '#FB923C' },
+  gridlock: { label: 'Gridlock', hint: 'At a standstill',          line: '#991B1B', weight: 6, opacity: 0.98, swatch: '#991B1B' },
+}
+
 export const ROAD_CLASS_META = {
   motorway:        { weight: 8, rank: 0, label: 'Expressway' },
   trunk:           { weight: 6, rank: 1, label: 'Highway' },
@@ -209,16 +223,37 @@ export function useCabuyaoRoads() {
  *  - interactive=true  → hover highlight + click handler (Road Status painting)
  *  - interactive=false → static hazard overlay (Override Routes context)
  */
-export function RoadNetworkLayer({ roads, statusMap = {}, onPick, interactive = true, base = 'open' }) {
+export function RoadNetworkLayer({ roads, statusMap = {}, trafficMap = {}, view = 'condition', onPick, interactive = true, base = 'open' }) {
   const map = useMap()
   const layerRef = useRef(null)
   const statusRef = useRef(statusMap)
+  const trafficRef = useRef(trafficMap)
+  const viewRef = useRef(view)
   const onPickRef = useRef(onPick)
   statusRef.current = statusMap
+  trafficRef.current = trafficMap
+  viewRef.current = view
   onPickRef.current = onPick
 
   const styleFor = useCallback(
     (id) => {
+      // Traffic view: colour by congestion. A closed road still reads as closed
+      // (it's impassable however clear the traffic), otherwise paint the
+      // congestion level — un-flagged roads fall back to the faint base style.
+      if (viewRef.current === 'traffic') {
+        if (statusRef.current[id] === 'blocked') {
+          const m = ROAD_STATUS.blocked
+          return { color: m.line, weight: m.weight, opacity: m.opacity, lineCap: 'round', dashArray: null }
+        }
+        const lvl = trafficRef.current[id]
+        if (lvl && TRAFFIC_STATUS[lvl]) {
+          const m = TRAFFIC_STATUS[lvl]
+          return { color: m.line, weight: m.weight, opacity: m.opacity, lineCap: 'round', dashArray: null }
+        }
+        const b = ROAD_STATUS.open
+        return { color: b.line, weight: b.weight, opacity: b.opacity, lineCap: 'round', dashArray: null }
+      }
+      // Condition view (default, unchanged): colour by flood status.
       const st = statusRef.current[id] || base
       const meta = ROAD_STATUS[st] || ROAD_STATUS.open
       return { color: meta.line, weight: meta.weight, opacity: meta.opacity, lineCap: 'round', dashArray: meta.dashArray || null }
@@ -274,7 +309,8 @@ export function RoadNetworkLayer({ roads, statusMap = {}, onPick, interactive = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roads, map, interactive])
 
-  // Recolour in place whenever a road's status changes.
+  // Recolour in place whenever a road's flood status, traffic level, or the
+  // active view changes (the refs above already hold the fresh values).
   useEffect(() => {
     const layer = layerRef.current
     if (!layer) return
@@ -282,7 +318,7 @@ export function RoadNetworkLayer({ roads, statusMap = {}, onPick, interactive = 
       const id = lyr.feature?.properties?.id
       if (id != null) lyr.setStyle(styleFor(id))
     })
-  }, [statusMap, styleFor])
+  }, [statusMap, trafficMap, view, styleFor])
 
   return null
 }
@@ -294,6 +330,7 @@ export function RoadNetworkLayer({ roads, statusMap = {}, onPick, interactive = 
    ============================================================ */
 const ROUTES_KEY = 'cdrrmo_routes'
 const ROAD_STATUS_KEY = 'cdrrmo_road_status'
+const ROAD_TRAFFIC_KEY = 'cdrrmo_road_traffic'
 
 function readJSON(key, fallback) {
   try {
@@ -385,4 +422,42 @@ export function useRoadStatus() {
   }, [])
 
   return [statusMap, { setStatus, clearAll }]
+}
+
+/* ── Traffic map ({ [wayId]: 'light' | 'moderate' | 'heavy' | 'gridlock' }) ──
+   The manual congestion board — a sibling of useRoadStatus, kept in its own
+   localStorage key so flood conditions and traffic stay independent and flow
+   between the routing screens the same way. Phase 3 swaps the source for a
+   live Waze feed; every consumer reads this hook, so only this changes. */
+export function loadTrafficStatus() {
+  return readJSON(ROAD_TRAFFIC_KEY, {})
+}
+
+export function useTrafficStatus() {
+  const [trafficMap, setTrafficMap] = useState(loadTrafficStatus)
+
+  useEffect(() => {
+    const sync = (e) => {
+      if (!e.detail || e.detail.key === ROAD_TRAFFIC_KEY) setTrafficMap(loadTrafficStatus())
+    }
+    window.addEventListener('cdrrmo-store', sync)
+    return () => window.removeEventListener('cdrrmo-store', sync)
+  }, [])
+
+  const setTraffic = useCallback((id, level) => {
+    setTrafficMap((prev) => {
+      const next = { ...prev }
+      if (!level || level === 'clear') delete next[id]
+      else next[id] = level
+      writeJSON(ROAD_TRAFFIC_KEY, next)
+      return next
+    })
+  }, [])
+
+  const clearAllTraffic = useCallback(() => {
+    setTrafficMap({})
+    writeJSON(ROAD_TRAFFIC_KEY, {})
+  }, [])
+
+  return [trafficMap, { setTraffic, clearAllTraffic }]
 }
