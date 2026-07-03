@@ -1,0 +1,224 @@
+/* Resident "Report Flood Status" modal — self-contained so it can be mounted
+   from the Flood Map, the dashboard or the dedicated Flood Reports page. */
+
+.fr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  backdrop-filter: blur(2px);
+}
+
+.fr-modal {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  animation: fr-pop 0.16s ease-out;
+}
+@keyframes fr-pop {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.fr-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, #c0181b, #8f1114);
+  color: #fff;
+}
+.fr-title {
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.fr-sub {
+  margin-top: 3px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.85);
+}
+.fr-close {
+  margin-left: auto;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+}
+.fr-close:hover { background: rgba(255, 255, 255, 0.28); }
+
+.fr-form {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.fr-field { display: flex; flex-direction: column; gap: 7px; }
+.fr-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.fr-optional { font-weight: 500; color: #9a9a9a; font-size: 0.72rem; }
+.fr-label-row { display: flex; align-items: center; justify-content: space-between; }
+
+.fr-loc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #1a3a7a;
+  color: #1a3a7a;
+  background: #eef3fb;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.fr-loc-btn:hover { background: #e2ebf8; }
+.fr-loc-btn:disabled { opacity: 0.6; cursor: default; }
+
+.fr-map {
+  position: relative;
+  height: 190px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e5e2db;
+}
+.fr-leaflet { width: 100%; height: 100%; }
+.fr-map-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 20px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.fr-coord { font-size: 0.72rem; color: #5a5a5a; }
+.fr-coord b { color: #c0181b; }
+
+.fr-error { font-size: 0.72rem; color: #dc2626; font-weight: 600; }
+
+.fr-levels { display: flex; flex-wrap: wrap; gap: 7px; }
+.fr-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid #e5e2db;
+  background: #fff;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4a4a4a;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.fr-level:hover { border-color: #cfcabf; }
+.fr-level-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+
+.fr-depth { display: flex; align-items: center; gap: 8px; }
+.fr-depth input {
+  flex: 1;
+  border: 1px solid #e5e2db;
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+.fr-depth-unit { font-size: 0.78rem; color: #7a7a7a; font-weight: 600; }
+
+.fr-form textarea {
+  border: 1px solid #e5e2db;
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  resize: vertical;
+}
+.fr-form input[type='file'] { font-size: 0.78rem; }
+
+.fr-form input:focus,
+.fr-form textarea:focus { outline: none; border-color: #1a3a7a; box-shadow: 0 0 0 3px rgba(26, 58, 122, 0.12); }
+
+.fr-photo { margin-top: 4px; }
+.fr-photo img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+.fr-link {
+  border: none;
+  background: none;
+  color: #c0181b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 5px 0 0;
+}
+
+.fr-stamp {
+  font-size: 0.72rem;
+  color: #7a7a7a;
+  background: #f7f5f0;
+  border-radius: 8px;
+  padding: 8px 11px;
+}
+.fr-stamp b { color: #1a1a1a; }
+
+.fr-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 2px; }
+.fr-btn {
+  border: none;
+  border-radius: 9px;
+  padding: 10px 18px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: #c0181b;
+  color: #fff;
+  font-family: var(--font-display, 'Poppins', sans-serif);
+}
+.fr-btn:hover { background: #a5151a; }
+.fr-btn:disabled { opacity: 0.5; cursor: default; }
+.fr-btn.ghost { background: #f0eee9; color: #4a4a4a; }
+.fr-btn.ghost:hover { background: #e6e3dc; }
+
+.fr-need { font-size: 0.72rem; color: #b45309; text-align: right; }
+
+/* Location pin (divIcon) */
+.fr-pin-divicon { background: none; border: none; }
+.fr-pin {
+  display: block;
+  width: 18px;
+  height: 18px;
+  background: #c0181b;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}

@@ -23,6 +23,9 @@ import { useBarangayLayers, addEvacCentersLayer, updateEvacCentersData, setMapLa
 import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import { useLiveWeather } from '../../services/weather.js'
 import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
 import '../admin/HazardLayer.css'
 
 /**
@@ -64,6 +67,10 @@ export default function HazardLayer() {
   const [view, setView] = useJurisdictionView()
   const [use3D, setUse3D] = use3DPreference()
   const locked = view === 'mine' && Boolean(myBrgy)
+
+  // Smart location search (barangays, evac centres + OpenStreetMap results).
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(() => buildLocalIndex({ evacCenters: evacuationCenters }), [evacuationCenters])
 
   function toggle(key) {
     setVisible((v) => ({ ...v, [key]: !v[key] }))
@@ -165,9 +172,15 @@ export default function HazardLayer() {
                   </CircleMarker>
                 ))}
 
+              {/* Searched location: flyTo + pin + glowing road highlight */}
+              <SearchResultLayer result={searchResult} barangays={allSamples} navigateTo="/barangay/evacuation-routing" />
+
               <CoordReadout onChange={setCoords} />
             </MapContainer>
             )}
+
+            {/* Floating smart search (2D view; the result layer is Leaflet-only) */}
+            {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 
             {loading && !hasField && (
               <div className="hz-nodata">

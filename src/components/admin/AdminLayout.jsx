@@ -50,6 +50,7 @@ const NAV = [
     items: [
       { label: 'Alerts', to: '/admin/alerts', icon: BellIcon },
       { label: 'Barangay', to: '/admin/barangay', icon: UsersIcon },
+      { label: 'Flood Reports', to: '/admin/flood-reports', icon: FloodReportIcon },
       { label: 'Incidents', to: '/admin/incidents', icon: TriangleIcon },
       { label: 'Evacuation', to: '/admin/evacuation', icon: HomeIcon },
     ],
@@ -423,6 +424,14 @@ function TriangleIcon() {
   return (
     <svg viewBox="0 0 24 24">
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    </svg>
+  )
+}
+function FloodReportIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+      <path d="M9 14c1 1 2 1 3 0s2-1 3 0" />
     </svg>
   )
 }

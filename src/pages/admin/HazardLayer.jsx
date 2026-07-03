@@ -32,6 +32,9 @@ import {
   updateEvacCentersData,
   setMapLayerVisible,
 } from '../../components/admin/mapbox3dHelpers.js'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
 import './HazardLayer.css'
 
 /**
@@ -103,6 +106,10 @@ export default function HazardLayer() {
 
   // Focus view + detail card.
   const [selected, setSelected] = useState(null)
+
+  // Smart location search (barangays, evac centres + OpenStreetMap results).
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(() => buildLocalIndex({ evacCenters: evacuationCenters }), [evacuationCenters])
 
   // 2D (Leaflet, default) ⇄ 3D (Mapbox terrain) — shared preference with the
   // Flood Map. Both views render the SAME live state (toggles, opacity,
@@ -274,10 +281,16 @@ export default function HazardLayer() {
                   </CircleMarker>
                 ))}
 
+              {/* Searched location: flyTo + pin + glowing road highlight */}
+              <SearchResultLayer result={searchResult} barangays={samples} navigateTo="/admin/route-planning" />
+
               <FocusController bounds={focusBounds} />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
             )}
+
+            {/* Floating smart search (2D view; the result layer is Leaflet-only) */}
+            {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 
             {/* Focused barangay detail card */}
             {selectedSample && (

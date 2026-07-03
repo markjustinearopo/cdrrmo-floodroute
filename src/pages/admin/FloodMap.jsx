@@ -18,6 +18,7 @@ import { BarangayRiskLayer, InundationGrid, FocusController } from '../../compon
 import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
 import { FloodAreaMarkers } from '../../components/admin/FloodAreasLayer.jsx'
+import { FloodReportMarkers } from '../../components/admin/FloodReportsLayer.jsx'
 import { WeatherPanel } from '../../components/admin/WeatherPanel.jsx'
 import { barangayBounds } from '../../data/cabuyaoBarangays.js'
 import {
@@ -27,7 +28,7 @@ import {
   formatDistance,
   useRoutes,
 } from '../../components/admin/routingHelpers.jsx'
-import { useAlerts, useEvacCenters, useIncidents, useRoadReports, useFloodAreas } from '../../context/AdminDataContext.jsx'
+import { useAlerts, useEvacCenters, useIncidents, useRoadReports, useFloodAreas, useFloodReports } from '../../context/AdminDataContext.jsx'
 import { useRoadStatus, getCabuyaoRoads } from '../../components/admin/routingHelpers.jsx'
 import SystemModulesPanel from '../../components/admin/SystemModulesPanel.jsx'
 import IncidentReportsPanel from '../../components/admin/IncidentReportsPanel.jsx'
@@ -117,6 +118,7 @@ export default function FloodMap() {
   const { evacuationCenters, updateEvacCenter } = useEvacCenters()
   const { roadReports } = useRoadReports()
   const { floodAreas } = useFloodAreas()
+  const { floodReports } = useFloodReports()
   const [roadStatus] = useRoadStatus()
   const roadNetwork = useMemo(() => getCabuyaoRoads(), [])
 
@@ -147,7 +149,7 @@ export default function FloodMap() {
   // Project NOAH hazard zones + the documented flood-prone areas on (the city's
   // standing reference); barangay classification + inundation heat off so the
   // colours don't compete until toggled.
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-admin-floodmap-layers-v2', { noah: true, floodAreas: true, barangays: false, inundation: false, markers: false })
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-admin-floodmap-layers-v3', { noah: true, floodAreas: true, reports: true, barangays: false, inundation: false, markers: false })
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-admin-floodmap-intensity', 85)
   const toggleLayer = (k) => setLayers((v) => ({ ...v, [k]: !v[k] }))
 
@@ -317,6 +319,9 @@ export default function FloodMap() {
               {/* Documented flood-prone areas (depth in feet) */}
               {layers.floodAreas && <FloodAreaMarkers areas={floodAreas} />}
 
+              {/* Verified resident flood reports (approved only) */}
+              {layers.reports && <FloodReportMarkers reports={floodReports} />}
+
               {/* Land-clipped NOAH-style honeycomb surface (Open-Meteo flood × forecast) —
                   toggle so it never has to compete with the classification. */}
               {layers.inundation && <InundationGrid field={field} opacity={intensity / 100} />}
@@ -471,6 +476,7 @@ export default function FloodMap() {
               layers={[
                 { key: 'noah', label: 'Project NOAH Hazard', color: '#c0181b', on: layers.noah, onToggle: () => toggleLayer('noah') },
                 { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#b91c1c', on: layers.floodAreas, onToggle: () => toggleLayer('floodAreas') },
+                { key: 'reports', label: 'Verified Flood Reports', color: '#ef4444', on: layers.reports, onToggle: () => toggleLayer('reports') },
                 { key: 'barangays', label: 'Barangay Risk', color: '#c0181b', on: layers.barangays, onToggle: () => toggleLayer('barangays') },
                 { key: 'inundation', label: 'Flood Inundation', color: '#2563eb', on: layers.inundation, onToggle: () => toggleLayer('inundation') },
                 { key: 'markers', label: 'Risk Markers', color: '#1a7a4a', on: layers.markers, onToggle: () => toggleLayer('markers') },
