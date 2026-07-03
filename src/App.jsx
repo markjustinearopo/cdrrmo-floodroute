@@ -6,6 +6,7 @@ import Register from './pages/Register.jsx'
 import AdminDashboard from './pages/admin/Dashboard.jsx'
 import AdminFloodMap from './pages/admin/FloodMap.jsx'
 import AdminFloodAreas from './pages/admin/FloodAreas.jsx'
+import AdminFloodReports from './pages/admin/FloodReports.jsx'
 import AdminHazardLayer from './pages/admin/HazardLayer.jsx'
 import AdminReports from './pages/admin/Reports.jsx'
 import AdminAutoRoute from './pages/admin/AutoRoute.jsx'
@@ -39,6 +40,7 @@ import ResidentRoadStatus from './pages/resident/RoadStatus.jsx'
 import ResidentEvacuationRouting from './pages/resident/EvacuationRouting.jsx'
 import ResidentAlerts from './pages/resident/Alerts.jsx'
 import ResidentEvacuation from './pages/resident/Evacuation.jsx'
+import ResidentFloodReports from './pages/resident/FloodReports.jsx'
 
 /**
  * Web-Based Flood Risk-Aware Route System — route map.
@@ -64,6 +66,7 @@ export default function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/flood-map" element={<AdminFloodMap />} />
         <Route path="/admin/flood-areas" element={<AdminFloodAreas />} />
+        <Route path="/admin/flood-reports" element={<AdminFloodReports />} />
         <Route path="/admin/hazard-layer" element={<AdminHazardLayer />} />
         <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/auto-route" element={<AdminAutoRoute />} />
@@ -102,6 +105,7 @@ export default function App() {
         <Route path="/resident/flood-map" element={<ResidentFloodMap />} />
         <Route path="/resident/hazard-layer" element={<ResidentHazardLayer />} />
         <Route path="/resident/road-status" element={<ResidentRoadStatus />} />
+        <Route path="/resident/flood-reports" element={<ResidentFloodReports />} />
         <Route path="/resident/evacuation-routing" element={<ResidentEvacuationRouting />} />
         <Route path="/resident/alerts" element={<ResidentAlerts />} />
         <Route path="/resident/evacuation" element={<ResidentEvacuation />} />

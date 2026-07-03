@@ -1,5 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, Marker, Popup, GeoJSON } from 'react-leaflet'
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, Marker, Popup, GeoJSON, useMap } from 'react-leaflet'
+import { useNavigate } from 'react-router-dom'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
 import { usePersistedState } from '../../utils/usePersistedState.js'
@@ -18,9 +19,37 @@ import { BarangayRiskLayer, InundationGrid } from '../../components/admin/Barang
 import { useLiveWeather } from '../../services/weather.js'
 import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
 import { FloodAreaMarkers } from '../../components/admin/FloodAreasLayer.jsx'
-import { useEvacCenters, useFloodAreas } from '../../context/AdminDataContext.jsx'
+import { FloodReportMarkers } from '../../components/admin/FloodReportsLayer.jsx'
+import FloodReportModal from '../../components/resident/FloodReportModal.jsx'
+import { useEvacCenters, useFloodAreas, useFloodReports, useRoadReports } from '../../context/AdminDataContext.jsx'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
+import { BARANGAY_CENTROIDS, CABUYAO_LAND_BOUNDS } from '../../data/cabuyaoBarangays.js'
+import { useGeolocation } from '../../hooks/useGeolocation.js'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import FloodStatusPanel from '../../components/map/FloodStatusPanel.jsx'
+import NearbyFloodAlert from '../../components/map/NearbyFloodAlert.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
+import FloodStatusCard from '../../components/map/FloodStatusCard.jsx'
+import WeatherCard from '../../components/map/WeatherCard.jsx'
+import MapFabs from '../../components/map/MapFabs.jsx'
+import EmergencyPanel from '../../components/map/EmergencyPanel.jsx'
 import '../admin/FloodMap.css'
+import '../../components/map/mapUpgrade.css'
+
+/* Basemaps: OSM (street names readable) + CARTO dark for night mode. */
+const TILES_LIGHT = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const TILES_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+
+/* Exposes the Leaflet map instance to the floating chrome outside <MapContainer>. */
+function MapBridge({ apiRef }) {
+  const map = useMap()
+  useEffect(() => {
+    apiRef.current = map
+    return () => { apiRef.current = null }
+  }, [map, apiRef])
+  return null
+}
 
 /**
  * CDRRMO Resident — Flood Map (Monitor).
@@ -31,7 +60,7 @@ import '../admin/FloodMap.css'
  * barangay ringed. Read-only; every barangay is drawn at its true location.
  */
 
-const PANEL_TABS = ['Overview', 'Barangays']
+const PANEL_TABS = ['Overview', 'Live Status', 'Barangays']
 
 const NOAH_STYLE = {
   1: { color: '#FBBF24', fillColor: '#FEF9C3', fillOpacity: 0.55, weight: 0.5 },
@@ -46,6 +75,7 @@ const RAIN_TICKS = ['-8h', '-7', '-6', '-5', '-4', '-3', '-2', 'Now']
 const FLOOD_LAYERS = [
   { key: 'noah', label: 'Project NOAH Hazard', color: '#C0181B' },
   { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#B91C1C' },
+  { key: 'reports', label: 'Verified Flood Reports', color: '#EF4444' },
   { key: 'inundation', label: 'Flood Inundation', color: '#2563EB' },
   { key: 'barangays', label: 'Barangay Risk', color: '#F97316' },
   { key: 'evac', label: 'Evacuation Centres', color: '#1A7A4A' },
@@ -69,6 +99,7 @@ export default function FloodMap() {
   const rainHistory = weather.rainHistory
   const { evacuationCenters } = useEvacCenters()
   const { floodAreas } = useFloodAreas()
+  const { floodReports } = useFloodReports()
   const evacMarkers = useMemo(
     () => evacuationCenters.filter((c) => Array.isArray(c.coords)),
     [evacuationCenters],
@@ -81,8 +112,71 @@ export default function FloodMap() {
   const [panelTab, setPanelTab] = useState('Overview')
   const [coords, setCoords] = useState(null)
   const [updated, setUpdated] = useState(formatPHT())
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-res-floodmap-v2', { noah: true, floodAreas: true, inundation: true, barangays: true, evac: true })
+  const [showReport, setShowReport] = useState(false)
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-res-floodmap-v3', { noah: true, floodAreas: true, reports: true, inundation: true, barangays: true, evac: true })
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-res-floodmap-intensity', 70)
+
+  /* ── Modern GIS chrome: search, dark mode, FABs, skeleton, emergency ── */
+  const navigate = useNavigate()
+  const mapRef = useRef(null)
+  const { roadReports } = useRoadReports()
+  const { coords: myPos, loading: locating, locate } = useGeolocation()
+  const [dark, setDark] = usePersistedState('cdrrmo-map-dark-v1', false)
+  // Layers panel: visible by default on desktop, tucked away on phones (the
+  // Layers FAB opens it) so the small map isn't buried under chrome.
+  const [showLayers, setShowLayers] = usePersistedState('cdrrmo-map-showlayers-v1', window.innerWidth > 760)
+  // Still drives the pin + flyTo when the Emergency panel picks a shelter
+  // (the always-on search BAR lives on the Hazard Layer screens; here it
+  // opens on demand from the Search Location FAB).
+  const [searchResult, setSearchResult] = useState(null)
+  const [showSearch, setShowSearch] = useState(false)
+  const [mapReady, setMapReady] = useState(false)
+
+  // Instant local suggestions for the on-demand search.
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters, floodAreas }),
+    [evacuationCenters, floodAreas],
+  )
+
+  const handleLocate = useCallback(() => {
+    locate()
+      .then((c) => {
+        const map = mapRef.current
+        if (!map) return
+        // Release the Cabuyao clamp so the camera can reach the true position.
+        map.setMaxBounds(null)
+        map.setMinZoom(0)
+        map.flyTo([c.lat, c.lng], 16, { duration: 1.3 })
+      })
+      .catch(() => {}) // denial already surfaced by the hook / LocateControl
+  }, [locate])
+
+  const handleReset = useCallback(() => {
+    setSearchResult(null)
+    mapRef.current?.flyToBounds(CABUYAO_LAND_BOUNDS, { padding: [16, 16], duration: 1.2 })
+  }, [])
+
+  // Emergency panel measures from the GPS fix when we have one, else from home.
+  const homeCentroid = useMemo(() => {
+    const b = BARANGAY_CENTROIDS.find((c) => c.name === myBrgy)
+    return b ? { lat: b.coords[0], lng: b.coords[1] } : null
+  }, [myBrgy])
+  const emergencyOrigin = myPos ? { lat: myPos.lat, lng: myPos.lng } : homeCentroid
+
+  const gotoEvac = useCallback((c) => {
+    setSearchResult({
+      id: `evac-${c.id}`,
+      label: c.name,
+      sub: `Evacuation centre · ${c.barangay || 'Cabuyao'} · ${c.status}`,
+      type: 'evac',
+      lat: c.coords[0],
+      lng: c.coords[1],
+      zoom: 17,
+    })
+  }, [])
+
+  // Show permanent barangay name labels once the camera is close enough.
+  const showBrgyLabels = (coords?.zoom ?? CABUYAO_ZOOM) >= 14
 
   useEffect(() => {
     const id = setInterval(() => setUpdated(formatPHT()), 60_000)
@@ -126,13 +220,22 @@ export default function FloodMap() {
 
   return (
     <ResidentLayout mainClassName="main--flush">
-      <div className="floodmap">
+      <div className={`floodmap ${dark ? 'floodmap--dark' : ''}`}>
         <div className="subtab-bar">
           <button type="button" className="subtab active">
             <MapIcon />
             Cabuyao City · Live Map
           </button>
-          <span className={`risk-badge ${myLevel}`} style={{ marginLeft: 'auto', alignSelf: 'center' }}>
+          <button
+            type="button"
+            className="report-flood-btn"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => setShowReport(true)}
+          >
+            <ReportIcon />
+            Report Flood Status
+          </button>
+          <span className={`risk-badge ${myLevel}`} style={{ alignSelf: 'center' }}>
             Brgy. {brgyLabel}: {RISK_META[myLevel].label}
           </span>
         </div>
@@ -145,8 +248,14 @@ export default function FloodMap() {
               zoomControl={false}
               attributionControl={false}
               className="floodmap-leaflet"
+              whenReady={() => setTimeout(() => setMapReady(true), 350)}
             >
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.85} />
+              <MapBridge apiRef={mapRef} />
+              <TileLayer
+                key={dark ? 'tiles-dark' : 'tiles-light'}
+                url={dark ? TILES_DARK : TILES_LIGHT}
+                opacity={dark ? 1 : 0.85}
+              />
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
 
@@ -164,6 +273,9 @@ export default function FloodMap() {
 
               {layers.floodAreas && <FloodAreaMarkers areas={floodAreas} />}
 
+              {/* Verified resident flood reports (approved only) */}
+              {layers.reports && <FloodReportMarkers reports={floodReports} />}
+
               {layers.inundation && <InundationGrid field={field} opacity={intensity / 100} />}
               {layers.barangays && <BarangayRiskLayer samples={barangays} opacity={Math.max(0.5, intensity / 100)} />}
 
@@ -171,7 +283,7 @@ export default function FloodMap() {
                 const mine = b.name === myBrgy
                 return (
                   <CircleMarker
-                    key={b.name}
+                    key={`${b.name}-${showBrgyLabels ? 'lbl' : 'dot'}`}
                     center={b.coords}
                     radius={mine ? 8 : 5}
                     pathOptions={{
@@ -181,11 +293,18 @@ export default function FloodMap() {
                       fillOpacity: 1,
                     }}
                   >
-                    <Tooltip direction="top" offset={[0, -5]}>
-                      <b>{b.name}</b>{mine ? ' · YOU' : ''}
-                      <br />
-                      {RISK_META[b.level].label} · ~{b.floodDepth.toFixed(2)} m
-                    </Tooltip>
+                    {/* Zoomed in: always-on name label. Zoomed out: hover detail. */}
+                    {showBrgyLabels ? (
+                      <Tooltip permanent direction="bottom" offset={[0, 6]} className="brgy-name-label">
+                        {b.name}
+                      </Tooltip>
+                    ) : (
+                      <Tooltip direction="top" offset={[0, -5]}>
+                        <b>{b.name}</b>{mine ? ' · YOU' : ''}
+                        <br />
+                        {RISK_META[b.level].label} · ~{b.floodDepth.toFixed(2)} m
+                      </Tooltip>
+                    )}
                   </CircleMarker>
                 )
               })}
@@ -200,19 +319,74 @@ export default function FloodMap() {
                 </Marker>
               ))}
 
+              {/* Searched location: smooth flyTo + pin + glow highlight + popup */}
+              <SearchResultLayer result={searchResult} barangays={barangays} />
+
+              {/* Live "you are here" from the My Location FAB */}
+              {myPos && (
+                <CircleMarker
+                  center={[myPos.lat, myPos.lng]}
+                  radius={8}
+                  pathOptions={{ color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }}
+                >
+                  <Tooltip direction="top" offset={[0, -6]}>You are here</Tooltip>
+                </CircleMarker>
+              )}
+
               <CoordReadout onChange={setCoords} />
               <LocateControl />
             </MapContainer>
 
-            <MapLayerToggles
-              layers={FLOOD_LAYERS.map((l) => ({
-                ...l,
-                on: layers[l.key],
-                onToggle: () => setLayers((v) => ({ ...v, [l.key]: !v[l.key] })),
-              }))}
-              opacity={intensity}
-              onOpacity={setIntensity}
+            {/* Skeleton shimmer while the basemap boots, then fades out. */}
+            <div className={`map-skeleton ${mapReady ? 'done' : ''}`} aria-hidden={mapReady}>
+              <div className="map-skeleton-inner">
+                <div className="map-skeleton-spinner" />
+                <div className="map-skeleton-label">Loading live flood map…</div>
+                <div className="map-skeleton-bar" />
+              </div>
+            </div>
+
+            {/* ── Floating GIS chrome ── */}
+            {showSearch && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
+            <NearbyFloodAlert
+              origin={myPos ? { lat: myPos.lat, lng: myPos.lng } : null}
+              barangays={barangays}
+              floodAreas={floodAreas}
+              floodReports={floodReports}
             />
+            <FloodStatusCard barangays={barangays} roadReports={roadReports} />
+            <WeatherCard />
+            <MapFabs
+              onSearch={() => setShowSearch((v) => !v)}
+              searchOn={showSearch}
+              onLocate={handleLocate}
+              locating={locating}
+              onRoute={() => navigate('/resident/evacuation-routing')}
+              onLayers={() => setShowLayers((v) => !v)}
+              layersOn={showLayers}
+              onReport={() => setShowReport(true)}
+              dark={dark}
+              onToggleDark={() => setDark((v) => !v)}
+              onReset={handleReset}
+            />
+            <EmergencyPanel
+              evacCenters={evacuationCenters}
+              origin={emergencyOrigin}
+              originLabel={myPos ? 'your location' : `Brgy. ${brgyLabel}`}
+              onGoto={gotoEvac}
+            />
+
+            {showLayers && (
+              <MapLayerToggles
+                layers={FLOOD_LAYERS.map((l) => ({
+                  ...l,
+                  on: layers[l.key],
+                  onToggle: () => setLayers((v) => ({ ...v, [l.key]: !v[l.key] })),
+                }))}
+                opacity={intensity}
+                onOpacity={setIntensity}
+              />
+            )}
 
             <div className="map-legend">
               <span className="legend-live">Live | Updated {updated} PHT</span>
@@ -249,6 +423,10 @@ export default function FloodMap() {
                 />
               )}
 
+              {panelTab === 'Live Status' && (
+                <FloodStatusPanel barangays={barangays} roadReports={roadReports} myBrgy={myBrgy} />
+              )}
+
               {panelTab === 'Barangays' && (
                 <div className="brgy-list">
                   {[...barangays]
@@ -271,6 +449,8 @@ export default function FloodMap() {
           </div>
         </div>
       </div>
+
+      {showReport && <FloodReportModal onClose={() => setShowReport(false)} />}
     </ResidentLayout>
   )
 }
@@ -427,6 +607,14 @@ function DropIcon() {
   return (
     <svg viewBox="0 0 24 24">
       <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+    </svg>
+  )
+}
+function ReportIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+      <path d="M9 14c1 1 2 1 3 0s2-1 3 0" />
     </svg>
   )
 }

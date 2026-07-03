@@ -43,6 +43,7 @@ const NAV = [
   {
     section: 'Manage',
     items: [
+      { label: 'Report Flood', to: '/resident/flood-reports', icon: FloodReportIcon },
       { label: 'Alerts', to: '/resident/alerts', icon: BellIcon },
       { label: 'Evacuation', to: '/resident/evacuation', icon: HomeIcon },
     ],
@@ -301,6 +302,14 @@ function BellIcon() {
     <svg viewBox="0 0 24 24">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  )
+}
+function FloodReportIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+      <path d="M9 14c1 1 2 1 3 0s2-1 3 0" />
     </svg>
   )
 }

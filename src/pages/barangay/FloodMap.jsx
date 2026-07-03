@@ -22,7 +22,8 @@ import { useBarangayLayers } from '../../components/admin/mapbox3dHelpers.js'
 import { useEvacCentres3D } from '../../components/admin/routing3d.js'
 import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
 import { FloodAreaMarkers } from '../../components/admin/FloodAreasLayer.jsx'
-import { useEvacCenters, useFloodAreas } from '../../context/AdminDataContext.jsx'
+import { FloodReportMarkers } from '../../components/admin/FloodReportsLayer.jsx'
+import { useEvacCenters, useFloodAreas, useFloodReports } from '../../context/AdminDataContext.jsx'
 import { useLiveWeather } from '../../services/weather.js'
 import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/FloodMap.css'
@@ -53,6 +54,7 @@ const NOAH_LABEL = { 1: 'Low', 2: 'Moderate', 3: 'High' }
 const FLOOD_LAYERS = [
   { key: 'noah', label: 'Project NOAH Hazard', color: '#C0181B' },
   { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#B91C1C' },
+  { key: 'reports', label: 'Verified Flood Reports', color: '#EF4444' },
   { key: 'inundation', label: 'Flood Inundation', color: '#2563EB' },
   { key: 'barangays', label: 'Barangay Risk', color: '#F97316' },
   { key: 'evac', label: 'Evacuation Centres', color: '#1A7A4A' },
@@ -73,7 +75,7 @@ export default function FloodMap() {
 
   const [view, setView] = useJurisdictionView()
   const [use3D, setUse3D] = use3DPreference()
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-brgy-floodmap-v2', { noah: true, floodAreas: true, inundation: true, barangays: true, evac: true })
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-brgy-floodmap-v3', { noah: true, floodAreas: true, reports: true, inundation: true, barangays: true, evac: true })
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-brgy-floodmap-intensity', 70)
   const locked = view === 'mine' && Boolean(myBrgy)
 
@@ -90,6 +92,7 @@ export default function FloodMap() {
   // resident may shelter at any open centre regardless of barangay.
   const { evacuationCenters } = useEvacCenters()
   const { floodAreas } = useFloodAreas()
+  const { floodReports } = useFloodReports()
   const evacMarkers = useMemo(
     () => evacuationCenters.filter((c) => Array.isArray(c.coords)),
     [evacuationCenters],
@@ -197,6 +200,9 @@ export default function FloodMap() {
               )}
 
               {layers.floodAreas && <FloodAreaMarkers areas={floodAreas} only={locked ? myBrgy : null} />}
+
+              {/* Verified resident flood reports (approved only) */}
+              {layers.reports && <FloodReportMarkers reports={floodReports} only={locked ? myBrgy : null} />}
 
               {layers.inundation && <InundationGrid field={field} opacity={intensity / 100} only={locked ? myBrgy : null} />}
               {layers.barangays && <BarangayRiskLayer samples={panelBarangays} opacity={Math.max(0.5, intensity / 100)} only={locked ? myBrgy : null} />}

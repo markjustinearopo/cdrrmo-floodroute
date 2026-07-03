@@ -19,6 +19,9 @@ import { BarangayRiskLayer, InundationGrid } from '../../components/admin/Barang
 import { useLiveWeather } from '../../services/weather.js'
 import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
 import '../admin/HazardLayer.css'
 
 /**
@@ -56,6 +59,10 @@ export default function HazardLayer() {
   const [opacity, setOpacity] = usePersistedState('cdrrmo-layers-res-hazard-opacity', 70)
   const [coords, setCoords] = useState(null)
   const [updated, setUpdated] = useState(formatPHT())
+
+  // Smart location search (barangays, evac centres + OpenStreetMap results).
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(() => buildLocalIndex({ evacCenters: evacuationCenters }), [evacuationCenters])
 
   function toggle(key) {
     setVisible((v) => ({ ...v, [key]: !v[key] }))
@@ -136,8 +143,14 @@ export default function HazardLayer() {
                   </CircleMarker>
                 ))}
 
+              {/* Searched location: flyTo + pin + glowing road highlight */}
+              <SearchResultLayer result={searchResult} barangays={samples} navigateTo="/resident/evacuation-routing" />
+
               <CoordReadout onChange={setCoords} />
             </MapContainer>
+
+            {/* Floating smart search */}
+            <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />
 
             {loading && !hasField && (
               <div className="hz-nodata">

@@ -18,7 +18,8 @@ import {
   activeRouteGeometry,
 } from '../../components/admin/routingHelpers.jsx'
 import { useRouteGraph, planToNearestSafe, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
-import { useFloodRisk } from '../../components/admin/floodRisk.js'
+import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
+import '../../components/map/mapUpgrade.css'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import RouteSketch3DView from '../../components/admin/RouteSketch3DView.jsx'
 import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
@@ -90,6 +91,21 @@ export default function EvacuationRouting() {
     [routes, selectedId],
   )
 
+  // Live per-barangay risk — used to warn when the DESTINATION area is wet.
+  const samples = useMemo(() => barangayRiskSamples(field), [field])
+  const destRisk = useMemo(() => {
+    if (!gen?.centre?.barangay) return null
+    return samples.find((s) => s.name === gen.centre.barangay)?.level ?? null
+  }, [gen, samples])
+
+  // Route hazard verdict for the generated route: 'high' | 'mod' | null.
+  const routeWarn = useMemo(() => {
+    if (!gen) return null
+    if (gen.floodedSegments > 0 || destRisk === 'high' || (gen.meanRisk ?? 0) >= 0.62) return 'high'
+    if (destRisk === 'moderate' || (gen.meanRisk ?? 0) >= 0.34) return 'mod'
+    return null
+  }, [gen, destRisk])
+
   const publishedColor = selected ? (ROUTE_TYPES[selected.type]?.color || '#C0181B') : '#C0181B'
   // Residents see the geometry that is in effect: the road-following path of
   // auto routes, and the admin's override when one is active.
@@ -127,6 +143,11 @@ export default function EvacuationRouting() {
       centre: best.centre,
       distanceM: best.plan.safe.distanceM,
       fromPin: Boolean(pin),
+      // Risk readout for the warning banner: how wet is this path really,
+      // and did the safest option still have to cross flagged water?
+      meanRisk: best.plan.safe.meanRisk,
+      floodedSegments: best.plan.safe.floodedSegments,
+      detourM: best.plan.detourM,
     })
   }
 
@@ -322,7 +343,35 @@ export default function EvacuationRouting() {
                 <div className="rp-type-note" style={{ marginTop: 10 }}>
                   <span className="rp-type-dot" style={{ background: '#1a7a4a' }} />
                   Flood-aware · steers around flooded / closed roads
+                  {gen.detourM > 30 ? ` · detours ${formatDistance(gen.detourM)} to stay dry` : ''}
                 </div>
+
+                {/* Hazard verdict: warn when even the safest path gets wet, or
+                    when the shelter itself sits in a currently-risky barangay. */}
+                {routeWarn ? (
+                  <div className={`rp-route-warn ${routeWarn}`} role="alert">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <span>
+                      <b>{routeWarn === 'high' ? 'Caution — hazards on this route' : 'Elevated flood risk on this route'}</b>
+                      {gen.floodedSegments > 0 &&
+                        `Passes ${gen.floodedSegments} flagged flooded/closed segment${gen.floodedSegments > 1 ? 's' : ''} with no dry alternative. `}
+                      {destRisk && destRisk !== 'safe' && destRisk !== 'low' &&
+                        `The destination area (Brgy. ${gen.centre?.barangay}) is currently at ${destRisk} flood risk. `}
+                      {gen.floodedSegments === 0 && (gen.meanRisk ?? 0) >= 0.34 &&
+                        'Parts of the route cross areas the live model marks as wet. '}
+                      This is already the safest available path — proceed carefully and follow responders.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="rp-route-ok">
+                    <span className="rp-type-dot" style={{ background: '#16A34A' }} />
+                    Route is clear of flagged flooding right now.
+                  </div>
+                )}
               </section>
             ) : selected && (
               <section className="rp-section">

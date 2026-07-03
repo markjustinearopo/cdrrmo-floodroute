@@ -1,0 +1,159 @@
+/* Resident — Report Flood Status page (report entry point + my-reports list). */
+
+.frp {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 4px 2px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.frp-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.frp-title {
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+.frp-subtitle {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: #6a6a6a;
+  line-height: 1.5;
+  max-width: 560px;
+}
+.frp-report-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: #c0181b;
+  color: #fff;
+  border-radius: 10px;
+  padding: 11px 18px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  box-shadow: 0 4px 14px rgba(192, 24, 27, 0.28);
+  white-space: nowrap;
+}
+.frp-report-btn:hover { background: #a5151a; }
+
+.frp-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.frp-stat {
+  background: #fff;
+  border: 1px solid #ece9e2;
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.frp-stat-val {
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.frp-stat-lbl {
+  margin-top: 5px;
+  font-size: 0.72rem;
+  color: #7a7a7a;
+  font-weight: 600;
+}
+
+.frp-section-title {
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin-top: 2px;
+}
+
+.frp-empty {
+  background: #fff;
+  border: 1px dashed #ddd8ce;
+  border-radius: 14px;
+  padding: 34px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.frp-empty-title { font-size: 0.95rem; font-weight: 800; color: #3a3a3a; }
+.frp-empty-sub { font-size: 0.78rem; color: #8a8a8a; max-width: 400px; line-height: 1.5; margin-bottom: 8px; }
+
+.frp-list { display: flex; flex-direction: column; gap: 12px; }
+
+.frp-card {
+  display: flex;
+  background: #fff;
+  border: 1px solid #ece9e2;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.frp-card-stripe { width: 5px; flex: none; }
+.frp-card-body { flex: 1; padding: 13px 15px; display: flex; flex-direction: column; gap: 8px; }
+
+.frp-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.frp-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+.frp-level-dot { width: 11px; height: 11px; border-radius: 50%; }
+.frp-status { font-size: 0.7rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+
+.frp-meta { font-size: 0.74rem; color: #7a7a7a; font-weight: 600; }
+.frp-desc { font-size: 0.82rem; color: #3a3a3a; line-height: 1.5; }
+.frp-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; }
+
+.frp-note { font-size: 0.75rem; font-weight: 600; padding: 8px 11px; border-radius: 8px; line-height: 1.4; }
+.frp-note.approved { color: #15803d; background: #f0fdf4; }
+.frp-note.rejected { color: #b91c1c; background: #fef2f2; }
+.frp-note.pending { color: #b45309; background: #fffbeb; }
+
+.frp-official { font-size: 0.75rem; color: #4a4a4a; line-height: 1.45; }
+.frp-official b { color: #1a1a1a; }
+
+.frp-latest { font-size: 0.7rem; color: #9a9a9a; }
+.frp-latest-time { font-weight: 700; color: #7a7a7a; margin-right: 6px; }
+
+.frp-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translate(-50%, 20px);
+  background: #16a34a;
+  color: #fff;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s ease;
+  z-index: 4000;
+}
+.frp-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 560px) {
+  .frp-stats { grid-template-columns: 1fr; }
+  .frp-report-btn { margin-left: 0; }
+}

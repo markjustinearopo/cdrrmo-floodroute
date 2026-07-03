@@ -23,6 +23,7 @@ import {
 import { INTEGRATION_CATALOG } from '../data/integrations.js'
 import { BARANGAY_CENTROIDS } from '../data/cabuyaoBarangays.js'
 import { SEED_FLOOD_AREAS } from '../data/floodAreas.js'
+import { FLOOD_LEVEL_LABEL } from '../data/floodReports.js'
 import db from '../services/db.js'
 import supabase from '../services/supabase.js'
 
@@ -108,6 +109,7 @@ function saveLocalReports(list) {
 const REMOTE_LOADERS = {
   alerts: () => db.alerts.list(),
   incidents: () => db.incidents.list(),
+  floodReports: () => db.floodReports.list(),
   evacuationCenters: () => db.evac.list(),
   users: () => db.users.list(),
   notifications: () => db.notifications.list(),
@@ -135,7 +137,7 @@ const REMOTE_LOADERS = {
 const AdminDataContext = createContext(null)
 
 const EMPTY = {
-  alerts: [], incidents: [], evacuationCenters: [], users: [],
+  alerts: [], incidents: [], floodReports: [], evacuationCenters: [], users: [],
   notifications: [], integrations: [], roadReports: [], savedRoutes: [], barangayAssignments: {},
   roadChangeRequests: [],
   // Seeded so the historical flood-prone areas paint on every map from first render.
@@ -221,6 +223,8 @@ export function AdminDataProvider({ children }) {
       alerts: 'alerts',
       incidents: 'incidents',
       incident_updates: 'incidents',
+      flood_reports: 'floodReports',
+      flood_report_logs: 'floodReports',
       evacuation_centers: 'evacuationCenters',
       accounts: 'users',
       notifications: 'notifications',
@@ -347,6 +351,108 @@ export function AdminDataProvider({ children }) {
   const removeIncident = useCallback((id) => {
     optimistic('incidents', stateRef.current.incidents.filter((i) => i.id !== id))
     persist('incidents', () => db.incidents.remove(id))
+  }, [optimistic, persist])
+
+  /* ── Flood reports (resident submissions → CDRRMO verification) ───────────
+     A resident files a report; it lands as 'pending' and is invisible on the
+     public map until an official approves it. Approve/reject/notes go through
+     verifyFloodReport and every step is appended to the report's history (the
+     flood_report_logs trail), mirroring the incidents timeline. */
+  const submitFloodReport = useCallback((report) => {
+    const now = Date.now()
+    const saved = {
+      id: `tmp-${now}`,
+      status: 'pending',
+      reported: nowLabel(now),
+      reportedAt: now,
+      history: [{ time: nowLabel(now), label: 'Report submitted · awaiting verification', note: '' }],
+      ...report,
+    }
+    optimistic('floodReports', [saved, ...stateRef.current.floodReports])
+    notify(
+      saved.level === 'severe' || saved.level === 'impassable' ? 'high' : 'moderate',
+      'Flood report submitted',
+      `${FLOOD_LEVEL_LABEL[saved.level] || saved.level} — ${saved.barangay || 'Cabuyao City'}`
+        + `${saved.reporter ? ` (by ${saved.reporter})` : ''} · awaiting verification`,
+    )
+    persist('floodReports', () => db.floodReports.create(report))
+    return saved
+  }, [optimistic, persist, notify])
+
+  /**
+   * Official verification decision. `decision` is one of:
+   *   'approved'  — publish to the public map + feed route planning
+   *   'rejected'  — keep hidden, mark rejected
+   *   'pending'   — send back for re-verification
+   * `meta` may carry { verifiedBy, note, officialNotes }.
+   */
+  const verifyFloodReport = useCallback((id, decision, meta = {}) => {
+    const now = Date.now()
+    const current = stateRef.current.floodReports.find((r) => r.id === id)
+    if (!current) return
+    const from = current.status
+
+    const updates = { status: decision }
+    if (decision === 'approved' || decision === 'rejected') {
+      updates.verifiedBy = meta.verifiedBy || 'CDRRMO'
+      updates.verifiedAt = now
+    }
+    if ('officialNotes' in meta) updates.officialNotes = meta.officialNotes
+
+    const actionByDecision = {
+      approved: 'approved', rejected: 'rejected', pending: 'verification_requested',
+    }
+    const logEntries = [{
+      action: actionByDecision[decision] || 'status_updated',
+      from_status: from,
+      to_status: decision,
+      note: meta.note || meta.officialNotes || null,
+      actor: meta.verifiedBy || 'CDRRMO',
+    }]
+
+    const baseText =
+      decision === 'approved' ? `Approved by ${updates.verifiedBy} · published to the public map`
+      : decision === 'rejected' ? `Rejected by ${updates.verifiedBy}`
+      : 'Sent back for re-verification'
+    const historyLabel = meta.note ? `${baseText} · ${meta.note}` : baseText
+
+    optimistic('floodReports', stateRef.current.floodReports.map((r) => {
+      if (r.id !== id) return r
+      return {
+        ...r, ...updates,
+        verified: updates.verifiedAt ? nowLabel(now) : r.verified,
+        history: [...(r.history || []), { time: nowLabel(now), label: historyLabel, note: meta.note || '' }],
+      }
+    }))
+    notify(
+      decision === 'approved' && (current.level === 'severe' || current.level === 'impassable') ? 'high' : 'moderate',
+      decision === 'approved' ? 'Flood report approved'
+        : decision === 'rejected' ? 'Flood report rejected'
+        : 'Flood report re-opened',
+      `${FLOOD_LEVEL_LABEL[current.level] || current.level} — ${current.barangay || 'Cabuyao City'}`,
+    )
+    persist('floodReports', () => db.floodReports.update(id, updates, logEntries))
+  }, [optimistic, persist, notify])
+
+  /** Edit a report's own fields (e.g. an official correcting the flood level). */
+  const updateFloodReport = useCallback((id, updates, note) => {
+    const now = Date.now()
+    const logEntries = []
+    if (updates.level) {
+      logEntries.push({ action: 'status_updated', note: `Flood level → ${FLOOD_LEVEL_LABEL[updates.level] || updates.level}`, actor: 'CDRRMO' })
+    }
+    if (note) logEntries.push({ action: 'note', note, actor: 'CDRRMO' })
+    optimistic('floodReports', stateRef.current.floodReports.map((r) => {
+      if (r.id !== id) return r
+      const entries = logEntries.map((e) => ({ time: nowLabel(now), label: e.note, note: e.note }))
+      return { ...r, ...updates, history: entries.length ? [...(r.history || []), ...entries] : r.history }
+    }))
+    persist('floodReports', () => db.floodReports.update(id, updates, logEntries))
+  }, [optimistic, persist])
+
+  const removeFloodReport = useCallback((id) => {
+    optimistic('floodReports', stateRef.current.floodReports.filter((r) => r.id !== id))
+    persist('floodReports', () => db.floodReports.remove(id))
   }, [optimistic, persist])
 
   /* ── Evacuation centres ── */
@@ -601,6 +707,7 @@ export function AdminDataProvider({ children }) {
     refresh,
     addAlert, updateAlert, resolveAlert, removeAlert,
     addIncident, updateIncident, removeIncident,
+    submitFloodReport, verifyFloodReport, updateFloodReport, removeFloodReport,
     addEvacCenter, updateEvacCenter, removeEvacCenter,
     addUser, addUsers, updateUser, removeUser,
     assignBarangay,
@@ -614,6 +721,7 @@ export function AdminDataProvider({ children }) {
     state, isLoading, refresh,
     addAlert, updateAlert, resolveAlert, removeAlert,
     addIncident, updateIncident, removeIncident,
+    submitFloodReport, verifyFloodReport, updateFloodReport, removeFloodReport,
     addEvacCenter, updateEvacCenter, removeEvacCenter,
     addUser, addUsers, updateUser, removeUser,
     assignBarangay, reportRoad, removeRoadReport,
@@ -641,6 +749,18 @@ export function useAlerts() {
 export function useIncidents() {
   const { incidents, addIncident, updateIncident, removeIncident } = useAdminData()
   return { incidents, addIncident, updateIncident, removeIncident }
+}
+
+/**
+ * Resident flood reports + the CDRRMO verification workflow. Residents call
+ * submitFloodReport (pending); officials call verifyFloodReport to approve /
+ * reject / re-open. Only approved reports are shown on the public maps.
+ */
+export function useFloodReports() {
+  const {
+    floodReports, submitFloodReport, verifyFloodReport, updateFloodReport, removeFloodReport,
+  } = useAdminData()
+  return { floodReports, submitFloodReport, verifyFloodReport, updateFloodReport, removeFloodReport }
 }
 
 export function useEvacCenters() {

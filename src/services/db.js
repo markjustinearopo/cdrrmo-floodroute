@@ -176,6 +176,103 @@ export const incidentsDb = {
 }
 
 /* ============================================================
+   Flood reports (resident submissions) + flood_report_logs trail
+
+   Residents file reports from the "Report Flood Status" flow; they start
+   as 'pending' and only become public (and feed route planning) once an
+   official approves them. The per-report verification history lives in
+   flood_report_logs, mirrored into `history` exactly like incidents.
+   ============================================================ */
+/** Friendly one-line text for a verification-log row (the report timeline). */
+function reportLogText(l) {
+  switch (l.action) {
+    case 'submitted': return 'Report submitted · awaiting verification'
+    case 'approved': return `Approved${l.actor ? ` by ${l.actor}` : ''} · published to the public map`
+    case 'rejected': return `Rejected${l.actor ? ` by ${l.actor}` : ''}`
+    case 'verification_requested': return 'Sent back for re-verification'
+    case 'status_updated': return l.note || 'Status updated'
+    case 'note': return l.note || 'Note added'
+    default: return l.note || l.action
+  }
+}
+
+function floodReportFromDb(r, logs = []) {
+  return {
+    id: r.id,
+    userId: r.user_id ?? null,
+    reporter: r.reporter_name || '',
+    barangay: r.barangay || '',
+    coords: r.lat != null && r.lng != null ? [Number(r.lat), Number(r.lng)] : null,
+    level: r.flood_level || 'moderate',
+    depthFt: r.water_depth_ft != null ? Number(r.water_depth_ft) : undefined,
+    description: r.description || '',
+    photo: r.photo || null,
+    status: r.verification_status || 'pending',
+    officialNotes: r.official_notes || '',
+    verifiedBy: r.verified_by || '',
+    verifiedAt: epochOf(r.verified_at),
+    verified: r.verified_at ? label(r.verified_at) : '',
+    reportedAt: epochOf(r.reported_at),
+    reported: label(r.reported_at),
+    history: logs
+      .filter((l) => l.report_id === r.id)
+      .map((l) => ({ time: label(l.created_at), label: reportLogText(l), note: l.note || '' })),
+  }
+}
+function floodReportToDb(x) {
+  const out = {}
+  if ('userId' in x) out.user_id = x.userId ?? null
+  if ('reporter' in x) out.reporter_name = x.reporter || null
+  if ('barangay' in x) out.barangay = x.barangay || null
+  if ('coords' in x) {
+    out.lat = x.coords?.[0] ?? null
+    out.lng = x.coords?.[1] ?? null
+  }
+  if ('level' in x) out.flood_level = x.level
+  if ('depthFt' in x) out.water_depth_ft = x.depthFt ?? null
+  if ('description' in x) out.description = x.description || null
+  if ('photo' in x) out.photo = x.photo || null
+  if ('status' in x) out.verification_status = x.status
+  if ('officialNotes' in x) out.official_notes = x.officialNotes || null
+  if ('verifiedBy' in x) out.verified_by = x.verifiedBy || null
+  if ('verifiedAt' in x) out.verified_at = isoOf(x.verifiedAt)
+  if ('reportedAt' in x) out.reported_at = isoOf(x.reportedAt)
+  return out
+}
+
+export const floodReportsDb = {
+  async list() {
+    const [rows, logs] = await Promise.all([
+      supabase.from('flood_reports').select('*').order('id', { ascending: false }).then(unwrap),
+      supabase.from('flood_report_logs').select('*').order('id', { ascending: true }).then(unwrap),
+    ])
+    return rows.map((r) => floodReportFromDb(r, logs))
+  },
+  async create(report) {
+    const row = floodReportToDb({ status: 'pending', reportedAt: Date.now(), ...report })
+    const saved = unwrap(await supabase.from('flood_reports').insert(row).select().single())
+    unwrap(await supabase.from('flood_report_logs').insert({
+      report_id: saved.id, action: 'submitted', to_status: 'pending', actor: report.reporter || null,
+    }))
+    return floodReportFromDb(saved)
+  },
+  /** Patch columns and append any verification-log rows the caller computed. */
+  async update(id, updates, logEntries = []) {
+    const row = floodReportToDb(updates)
+    if (Object.keys(row).length) {
+      unwrap(await supabase.from('flood_reports').update(row).eq('id', id))
+    }
+    if (logEntries.length) {
+      unwrap(await supabase.from('flood_report_logs')
+        .insert(logEntries.map((e) => ({ report_id: id, ...e }))))
+    }
+  },
+  async remove(id) {
+    unwrap(await supabase.from('flood_reports').delete().eq('id', id))
+  },
+}
+
+/* ============================================================
    Evacuation centres
    ============================================================ */
 function evacFromDb(r) {
@@ -542,6 +639,7 @@ export const savedRoutesDb = {
 export default {
   alerts: alertsDb,
   incidents: incidentsDb,
+  floodReports: floodReportsDb,
   evac: evacDb,
   users: usersDb,
   notifications: notificationsDb,
