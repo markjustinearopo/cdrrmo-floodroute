@@ -8,6 +8,9 @@ import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import { useFloodRisk, barangayRiskSamples } from './floodRisk.js'
 import { useRealTimeSync } from '../../hooks/useRealTimeSync.js'
+import { useSystemConfig, loadSystemConfigRemote } from '../../services/systemConfig.js'
+import { useT } from '../../services/i18n.js'
+import AutoAlertWatcher from './AutoAlertWatcher.jsx'
 import './AdminLayout.css'
 
 /**
@@ -71,6 +74,18 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   const navigate = useNavigate()
   const { weather } = useLiveWeather()
   const { field } = useFloodRisk()
+  const config = useSystemConfig()
+  const t = useT()
+
+  // Pull the shared system config once so identity / maintenance / thresholds
+  // are correct on any device the operator signs in from.
+  useEffect(() => { loadSystemConfigRemote() }, [])
+
+  // System identity is operator-set on System Configuration and reflected in
+  // the browser tab + topbar brand.
+  useEffect(() => {
+    document.title = `${config.systemName} · ${config.organization}`
+  }, [config.systemName, config.organization])
 
   // Portal heartbeat: refresh the shared store every 5s + a live "updated Xs
   // ago" stamp. Staleness tints the chip (amber > 30s, red > 60s).
@@ -98,10 +113,10 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   const lvlClass = `lvl-${flood.worst}`
   const bannerText = hasAlert
     ? `${flood.elevated.slice(0, 4).join(', ')}${flood.elevated.length > 4 ? ` +${flood.elevated.length - 4} more` : ''} reporting elevated water levels.`
-    : 'No active flood issue reported.'
+    : t('No active flood issue reported.')
   const pillText = hasAlert
     ? `Elevated flood risk: ${flood.elevated.slice(0, 3).join(', ')}${flood.elevated.length > 3 ? '…' : ''}`
-    : 'No elevated flood risk reported.'
+    : t('No elevated flood risk reported.')
   const dotColor = flood.worst === 'high' ? '#ef4444' : flood.worst === 'moderate' ? '#f59e0b' : '#22c55e'
 
   const [clock, setClock] = useState('--:-- PHT')
@@ -147,6 +162,19 @@ export default function AdminLayout({ children, mainClassName = '' }) {
 
   return (
     <>
+      {/* Automatic-alert engine (opt-in on Alert Settings) — no UI of its own. */}
+      <AutoAlertWatcher field={field} />
+
+      {/* ── Maintenance banner (System Configuration → Maintenance mode) ── */}
+      {config.maintenance && (
+        <div className="maint-banner" role="status">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6z" />
+          </svg>
+          <span><b>{t('Maintenance mode is ON.')}</b> {t('The public-facing app is offline for updates — administrators keep full access.')}</span>
+        </div>
+      )}
+
       {/* ── Alert banner (live from the flood-risk field) ── */}
       <div className={`alert-banner ${lvlClass}`}>
         <svg viewBox="0 0 24 24">
@@ -154,7 +182,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           <line x1="12" y1="9" x2="12" y2="13" />
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
-        <span className="lbl">{hasAlert ? 'Flood Alert Active:' : 'Flood Status:'}</span>
+        <span className="lbl">{hasAlert ? t('Flood Alert Active:') : t('Flood Status:')}</span>
         <span>{bannerText}</span>
       </div>
 
@@ -165,8 +193,8 @@ export default function AdminLayout({ children, mainClassName = '' }) {
             <img src="/cdrrmo-logo.png" alt="CDRRMO logo" />
           </div>
           <div className="logo-text">
-            <strong>CDRRMO FloodRoute</strong>
-            <span>Cabuyao City – Command Center</span>
+            <strong>{config.systemName}</strong>
+            <span>{config.organization} – {t('Command Center')}</span>
           </div>
         </div>
 
@@ -180,17 +208,17 @@ export default function AdminLayout({ children, mainClassName = '' }) {
             <svg viewBox="0 0 24 24">
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
             </svg>
-            Rainfall: <b>{formatRain(weather.current.rain)}</b>
+            {t('Rainfall:')} <b>{formatRain(weather.current.rain)}</b>
           </div>
           <div className="stat-chip wind" title="Live wind (Open-Meteo)">
             <svg viewBox="0 0 24 24">
               <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />
             </svg>
-            Wind: <b>{formatWind(weather.current.windKmh)}</b>
+            {t('Wind:')} <b>{formatWind(weather.current.windKmh)}</b>
           </div>
           <div className={`sync-chip ${syncTone}`} title="Live data refresh">
             <span className="sync-dot" />
-            Updated {syncLabel}
+            {t('Updated')} {syncLabel}
             <button
               type="button"
               className="sync-refresh"
@@ -260,7 +288,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
         <aside className="sidebar">
           {NAV.map((group) => (
             <div key={group.section}>
-              <div className="sidebar-section">{group.section}</div>
+              <div className="sidebar-section">{t(group.section)}</div>
               {group.items.map(({ label, to, icon: Icon }) => (
                 <NavLink
                   key={label}
@@ -268,7 +296,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
                   className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 >
                   <Icon />
-                  {label}
+                  {t(label)}
                 </NavLink>
               ))}
             </div>
@@ -281,7 +309,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Signout
+              {t('Signout')}
             </a>
           </div>
         </aside>

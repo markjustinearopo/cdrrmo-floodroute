@@ -602,27 +602,6 @@
 }
 .fm-popup-actions button:hover { background: #fef2f2; }
 
-.fm-evac-divicon { background: none; border: none; }
-.fm-evac-pin {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  border: 2px solid #fff;
-}
-.fm-evac-pin svg {
-  width: 13px;
-  height: 13px;
-  transform: rotate(45deg);
-  fill: none;
-  stroke: #fff;
-  stroke-width: 2;
-}
-
 /* Alerts panel rows (right panel → Alerts tab) */
 .fm-alert-row { display: flex; gap: 0; background: #fff; border: 1px solid #f0eee9; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
 .fm-alert-stripe { width: 3px; flex-shrink: 0; }
@@ -636,3 +615,23 @@
 .fm-alert-resolve:hover { text-decoration: underline; }
 .fm-alert-meta { font-size: 0.68rem; color: #9a9a9a; margin-top: 1px; }
 .fm-alert-msg { font-size: 0.72rem; color: #5a5a5a; margin-top: 3px; line-height: 1.4; }
+
+/* Severity escalation: a HIGH alert row can never read like an all-clear. */
+.fm-alert-row.sev-high { background: #fef2f2; border-color: #fecaca; }
+.fm-alert-row.sev-high .fm-alert-stripe { width: 5px; animation: fm-alert-pulse 1.4s ease-in-out infinite; }
+.fm-alert-row.sev-high .fm-alert-title { color: #b91c1c; }
+.fm-alert-row.sev-safe .fm-alert-title { color: #15803d; }
+@keyframes fm-alert-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Honesty caption under the risk donut — the depths are modeled. */
+.fm-model-note {
+  margin: 8px 0 0;
+  font-size: 0.625rem;
+  color: #9a9a9a;
+  font-style: italic;
+  line-height: 1.45;
+  text-align: center;
+}

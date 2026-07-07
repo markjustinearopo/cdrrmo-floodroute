@@ -36,21 +36,17 @@ export const ALERT_LEVELS = [
 ]
 
 /* ── Barangay safeness ─────────────────────────────────────
-   Driven by the measured flood depth (m) the backend supplies
-   per barangay — the single source of truth for the risk badge.
-   Kept in sync with the Dashboard thresholds.
+   Graded from the modeled flood depth (m) per barangay using the
+   OPERATOR-configurable thresholds on System Configuration (read live
+   from the shared systemConfig service, so every screen agrees). The
+   constant below is the shipped default the operator starts from.
      SAFE     < 0.1 m
      LOW      0.1 – < 0.3 m
      MODERATE 0.3 – < 0.5 m
      HIGH     >= 0.5 m                                          */
 export const DEPTH_THRESHOLDS = { low: 0.1, moderate: 0.3, high: 0.5 }
 
-export function levelFromDepth(depth) {
-  if (depth >= DEPTH_THRESHOLDS.high) return 'high'
-  if (depth >= DEPTH_THRESHOLDS.moderate) return 'moderate'
-  if (depth >= DEPTH_THRESHOLDS.low) return 'low'
-  return 'safe'
-}
+export { levelFromDepth } from '../services/systemConfig.js'
 
 /* ── Incident enums ───────────────────────────────────────── */
 export const INCIDENT_TYPES = [

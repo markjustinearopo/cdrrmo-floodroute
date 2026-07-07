@@ -11,14 +11,17 @@
    any photo evidence.
    ============================================================ */
 
-import { CircleMarker, Tooltip, Popup } from 'react-leaflet'
+import { Marker, Tooltip, Popup } from 'react-leaflet'
 import {
   FLOOD_LEVEL_META,
   floodLevelMeta,
-  floodReportRadius,
   formatReportDepth,
 } from '../../data/floodReports.js'
+import { pinIcon, PIN_SIZE } from '../map/pinIcons.js'
 import './FloodAreasLayer.css'
+
+/* Report level → pin size (severity reads largest) — shared pin family. */
+const REPORT_PIN_SIZE = { none: PIN_SIZE.low, low: PIN_SIZE.low, moderate: PIN_SIZE.moderate, severe: 28, impassable: PIN_SIZE.high }
 
 /** Detailed popup body for one verified flood report. */
 export function FloodReportPopup({ report }) {
@@ -70,11 +73,10 @@ export function FloodReportMarkers({ reports = [], only = null, interactive = tr
   return list.map((r) => {
     const meta = floodLevelMeta(r.level)
     return (
-      <CircleMarker
+      <Marker
         key={`fr-${r.id}`}
-        center={r.coords}
-        radius={floodReportRadius(r.level)}
-        pathOptions={{ color: '#fff', weight: 2, fillColor: meta.color, fillOpacity: 0.95 }}
+        position={r.coords}
+        icon={pinIcon({ color: meta.color, glyph: 'drop', size: REPORT_PIN_SIZE[r.level] || PIN_SIZE.low })}
       >
         {interactive
           ? <Popup><FloodReportPopup report={r} /></Popup>
@@ -83,7 +85,7 @@ export function FloodReportMarkers({ reports = [], only = null, interactive = tr
               <b>{meta.label}</b>{formatReportDepth(r.depthFt) ? ` · ${formatReportDepth(r.depthFt)}` : ''}
             </Tooltip>
           )}
-      </CircleMarker>
+      </Marker>
     )
   })
 }

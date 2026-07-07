@@ -4,27 +4,35 @@
 
    One implementation, reused by every flood map (admin / barangay /
    resident) and the admin Flood-Prone Areas management screen, so a
-   record looks and reads the same everywhere. Each area is a colour-coded
-   ring (sized + tinted by severity) with a detailed popup: depth in feet,
-   flood type, the rain drivers, the storms it was recorded under, and the
-   CDRRMO note.
+   record looks and reads the same everywhere. Each area is a teardrop
+   pin from the shared pin family (coloured + sized by severity, droplet
+   glyph — warning triangle for flash floods) with a detailed popup:
+   depth in feet with a severity meter, flood type, provenance
+   (observed record vs estimated band), the rain drivers, the storms it
+   was recorded under, and the CDRRMO note.
    ============================================================ */
 
-import { CircleMarker, Tooltip, Popup } from 'react-leaflet'
+import { Marker, Tooltip, Popup } from 'react-leaflet'
 import {
   FLOOD_SEVERITY_META,
   FLOOD_TYPE_LABEL,
   floodSeverity,
   formatFloodDepth,
-  floodMarkerRadius,
 } from '../../data/floodAreas.js'
+import { pinIcon, PIN_SIZE } from '../map/pinIcons.js'
 import { nowLabel } from '../../context/AdminDataContext.jsx'
 import './FloodAreasLayer.css'
+
+/* Depth (ft) that fills the popup severity meter — deeper stays capped. */
+const METER_FULL_FT = 4
 
 /** Detailed popup body for one flood-prone area (also used by the manage page). */
 export function FloodAreaPopup({ area }) {
   const sev = floodSeverity(area)
   const meta = FLOOD_SEVERITY_META[sev]
+  const ft = Number(area.depthFt) || 0
+  // Flash floods read as full-severity even without a pooled depth.
+  const meterPct = area.type === 'flash_flood' && !ft ? 100 : Math.min(100, (ft / METER_FULL_FT) * 100)
   return (
     <div className="fa-popup">
       <div className="fa-popup-head">
@@ -35,6 +43,12 @@ export function FloodAreaPopup({ area }) {
       <div className="fa-popup-depth" style={{ color: meta.color }}>
         {formatFloodDepth(area)} <span className="fa-popup-depth-lbl">· {meta.label} risk</span>
       </div>
+      <div className="fa-popup-meter" role="img" aria-label={`Severity: ${meta.label}`}>
+        <div className="fa-popup-meter-fill" style={{ width: `${meterPct}%`, background: meta.color }} />
+      </div>
+      <span className={`fa-popup-prov ${area.estimated ? 'est' : 'obs'}`}>
+        {area.estimated ? 'Estimated band — barangay-wide figure' : 'Documented observation'}
+      </span>
       {Array.isArray(area.causes) && area.causes.length > 0 && (
         <div className="fa-popup-row"><b>Cause:</b> {area.causes.join(', ')}</div>
       )}
@@ -50,7 +64,7 @@ export function FloodAreaPopup({ area }) {
 }
 
 /**
- * Render the flood-prone areas as map markers.
+ * Render the flood-prone areas as map markers (shared pin family).
  *   areas    — array of flood-area records
  *   only     — optional barangay name to filter to (barangay jurisdiction view)
  *   onSelect — optional click handler (manage screen highlights the row)
@@ -64,16 +78,14 @@ export function FloodAreaMarkers({ areas = [], only = null, onSelect, interactiv
       const sev = floodSeverity(a)
       const meta = FLOOD_SEVERITY_META[sev]
       return (
-        <CircleMarker
+        <Marker
           key={a.id}
-          center={a.coords}
-          radius={floodMarkerRadius(a)}
-          pathOptions={{
-            color: '#fff',
-            weight: 1.5,
-            fillColor: meta.color,
-            fillOpacity: 0.92,
-          }}
+          position={a.coords}
+          icon={pinIcon({
+            color: meta.color,
+            glyph: a.type === 'flash_flood' ? 'alert' : 'drop',
+            size: PIN_SIZE[sev],
+          })}
           eventHandlers={onSelect ? { click: () => onSelect(a) } : undefined}
         >
           {!interactive && (
@@ -82,7 +94,7 @@ export function FloodAreaMarkers({ areas = [], only = null, onSelect, interactiv
             </Tooltip>
           )}
           {interactive && <Popup><FloodAreaPopup area={a} /></Popup>}
-        </CircleMarker>
+        </Marker>
       )
     })
 }

@@ -448,6 +448,13 @@
   gap: 10px;
   margin-top: 2px;
 }
+/* A quiet sub-label under a form field's caption (e.g. "pre-filled from…"). */
+.mng-label-hint {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #9a9a9a;
+  margin-top: -2px;
+}
 /* Inline checkbox row inside a modal form (e.g. "Schedule for later"). */
 .mng-form label.mng-check {
   flex-direction: row;

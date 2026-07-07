@@ -30,11 +30,42 @@
   font-size: 1.125rem;
   font-weight: 800;
   font-family: var(--font-display, var(--font-body));
+  /* Keep "3 ft · High risk" on one line — the narrow popup used to break
+     between the number and "ft". */
+  white-space: nowrap;
 }
 .fa-popup-depth-lbl {
   font-size: 0.6875rem;
   font-weight: 600;
+  white-space: nowrap;
 }
+
+/* Severity meter — depth relative to a 4 ft full-scale, tinted by severity. */
+.fa-popup-meter {
+  height: 6px;
+  border-radius: 99px;
+  background: #f0eee9;
+  overflow: hidden;
+  margin: 2px 0 6px;
+}
+.fa-popup-meter-fill {
+  height: 100%;
+  border-radius: 99px;
+  min-width: 4px;
+}
+
+/* Provenance chip: a genuinely observed record vs the estimated
+   barangay-wide band (e.g. the seeded lakeshore figures). */
+.fa-popup-prov {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  margin-bottom: 4px;
+}
+.fa-popup-prov.obs { background: #dcfce7; color: #15803d; }
+.fa-popup-prov.est { background: #fef3c7; color: #a16207; }
 .fa-popup-row {
   font-size: 0.6875rem;
   color: #4a4a4a;

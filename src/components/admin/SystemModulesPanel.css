@@ -138,7 +138,24 @@
   font-size: 0.7rem;
   color: #9a9a9a;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
+
+/* Provenance chip: a genuinely probed live feed vs a stored configuration
+   the browser can't verify. */
+.sysmod-verify {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.02em;
+  cursor: help;
+}
+.sysmod-verify.live { background: #dcfce7; color: #15803d; }
+.sysmod-verify.manual { background: #f0eee9; color: #7a7a7a; }
 .sysmod-card-meta {
   font-size: 0.72rem;
   color: #6b7280;

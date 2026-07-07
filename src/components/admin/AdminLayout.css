@@ -11,6 +11,33 @@
   overflow-y: auto;
 }
 
+/* Maintenance-mode banner (System Configuration → Maintenance mode). Amber
+   hazard-tape so it never reads as a flood alert; sits above the flood banner. */
+.maint-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 16px;
+  background: repeating-linear-gradient(45deg, #78350f, #78350f 12px, #7c3d12 12px, #7c3d12 24px);
+  color: #fde68a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 101;
+  position: relative;
+  flex-shrink: 0;
+}
+.maint-banner svg {
+  width: 15px;
+  height: 15px;
+  stroke: #fbbf24;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+.maint-banner b { color: #fef3c7; }
+
 /* ── Alert Banner ── */
 .alert-banner {
   height: 34px;

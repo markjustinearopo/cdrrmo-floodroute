@@ -49,11 +49,6 @@ export function verifyStatusMeta(status) {
   return VERIFY_STATUS_META[status] || VERIFY_STATUS_META.pending
 }
 
-/** Marker radius grows with severity so worse floods read louder on the map. */
-export function floodReportRadius(level) {
-  return { none: 6, low: 7, moderate: 8, severe: 9, impassable: 10 }[level] || 7
-}
-
 /** "3.5 ft" | "4 ft" | null — optional water depth in feet. */
 export function formatReportDepth(depthFt) {
   if (depthFt == null || depthFt === '') return null
