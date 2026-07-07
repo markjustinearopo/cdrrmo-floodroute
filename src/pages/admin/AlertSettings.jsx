@@ -182,7 +182,7 @@ export default function AlertSettings() {
 
         <div className="mng-note">
           <SparkIcon />
-          <span>These settings shape every alert issued from the Alerts screen and any automatic alerts. They are kept for this session until the backend is connected.</span>
+          <span>These settings take effect immediately: the message templates pre-word every alert issued from the Alerts &amp; Dashboard screens, and — when Automatic Alerts is on — the system raises alerts on its own using the trigger level, quiet hours and throttle below. They persist to the shared backend.</span>
         </div>
       </form>
 

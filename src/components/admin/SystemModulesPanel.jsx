@@ -47,25 +47,23 @@ export default function SystemModulesPanel() {
     setTimeout(() => setToast(''), 2600)
   }
 
+  /* Genuinely probe a live feed. Only services with a public testUrl can be
+     verified from the browser — credential-based services never reach here
+     (their card says so honestly instead of stamping a check that never ran). */
   async function probe(it) {
-    if (it.testUrl) {
-      const started = performance.now()
-      try {
-        const res = await fetch(it.testUrl, { signal: AbortSignal.timeout(8000) })
-        const ms = Math.round(performance.now() - started)
-        setIntegration(it.id, {
-          status: res.ok ? 'connected' : 'error',
-          lastCheck: nowLabel(), lastCheckAt: Date.now(), responseMs: ms,
-        })
-        return res.ok
-      } catch {
-        setIntegration(it.id, { status: 'error', lastCheck: nowLabel(), lastCheckAt: Date.now(), responseMs: null })
-        return false
-      }
+    const started = performance.now()
+    try {
+      const res = await fetch(it.testUrl, { signal: AbortSignal.timeout(8000) })
+      const ms = Math.round(performance.now() - started)
+      setIntegration(it.id, {
+        status: res.ok ? 'connected' : 'error',
+        lastCheck: nowLabel(), lastCheckAt: Date.now(), responseMs: ms,
+      })
+      return res.ok
+    } catch {
+      setIntegration(it.id, { status: 'error', lastCheck: nowLabel(), lastCheckAt: Date.now(), responseMs: null })
+      return false
     }
-    // Credential-based service: report configured/not without a network probe.
-    setIntegration(it.id, { lastCheck: nowLabel(), lastCheckAt: Date.now() })
-    return it.status === 'connected'
   }
 
   async function testOne(it) {
@@ -114,6 +112,7 @@ export default function SystemModulesPanel() {
         {integrations.map((it) => {
           const primary = it.fields[0]
           const primaryVal = it.values?.[primary.key]
+          const verifiable = Boolean(it.testUrl)
           return (
             <div key={it.id} className={`sysmod-card ${it.status}`}>
               <div className="sysmod-card-top">
@@ -121,7 +120,21 @@ export default function SystemModulesPanel() {
                 <div className="sysmod-card-name">{it.name}</div>
                 <span className={`sysmod-status ${it.status}`}>{INTEGRATION_STATUS_LABEL[it.status]}</span>
               </div>
-              <div className="sysmod-card-cat">{it.category}</div>
+              <div className="sysmod-card-cat">
+                {it.category}
+                {/* Verified feeds and assumed-configured services must never
+                    look identical — say which one this card is. */}
+                <span
+                  className={`sysmod-verify ${verifiable ? 'live' : 'manual'}`}
+                  title={verifiable
+                    ? 'This feed is tested with a real network request; the status reflects an actual probe.'
+                    : 'Credential-based service — the browser cannot verify the key, so the status reflects the saved configuration only.'}
+                >
+                  {!verifiable ? 'Config only — not verifiable'
+                    : it.responseMs != null ? 'Network-verified'
+                    : 'Live-testable'}
+                </span>
+              </div>
 
               <div className="sysmod-card-meta">
                 <span>
@@ -132,14 +145,18 @@ export default function SystemModulesPanel() {
               </div>
 
               <div className="sysmod-card-stats">
-                <span>Last check: {it.lastCheck || '—'}</span>
+                <span>{verifiable ? `Last verified: ${it.lastCheck || '—'}` : 'Never network-verified'}</span>
                 <span>{it.responseMs != null ? `${it.responseMs} ms` : it.enabled ? 'Enabled' : 'Disabled'}</span>
               </div>
 
               <div className="sysmod-card-actions">
-                <button type="button" className="sysmod-link" disabled={testing === it.id} onClick={() => testOne(it)}>
-                  {testing === it.id ? 'Testing…' : 'Test'}
-                </button>
+                {verifiable ? (
+                  <button type="button" className="sysmod-link" disabled={testing === it.id} onClick={() => testOne(it)}>
+                    {testing === it.id ? 'Testing…' : 'Test'}
+                  </button>
+                ) : (
+                  <span className="sysmod-link-hint">No public test endpoint</span>
+                )}
                 {it.status === 'connected'
                   ? <button type="button" className="sysmod-link subtle" onClick={() => disconnect(it)}>Disconnect</button>
                   : <span className="sysmod-link-hint">Configure under Settings → API Integrations</span>}

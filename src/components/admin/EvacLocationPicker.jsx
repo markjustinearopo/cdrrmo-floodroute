@@ -13,27 +13,16 @@
 
 import { useState } from 'react'
 import { MapContainer, TileLayer, ZoomControl, Marker } from 'react-leaflet'
-import L from 'leaflet'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock, CoordReadout } from './mapHelpers.jsx'
 import { ClickToAddWaypoint } from './routingHelpers.jsx'
+import { pinIcon, PIN_SIZE } from '../map/pinIcons.js'
 import './EvacLocationPicker.css'
 
-/* House-glyph centre pin, tinted by status — matches the Flood Map marker. */
+/* House-glyph centre pin from the shared pin family, tinted by status —
+   the same marker every flood map draws for an evacuation centre. */
 export const EVAC_STATUS_COLOR = { open: '#16a34a', full: '#f97316', closed: '#dc2626' }
-const evacIconCache = {}
 export function evacPinIcon(status = 'open') {
-  if (evacIconCache[status]) return evacIconCache[status]
-  const color = EVAC_STATUS_COLOR[status] || '#16a34a'
-  const icon = L.divIcon({
-    className: 'evac-pin-divicon',
-    html: `<span class="evac-pin" style="background:${color}">
-      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    </span>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-  })
-  evacIconCache[status] = icon
-  return icon
+  return pinIcon({ color: EVAC_STATUS_COLOR[status] || '#16a34a', glyph: 'home', size: PIN_SIZE.moderate })
 }
 
 /**

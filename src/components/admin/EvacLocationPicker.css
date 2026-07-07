@@ -61,24 +61,4 @@
   z-index: 1000;
 }
 
-/* Evacuation-centre house pin (matches the Flood Map marker) */
-.evac-pin-divicon { background: none; border: none; }
-.evac-pin {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  border: 2px solid #fff;
-}
-.evac-pin svg {
-  width: 13px;
-  height: 13px;
-  transform: rotate(45deg);
-  fill: none;
-  stroke: #fff;
-  stroke-width: 2;
-}
+/* The centre pin itself comes from the shared pin family (pinIcons.css). */

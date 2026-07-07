@@ -63,11 +63,6 @@ export function formatFloodDepth(area) {
   return `${txt} ft`
 }
 
-/** Marker radius (px) by severity — High reads largest on the map. */
-export function floodMarkerRadius(area) {
-  return { high: 11, moderate: 9, low: 7 }[floodSeverity(area)] || 7
-}
-
 const HIST = 'CDRRMO historical record'
 
 /* ── Seed: the client's documented flood-prone areas ──────────────────────────
@@ -104,44 +99,47 @@ export const SEED_FLOOD_AREAS = [
     reportedBy: HIST,
   },
 
-  /* Laguna Lake lakeshore barangays — 3 ft (Baclaran, Gulod, Mamatid, Marinig, Bigaa, Butong) */
+  /* Laguna Lake lakeshore barangays — 3 ft (Baclaran, Gulod, Mamatid, Marinig, Bigaa, Butong).
+     These six expand ONE barangay-wide line in the client's record, so they are
+     flagged `estimated: true` — the popup labels them an estimated band rather
+     than a precisely observed incident, so the map doesn't overstate precision. */
   {
-    id: 'fa-lakeshore-baclaran', name: 'Laguna Lakeshore — Baclaran', barangay: 'Baclaran',
+    id: 'fa-lakeshore-baclaran', name: 'Laguna Lakeshore — Baclaran', barangay: 'Baclaran', estimated: true,
     coords: [14.24489, 121.16814], type: 'flood', depthFt: 3,
     causes: ['Tropical Cyclone', 'Habagat', 'Lake Backflow'], sourceStorms: 'Paeng, Ulysses',
     notes: 'Lakeshore barangay on Laguna de Bay — up to 3 ft during lake rise and sustained rains.',
     reportedBy: HIST,
   },
   {
-    id: 'fa-lakeshore-gulod', name: 'Laguna Lakeshore — Gulod', barangay: 'Gulod',
+    id: 'fa-lakeshore-gulod', name: 'Laguna Lakeshore — Gulod', barangay: 'Gulod', estimated: true,
     coords: [14.25419, 121.16268], type: 'flood', depthFt: 3,
     causes: ['Tropical Cyclone', 'Habagat', 'Lake Backflow'], sourceStorms: 'Paeng, Ulysses',
     notes: 'Lakeshore barangay on Laguna de Bay — up to 3 ft during lake rise and sustained rains.',
     reportedBy: HIST,
   },
   {
-    id: 'fa-lakeshore-mamatid', name: 'Laguna Lakeshore — Mamatid', barangay: 'Mamatid',
+    id: 'fa-lakeshore-mamatid', name: 'Laguna Lakeshore — Mamatid', barangay: 'Mamatid', estimated: true,
     coords: [14.23954, 121.15623], type: 'flood', depthFt: 3,
     causes: ['Tropical Cyclone', 'Habagat', 'Lake Backflow'], sourceStorms: 'Paeng, Ulysses',
     notes: 'Lakeshore barangay on Laguna de Bay — up to 3 ft during lake rise and sustained rains.',
     reportedBy: HIST,
   },
   {
-    id: 'fa-lakeshore-marinig', name: 'Laguna Lakeshore — Marinig', barangay: 'Marinig',
+    id: 'fa-lakeshore-marinig', name: 'Laguna Lakeshore — Marinig', barangay: 'Marinig', estimated: true,
     coords: [14.27153, 121.14969], type: 'flood', depthFt: 3,
     causes: ['Tropical Cyclone', 'Habagat', 'Lake Backflow'], sourceStorms: 'Paeng, Ulysses',
     notes: 'Lakeshore barangay on Laguna de Bay — up to 3 ft during lake rise and sustained rains.',
     reportedBy: HIST,
   },
   {
-    id: 'fa-lakeshore-bigaa', name: 'Laguna Lakeshore — Bigaa', barangay: 'Bigaa',
+    id: 'fa-lakeshore-bigaa', name: 'Laguna Lakeshore — Bigaa', barangay: 'Bigaa', estimated: true,
     coords: [14.28346, 121.12973], type: 'flood', depthFt: 3,
     causes: ['Tropical Cyclone', 'Habagat', 'Lake Backflow'], sourceStorms: 'Paeng, Ulysses',
     notes: 'Lakeshore barangay on Laguna de Bay — up to 3 ft during lake rise and sustained rains.',
     reportedBy: HIST,
   },
   {
-    id: 'fa-lakeshore-butong', name: 'Laguna Lakeshore — Butong', barangay: 'Butong',
+    id: 'fa-lakeshore-butong', name: 'Laguna Lakeshore — Butong', barangay: 'Butong', estimated: true,
     coords: [14.28783, 121.13696], type: 'flood', depthFt: 3,
     causes: ['Tropical Cyclone', 'Habagat', 'Lake Backflow'], sourceStorms: 'Paeng, Ulysses',
     notes: 'Lakeshore barangay on Laguna de Bay — up to 3 ft during lake rise and sustained rains.',

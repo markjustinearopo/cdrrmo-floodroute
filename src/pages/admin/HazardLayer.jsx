@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePersistedState } from '../../utils/usePersistedState.js'
-import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, GeoJSON } from 'react-leaflet'
+import { MapContainer, TileLayer, ZoomControl, Marker, Tooltip, GeoJSON } from 'react-leaflet'
 import L from 'leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import {
@@ -22,7 +22,8 @@ import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.js
 import { barangayBounds } from '../../data/cabuyaoBarangays.js'
 import { RoadNetworkLayer, useCabuyaoRoads, useRoadStatus } from '../../components/admin/routingHelpers.jsx'
 import { useLiveWeather } from '../../services/weather.js'
-import { useEvacCenters } from '../../context/AdminDataContext.jsx'
+import { useEvacCenters, useFloodAreas } from '../../context/AdminDataContext.jsx'
+import { pinIcon, PIN_SIZE } from '../../components/map/pinIcons.js'
 import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import {
   useBarangayLayers,
@@ -55,12 +56,14 @@ import './HazardLayer.css'
  * Integrations only raises rate limits).
  */
 
-/* ── Toggleable map overlays ─────────────────────────────────────────────── */
+/* ── Toggleable map overlays ──────────────────────────────────────────────
+   Layer names are shared verbatim with the Flood Map's toggle panel, so the
+   two screens describe the same hazard picture in the same words. */
 const LAYER_DEFS = [
   { key: 'noahHazard', label: 'NOAH Flood Hazard', desc: 'Project NOAH official 100-yr return-period flood zones', color: '#7C3AED' },
-  { key: 'inundation', label: 'Live Inundation Model', desc: 'Real-time flood-risk surface (Open-Meteo)', color: '#2563EB' },
-  { key: 'roadRisk', label: 'Road Network Risk', desc: 'Flooded / closed road segments', color: '#F97316' },
-  { key: 'barangays', label: 'Affected Barangays', desc: 'Barangay-level risk classification', color: '#C0181B' },
+  { key: 'inundation', label: 'Live Inundation', desc: 'Real-time flood-risk surface (Open-Meteo)', color: '#2563EB' },
+  { key: 'roadRisk', label: 'Flagged Roads', desc: 'Flooded / closed road segments', color: '#F97316' },
+  { key: 'barangays', label: 'Barangay Risk', desc: 'Barangay-level risk classification', color: '#C0181B' },
   { key: 'evacuation', label: 'Evacuation Centers', desc: 'Open shelters & safe zones', color: '#1A7A4A' },
 ]
 
@@ -87,6 +90,7 @@ export default function HazardLayer() {
   const { roads } = useCabuyaoRoads() // for the flooded/closed-road overlay
   const [statusMap] = useRoadStatus()
   const { evacuationCenters } = useEvacCenters()
+  const { floodAreas } = useFloodAreas() // feeds the location search index
 
   // ── NOAH static hazard GeoJSON (loaded once from public/) ──
   const [noahGeo, setNoahGeo] = useState(null)
@@ -107,9 +111,13 @@ export default function HazardLayer() {
   // Focus view + detail card.
   const [selected, setSelected] = useState(null)
 
-  // Smart location search (barangays, evac centres + OpenStreetMap results).
+  // Smart location search (barangays, evac centres, flood-prone areas +
+  // OpenStreetMap results) — the same index the Flood Map search uses.
   const [searchResult, setSearchResult] = useState(null)
-  const localIndex = useMemo(() => buildLocalIndex({ evacCenters: evacuationCenters }), [evacuationCenters])
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters, floodAreas }),
+    [evacuationCenters, floodAreas],
+  )
 
   // 2D (Leaflet, default) ⇄ 3D (Mapbox terrain) — shared preference with the
   // Flood Map. Both views render the SAME live state (toggles, opacity,
@@ -246,39 +254,42 @@ export default function HazardLayer() {
                 <RoadNetworkLayer roads={hazardRoads} statusMap={statusMap} interactive={false} />
               )}
 
-              {/* Barangay risk markers, anchored at each polygon's interior point */}
+              {/* Barangay risk pins, anchored at each polygon's interior point */}
               {visible.barangays &&
                 samples.map((b) => (
-                  <CircleMarker
+                  <Marker
                     key={b.name}
-                    center={b.coords}
-                    radius={b.name === selected ? 8 : 6}
-                    pathOptions={{ color: b.name === selected ? '#0f172a' : '#fff', weight: b.name === selected ? 3 : 1.5, fillColor: RISK_META[b.level].color, fillOpacity: 1 }}
+                    position={b.coords}
+                    icon={pinIcon({
+                      color: RISK_META[b.level].color,
+                      glyph: 'dot',
+                      size: PIN_SIZE.low,
+                      selected: b.name === selected,
+                    })}
                     eventHandlers={{ click: () => setSelected(b.name) }}
                   >
-                    <Tooltip direction="top" offset={[0, -5]}>
+                    <Tooltip direction="top">
                       <b>{b.name}</b>
                       <br />
                       {RISK_META[b.level].label} · ~{b.floodDepth.toFixed(2)} m
                     </Tooltip>
-                  </CircleMarker>
+                  </Marker>
                 ))}
 
-              {/* Open evacuation centres */}
+              {/* Open evacuation centres (shared house pin) */}
               {visible.evacuation &&
                 openCentres.map((c) => (
-                  <CircleMarker
+                  <Marker
                     key={c.id}
-                    center={c.coords}
-                    radius={6}
-                    pathOptions={{ color: '#fff', weight: 2, fillColor: '#1A7A4A', fillOpacity: 1 }}
+                    position={c.coords}
+                    icon={pinIcon({ color: '#1A7A4A', glyph: 'home', size: PIN_SIZE.moderate })}
                   >
-                    <Tooltip direction="top" offset={[0, -5]}>
+                    <Tooltip direction="top">
                       <b>{c.name}</b>
                       <br />
                       {c.barangay} · cap. {c.capacity}
                     </Tooltip>
-                  </CircleMarker>
+                  </Marker>
                 ))}
 
               {/* Searched location: flyTo + pin + glowing road highlight */}

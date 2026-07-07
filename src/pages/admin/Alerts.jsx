@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { BARANGAYS, ALERT_LEVELS } from '../../data/cabuyao.js'
-import { useAlerts, nowLabel } from '../../context/AdminDataContext.jsx'
+import { useAlerts, nowLabel, fillAlertTemplate } from '../../context/AdminDataContext.jsx'
 import { sendAlertEmail } from '../../services/emailAlert.js'
 import './Manage.css'
 
@@ -40,6 +41,30 @@ export default function Alerts() {
   const [showModal, setShowModal] = useState(false)
   const [scheduling, setScheduling] = useState(false)
   const [toast, setToast] = useState('')
+  const [confirm, setConfirm] = useState(null) // { title, message, confirmLabel, onConfirm }
+
+  // Issue-modal fields are controlled so the operator's saved MESSAGE TEMPLATE
+  // (Alert Settings) becomes the starting wording — re-worded whenever the
+  // level/barangay changes, until the operator edits the text themselves.
+  const BLANK_FORM = { barangay: '', level: 'high', title: '', message: '', msgEdited: false }
+  const [form, setForm] = useState(BLANK_FORM)
+
+  function openIssue() {
+    setForm({ ...BLANK_FORM, message: fillAlertTemplate('high', {}) })
+    setScheduling(false)
+    setShowModal(true)
+  }
+  function setField(key, value) {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value }
+      // Re-flow the template when the level or barangay changes, unless the
+      // operator has already hand-edited the message.
+      if ((key === 'level' || key === 'barangay') && !prev.msgEdited) {
+        next.message = fillAlertTemplate(next.level, { barangay: next.barangay })
+      }
+      return next
+    })
+  }
 
   const stats = useMemo(() => ({
     active: alerts.filter((a) => a.status === 'active').length,
@@ -70,10 +95,10 @@ export default function Alerts() {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     const alert = {
-      title: f.get('title').trim(),
-      barangay: f.get('barangay'),
-      level: f.get('level'),
-      message: f.get('message').trim(),
+      title: form.title.trim(),
+      barangay: form.barangay,
+      level: form.level,
+      message: form.message.trim(),
     }
     // "Schedule for later": the alert queues and auto-issues when due
     // (the shared store promotes it on the next real-time refresh tick).
@@ -96,16 +121,34 @@ export default function Alerts() {
       : `Alert issued for ${alert.barangay}.`)
   }
 
-  function resolve(id) {
-    resolveAlert(id)
-    flash('Alert marked resolved.')
+  // One "are you sure?" pattern for every destructive change, matching the
+  // Dashboard / Flood Map resolve flows.
+  function resolve(alert) {
+    setConfirm({
+      title: 'Resolve this alert?',
+      message: `"${alert.title}" (${alert.barangay}) will be marked resolved and leave the active feed on every portal.`,
+      confirmLabel: 'Resolve alert',
+      onConfirm: () => {
+        resolveAlert(alert.id)
+        setConfirm(null)
+        flash('Alert marked resolved.')
+      },
+    })
   }
   function reopen(id) {
     updateAlert(id, { status: 'active', issued: nowLabel(), issuedAt: Date.now() })
   }
-  function remove(id) {
-    removeAlert(id)
-    flash('Alert withdrawn.')
+  function remove(alert) {
+    setConfirm({
+      title: 'Withdraw this alert?',
+      message: `"${alert.title}" (${alert.barangay}) will be permanently removed from the record. This cannot be undone.`,
+      confirmLabel: 'Withdraw alert',
+      onConfirm: () => {
+        removeAlert(alert.id)
+        setConfirm(null)
+        flash('Alert withdrawn.')
+      },
+    })
   }
 
   return (
@@ -125,7 +168,7 @@ export default function Alerts() {
               <div className="mng-sub">Issue and manage flood-hazard alerts per barangay</div>
             </div>
           </div>
-          <button type="button" className="mng-btn" onClick={() => setShowModal(true)}>
+          <button type="button" className="mng-btn" onClick={openIssue}>
             <PlusIcon /> Issue Alert
           </button>
         </div>
@@ -202,7 +245,7 @@ export default function Alerts() {
                     <td>
                       <div className="mng-row-actions">
                         {a.status === 'active' && (
-                          <button type="button" className="mng-link" onClick={() => resolve(a.id)}>Resolve</button>
+                          <button type="button" className="mng-link" onClick={() => resolve(a)}>Resolve</button>
                         )}
                         {a.status === 'scheduled' && (
                           <button type="button" className="mng-link" onClick={() => reopen(a.id)}>Issue now</button>
@@ -210,7 +253,7 @@ export default function Alerts() {
                         {a.status === 'resolved' && (
                           <button type="button" className="mng-link subtle" onClick={() => reopen(a.id)}>Reopen</button>
                         )}
-                        <button type="button" className="mng-link subtle" onClick={() => remove(a.id)}>Withdraw</button>
+                        <button type="button" className="mng-link subtle" onClick={() => remove(a)}>Withdraw</button>
                       </div>
                     </td>
                   </tr>
@@ -241,25 +284,50 @@ export default function Alerts() {
               <div className="mng-form-grid">
                 <label>
                   Barangay
-                  <select name="barangay" required defaultValue="">
+                  <select
+                    name="barangay"
+                    required
+                    value={form.barangay}
+                    onChange={(e) => setField('barangay', e.target.value)}
+                  >
                     <option value="" disabled>Select Barangay</option>
                     {BARANGAYS.map((b) => <option key={b}>{b}</option>)}
                   </select>
                 </label>
                 <label>
                   Alert Level
-                  <select name="level" required defaultValue="high">
+                  <select
+                    name="level"
+                    required
+                    value={form.level}
+                    onChange={(e) => setField('level', e.target.value)}
+                  >
                     {ALERT_LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
                   </select>
                 </label>
               </div>
               <label>
                 Alert Title
-                <input name="title" type="text" placeholder="Severe Flood Warning" required />
+                <input
+                  name="title"
+                  type="text"
+                  placeholder="Severe Flood Warning"
+                  required
+                  value={form.title}
+                  onChange={(e) => setField('title', e.target.value)}
+                />
               </label>
               <label>
                 Message
-                <textarea name="message" rows={3} placeholder="Affected areas, water level and evacuation advice." required />
+                <span className="mng-label-hint">Pre-filled from your Alert Settings template — edit as needed.</span>
+                <textarea
+                  name="message"
+                  rows={3}
+                  placeholder="Affected areas, water level and evacuation advice."
+                  required
+                  value={form.message}
+                  onChange={(e) => setForm((prev) => ({ ...prev, message: e.target.value, msgEdited: true }))}
+                />
               </label>
               <label className="mng-check">
                 <input
@@ -282,6 +350,16 @@ export default function Alerts() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          onConfirm={confirm.onConfirm}
+          onCancel={() => setConfirm(null)}
+        />
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>

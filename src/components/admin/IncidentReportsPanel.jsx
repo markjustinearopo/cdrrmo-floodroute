@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
-import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip } from 'react-leaflet'
+import { MapContainer, TileLayer, ZoomControl, Marker, Tooltip } from 'react-leaflet'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock } from './mapHelpers.jsx'
 import { useIncidents } from '../../context/AdminDataContext.jsx'
 import { PRIORITIES, RESPONSE_TEAMS } from '../../data/cabuyao.js'
+import ConfirmDialog from '../ConfirmDialog.jsx'
+import { pinIcon, PIN_SIZE } from '../map/pinIcons.js'
 import './IncidentReportsPanel.css'
 
 /**
@@ -17,6 +19,7 @@ import './IncidentReportsPanel.css'
  */
 
 const PRIORITY_COLOR = { critical: '#dc2626', high: '#f97316', medium: '#eab308', low: '#3b82f6' }
+const PRIORITY_PIN_SIZE = { critical: PIN_SIZE.high, high: 27, medium: PIN_SIZE.moderate, low: PIN_SIZE.low }
 const PRIORITY_LABEL = Object.fromEntries(PRIORITIES.map((p) => [p.value, p.label]))
 const STATUS_LABEL = { new: 'New', assigned: 'Assigned', 'in-progress': 'In Progress', resolved: 'Resolved' }
 
@@ -32,6 +35,20 @@ export default function IncidentReportsPanel() {
   const [filter, setFilter] = useState('open')
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+  // Shared "are you sure?" prompt before resolving an incident (same pattern
+  // as every other destructive action across the admin).
+  const [confirm, setConfirm] = useState(null)
+
+  function confirmResolve(incident) {
+    setConfirm({
+      title: 'Resolve this incident?',
+      message: `"${incident.type}" (${incident.barangay}) will be marked resolved. You can reopen it later if needed.`,
+      onConfirm: () => {
+        updateIncident(incident.id, { status: 'resolved' })
+        setConfirm(null)
+      },
+    })
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -72,23 +89,23 @@ export default function IncidentReportsPanel() {
             const color = PRIORITY_COLOR[inc.priority] || '#3b82f6'
             const isSel = inc.id === selectedId
             return (
-              <CircleMarker
+              <Marker
                 key={inc.id}
-                center={inc.coords}
-                radius={inc.priority === 'critical' ? 11 : isSel ? 9 : 7}
-                pathOptions={{
-                  color: isSel ? '#0f172a' : color,
-                  weight: isSel ? 3 : 2,
-                  fillColor: color,
-                  fillOpacity: inc.status === 'resolved' ? 0.25 : 0.7,
-                }}
+                position={inc.coords}
+                icon={pinIcon({
+                  color,
+                  glyph: 'alert',
+                  size: PRIORITY_PIN_SIZE[inc.priority] || PIN_SIZE.low,
+                  selected: isSel,
+                })}
+                opacity={inc.status === 'resolved' ? 0.45 : 1}
                 eventHandlers={{ click: () => setSelectedId(inc.id) }}
               >
-                <Tooltip direction="top" offset={[0, -6]}>
+                <Tooltip direction="top">
                   <b>{inc.type}</b><br />
                   {inc.barangay} · {PRIORITY_LABEL[inc.priority]}
                 </Tooltip>
-              </CircleMarker>
+              </Marker>
             )
           })}
         </MapContainer>
@@ -141,7 +158,7 @@ export default function IncidentReportsPanel() {
                 <button type="button" className="incpanel-btn" onClick={() => updateIncident(selected.id, { status: 'in-progress' })}>Start</button>
               )}
               {selected.status !== 'resolved' ? (
-                <button type="button" className="incpanel-btn primary" onClick={() => updateIncident(selected.id, { status: 'resolved' })}>Resolve</button>
+                <button type="button" className="incpanel-btn primary" onClick={() => confirmResolve(selected)}>Resolve</button>
               ) : (
                 <button type="button" className="incpanel-btn" onClick={() => updateIncident(selected.id, { status: selected.team ? 'assigned' : 'new' })}>Reopen</button>
               )}
@@ -201,7 +218,7 @@ export default function IncidentReportsPanel() {
                         <button type="button" onClick={(e) => { e.stopPropagation(); updateIncident(i.id, { status: 'in-progress' }) }}>Start</button>
                       )}
                       {i.status !== 'resolved' && (
-                        <button type="button" onClick={(e) => { e.stopPropagation(); updateIncident(i.id, { status: 'resolved' }) }}>Resolve</button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); confirmResolve(i) }}>Resolve</button>
                       )}
                     </td>
                   </tr>
@@ -211,6 +228,16 @@ export default function IncidentReportsPanel() {
           )}
         </div>
       </div>
+
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel="Resolve incident"
+          onConfirm={confirm.onConfirm}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   )
 }

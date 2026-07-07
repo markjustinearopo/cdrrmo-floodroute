@@ -26,6 +26,7 @@ import { SEED_FLOOD_AREAS } from '../data/floodAreas.js'
 import { FLOOD_LEVEL_LABEL } from '../data/floodReports.js'
 import db from '../services/db.js'
 import supabase from '../services/supabase.js'
+import { getSystemConfig } from '../services/systemConfig.js'
 
 /* ── localStorage plumbing ────────────────────────────────────────────────
    Most collections are Supabase-backed now. localStorage survives only as:
@@ -69,12 +70,28 @@ export function barangayCoords(name) {
   return BARANGAY_CENTROIDS.find((b) => b.name === name)?.coords || null
 }
 
+/* Probe results (lastCheck / responseMs) are THIS browser's measurements, not
+   shared config — the integrations table doesn't store them, so they live here
+   or the reconciling refetch would wipe every "Test" result a second later. */
+const PROBES_KEY = 'cdrrmo_integration_probes'
+const PROBE_FIELDS = ['lastCheck', 'lastCheckAt', 'responseMs']
+
+function saveProbeResult(id, patch) {
+  const probePatch = {}
+  for (const k of PROBE_FIELDS) if (k in patch) probePatch[k] = patch[k]
+  if (!Object.keys(probePatch).length) return
+  const all = readJSON(PROBES_KEY, {})
+  writeJSON(PROBES_KEY, { ...all, [id]: { ...(all[id] || {}), ...probePatch } })
+}
+
 /* Merge the in-code integration catalogue (names, fields, docs) with the
-   dynamic part (enabled / status / values) stored in the database. */
+   dynamic part (enabled / status / values) stored in the database, plus the
+   locally recorded probe results. */
 function mergeIntegrations(stored) {
+  const probes = readJSON(PROBES_KEY, {})
   return INTEGRATION_CATALOG.map((c) => {
     const s = stored[c.id] || {}
-    return { ...c, ...s, values: { ...(c.values || {}), ...(s.values || {}) } }
+    return { ...c, ...s, ...(probes[c.id] || {}), values: { ...(c.values || {}), ...(s.values || {}) } }
   })
 }
 
@@ -244,6 +261,10 @@ export function AdminDataProvider({ children }) {
     }
 
     const poll = setInterval(() => {
+      // Honour the "Auto-refresh dashboards" switch on System Configuration:
+      // when off, the interval keeps ticking but skips the network pull, so the
+      // operator relies on the manual "sync now" button until they re-enable it.
+      if (!getSystemConfig().autoRefresh) return
       db.alerts.promoteDue()
         .then((changed) => { if (changed) refetch('alerts') })
         .catch((e) => console.error('[AdminData] promoteDue', e))
@@ -500,6 +521,7 @@ export function AdminDataProvider({ children }) {
 
   /* ── Integrations ── */
   const setIntegration = useCallback((id, patch) => {
+    saveProbeResult(id, patch) // keep Test results across the reconciling refetch
     optimistic('integrations', stateRef.current.integrations.map((it) => (
       it.id === id ? { ...it, ...patch, values: { ...it.values, ...(patch.values || {}) } } : it
     )))
@@ -861,4 +883,25 @@ export function saveAlertSettings(cfg) {
   writeJSON(KEYS.alertSettings, cfg) // optimistic cache for instant + offline read
   return db.appSettings.set(ALERT_SETTINGS_DBKEY, cfg)
     .catch((e) => console.error('[AlertSettings] remote save failed', e))
+}
+
+/**
+ * Fill the configured message template for a level, substituting {barangay},
+ * {level} and {depth}. Used to pre-word the issue forms (Alerts + Dashboard)
+ * so the operator's saved templates are the actual starting point of every
+ * alert, not decoration. Returns '' when no template is set for the level.
+ */
+export function fillAlertTemplate(level, vars = {}) {
+  const cfg = loadAlertSettings()
+  const tpl = level === 'high' ? cfg.tplHigh
+    : level === 'moderate' ? cfg.tplModerate
+    : level === 'safe' ? cfg.tplSafe
+    : ''
+  if (!tpl) return ''
+  const depth = vars.depth != null ? Number(vars.depth).toFixed(2) : '—'
+  const levelLabel = { high: 'severe', moderate: 'moderate', safe: 'all-clear' }[level] || level
+  return tpl
+    .replaceAll('{barangay}', vars.barangay || 'the area')
+    .replaceAll('{level}', levelLabel)
+    .replaceAll('{depth}', depth)
 }

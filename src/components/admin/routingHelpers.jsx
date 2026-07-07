@@ -98,10 +98,9 @@ export function pathLengthMeters(points) {
   return total
 }
 
-export function formatDistance(m) {
-  if (!m) return '0 m'
-  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(2)} km`
-}
+// Distance readout honours the operator's configured unit (km / miles) from
+// System Configuration — see services/systemConfig.js.
+export { formatDistance } from '../../services/systemConfig.js'
 
 // Rough walking ETA (5 km/h) — a friendly readout, not a routing claim.
 export function formatWalkEta(meters) {

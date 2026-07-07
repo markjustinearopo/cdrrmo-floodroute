@@ -29,17 +29,17 @@ export const BARANGAYS = [
 
 /**
  * Barangay / hazard safeness is driven by measured flood depth (metres).
- * Single source of truth, kept in sync with the Dashboard + the API contract.
- *   SAFE     < 0.1 m   LOW 0.1–<0.3 m   MODERATE 0.3–<0.5 m   HIGH >= 0.5 m
+ * `levelFromDepth` grades a depth using the OPERATOR-configurable thresholds
+ * read live from the shared systemConfig service, so a change on System
+ * Configuration re-grades every badge on every map at once.
+ *
+ * `DEPTH_THRESHOLDS` remains the shipped default constant — floodRisk uses it
+ * at load time to fix the risk→depth conversion bands of the inundation
+ * surface, which stay stable regardless of the badge thresholds. Defaults:
+ * SAFE < 0.1 m · LOW 0.1–<0.3 · MOD 0.3–<0.5 · HIGH >= 0.5.
  */
 export const DEPTH_THRESHOLDS = { low: 0.1, moderate: 0.3, high: 0.5 }
-
-export function levelFromDepth(depth) {
-  if (depth >= DEPTH_THRESHOLDS.high) return 'high'
-  if (depth >= DEPTH_THRESHOLDS.moderate) return 'moderate'
-  if (depth >= DEPTH_THRESHOLDS.low) return 'low'
-  return 'safe'
-}
+export { levelFromDepth } from '../../services/systemConfig.js'
 
 export const RISK_META = {
   high: { label: 'HIGH', color: '#EF4444' },

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import {
   ROLES, PERMISSION_MODULES, PERMISSION_ACTIONS, DEFAULT_ROLE_PERMS, buildPerms,
 } from '../../data/settings.js'
@@ -45,6 +46,7 @@ export default function Roles() {
   const [selected, setSelected] = useState('admin')
   const [dirty, setDirty] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [toast, setToast] = useState('')
 
   // Pull the shared role/permission matrix from Supabase once on mount
@@ -134,6 +136,7 @@ export default function Roles() {
     setPerms(nextPerms)
     persist(nextRoles, nextPerms)
     setSelected('admin')
+    setConfirmDelete(false)
     flash(`Role “${removed.label}” deleted.`)
   }
 
@@ -173,7 +176,7 @@ export default function Roles() {
               </div>
               <div className="set-panel-head-actions">
                 {!role?.system && (
-                  <button type="button" className="mng-link subtle" onClick={deleteRole}>Delete role</button>
+                  <button type="button" className="mng-link subtle" onClick={() => setConfirmDelete(true)}>Delete role</button>
                 )}
                 {!locked && DEFAULT_ROLE_PERMS[selected] && (
                   <button type="button" className="mng-link subtle" onClick={handleResetRole}>Reset</button>
@@ -253,9 +256,24 @@ export default function Roles() {
 
         <div className="mng-note">
           <SparkIcon />
-          <span>The Administrator role is locked to full access so the system can always be managed. Changes are kept for this session until the roles API is connected.</span>
+          <span>The Administrator role is locked to full access so the system can always be managed. Role and permission changes persist to the shared backend and apply on every device.</span>
         </div>
       </div>
+
+      {/* Delete-role confirmation */}
+      {confirmDelete && role && (
+        <ConfirmDialog
+          title={`Delete the “${role.label}” role?`}
+          message={
+            (counts[selected] || 0) > 0
+              ? `${counts[selected]} account${counts[selected] === 1 ? '' : 's'} currently use this role. Deleting it removes the role and its permission map — reassign those accounts afterwards. This cannot be undone.`
+              : 'This removes the role and its permission map. This cannot be undone.'
+          }
+          confirmLabel="Delete role"
+          onConfirm={deleteRole}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
 
       {/* Add role modal */}
       {showModal && (

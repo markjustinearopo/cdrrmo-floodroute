@@ -18,6 +18,12 @@ import { BARANGAY_CENTROIDS } from '../../data/cabuyaoBarangays.js'
 /* Cabuyao bounding box for Nominatim (viewbox = left,top,right,bottom). */
 const VIEWBOX = '121.08,14.31,121.21,14.20'
 
+/* Nominatim's usage policy asks non-personal deployments to identify
+   themselves (the browser already sends the site's Referer; an `email`
+   contact makes the traffic attributable if it ever needs throttling).
+   Set VITE_NOMINATIM_EMAIL in the deploy environment — omitted when unset. */
+const NOMINATIM_EMAIL = import.meta.env.VITE_NOMINATIM_EMAIL || ''
+
 /* ── Result types → icon + accent used by the dropdown ───────────────────── */
 export const RESULT_TYPES = {
   barangay: { label: 'Barangay', icon: 'pin' },
@@ -115,7 +121,8 @@ export async function searchNominatim(query, signal) {
   const url =
     'https://nominatim.openstreetmap.org/search?format=jsonv2' +
     `&q=${encodeURIComponent(q)}` +
-    `&viewbox=${VIEWBOX}&bounded=1&limit=6&polygon_geojson=1&addressdetails=1&countrycodes=ph`
+    `&viewbox=${VIEWBOX}&bounded=1&limit=6&polygon_geojson=1&addressdetails=1&countrycodes=ph` +
+    (NOMINATIM_EMAIL ? `&email=${encodeURIComponent(NOMINATIM_EMAIL)}` : '')
   try {
     const res = await fetch(url, { signal, headers: { Accept: 'application/json' } })
     if (!res.ok) return []

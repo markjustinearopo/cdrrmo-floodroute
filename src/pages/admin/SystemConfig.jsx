@@ -1,68 +1,35 @@
 import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
-import { DEPTH_THRESHOLDS } from '../../data/cabuyao.js'
-import db from '../../services/db.js'
+import {
+  SYSTEM_CONFIG_DEFAULTS as DEFAULTS,
+  getSystemConfig,
+  saveSystemConfig,
+  resetSystemConfig,
+  loadSystemConfigRemote,
+} from '../../services/systemConfig.js'
 import './Manage.css'
 import './Settings.css'
 
 /**
  * CDRRMO Admin — System Configuration (Settings).
  *
- * Site-wide operational settings: identity, the flood-depth thresholds that
- * drive every risk badge (kept in sync with the Dashboard / Barangay screens),
- * map & routing defaults, the sensor feed cadence and maintenance switches.
- *
- * Routing is intentionally manual-only for now — automatic flood-aware route
- * suggestion is deferred pending an algorithm study — so that option is shown
- * but disabled. Values are held in component state and acknowledged with a
- * toast; they persist to the backend (PUT /settings) once it is connected.
+ * Site-wide operational settings that TAKE EFFECT across the app through the
+ * shared systemConfig service: identity (topbar + document title), the
+ * flood-depth thresholds that grade every risk badge, distance units on the
+ * routing screens, the dashboard auto-refresh, new-registration and
+ * maintenance switches. A save propagates instantly to every open screen and
+ * persists to the shared backend.
  */
 
-const DEFAULTS = {
-  systemName: 'CDRRMO FloodRoute',
-  organization: 'Cabuyao City CDRRMO',
-  timezone: 'Asia/Manila',
-  language: 'en',
-  dateFormat: 'dmy',
-  depthLow: DEPTH_THRESHOLDS.low,
-  depthModerate: DEPTH_THRESHOLDS.moderate,
-  depthHigh: DEPTH_THRESHOLDS.high,
-  mapZoom: 13,
-  distanceUnit: 'km',
-  routingMode: 'manual',
-  retentionDays: 90,
-  autoRefresh: true,
-  maintenance: false,
-  allowRegistration: true,
-  debugLogging: false,
-}
-
-const CONFIG_KEY = 'cdrrmo_system_config' // localStorage cache (instant render)
-const CONFIG_DBKEY = 'system_config'      // shared app_settings row
-
-function loadConfig() {
-  try {
-    return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}) }
-  } catch {
-    return { ...DEFAULTS }
-  }
-}
-
 export default function SystemConfig() {
-  const [cfg, setCfg] = useState(loadConfig)
+  const [cfg, setCfg] = useState(getSystemConfig)
   const [dirty, setDirty] = useState(false)
   const [toast, setToast] = useState('')
 
   // Pull the shared config from Supabase once on mount (cache renders first).
   useEffect(() => {
     let alive = true
-    db.appSettings.get(CONFIG_DBKEY).then((remote) => {
-      if (alive && remote) {
-        const merged = { ...DEFAULTS, ...remote }
-        setCfg(merged)
-        localStorage.setItem(CONFIG_KEY, JSON.stringify(merged))
-      }
-    }).catch((e) => console.error('[SystemConfig] remote load failed', e))
+    loadSystemConfigRemote().then((remote) => { if (alive) setCfg(remote) })
     return () => { alive = false }
   }, [])
 
@@ -76,17 +43,15 @@ export default function SystemConfig() {
   }
   function handleSave(e) {
     e.preventDefault()
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)) // optimistic cache
+    saveSystemConfig(cfg) // instant local + broadcast + shared backend
     setDirty(false)
-    flash('Configuration saved.')
-    db.appSettings.set(CONFIG_DBKEY, cfg).catch(() => flash('Saved locally — backend sync failed.'))
+    flash('Configuration saved — applied across the system.')
   }
   function handleReset() {
-    setCfg(DEFAULTS)
-    localStorage.removeItem(CONFIG_KEY)
+    setCfg({ ...DEFAULTS })
+    resetSystemConfig()
     setDirty(false)
     flash('Reverted to default configuration.')
-    db.appSettings.remove(CONFIG_DBKEY).catch((e) => console.error('[SystemConfig] remote reset failed', e))
   }
 
   return (
@@ -189,13 +154,8 @@ export default function SystemConfig() {
                 </select>
               </div>
             </div>
-            <div className="set-field">
-              <span>Routing Mode</span>
-              <select value={cfg.routingMode} onChange={(e) => set('routingMode', e.target.value)}>
-                <option value="manual">Manual — admin-defined routes</option>
-                <option value="auto" disabled>Automatic flood-aware (coming soon)</option>
-              </select>
-              <div className="set-field-hint">Routes are edited manually on the map. Automatic flood-aware suggestion is deferred pending an algorithm study.</div>
+            <div className="set-field-hint">
+              Distances on the routing and evacuation screens are shown in these units. Routes are drawn manually on the map today.
             </div>
           </Panel>
 
@@ -244,7 +204,7 @@ export default function SystemConfig() {
 
         <div className="mng-note">
           <SparkIcon />
-          <span>Settings are held for this session and acknowledged locally. They persist once the configuration API is connected.</span>
+          <span>Saved settings apply immediately across every open screen and persist to the shared backend, so they follow you to any device.</span>
         </div>
       </form>
 

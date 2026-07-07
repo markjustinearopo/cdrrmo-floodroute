@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import api from '../services/api.js'
+import FirstLoginPasswordPrompt from './FirstLoginPasswordPrompt.jsx'
 
 /* Which accounts.role belongs to which portal. (accounts.role is constrained to
    admin/staff/barangay/resident; the extra keys are tolerated for safety.) */
@@ -29,5 +30,11 @@ export default function RequireAuth({ group }) {
   if (group && userGroup && userGroup !== group) {
     return <Navigate to={HOME[userGroup] || '/login'} replace />
   }
-  return <Outlet />
+  return (
+    <>
+      <Outlet />
+      {/* Greets officials on their first sign-in to set their own password. */}
+      <FirstLoginPasswordPrompt />
+    </>
+  )
 }

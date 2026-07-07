@@ -13,6 +13,7 @@ import {
 import { EyeIcon, EyeOffIcon } from './Login.jsx'
 import { authApi } from '../services/api.js'
 import { OFFICIAL_BRGY_KEY } from '../data/barangay.js'
+import { getSystemConfig, loadSystemConfigRemote } from '../services/systemConfig.js'
 import './auth.css'
 import './Register.css'
 
@@ -59,10 +60,19 @@ export default function Register() {
   const [success, setSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [modal, setModal] = useState(null) // active popup, or null
+  // New-account creation can be closed by an admin on System Configuration.
+  const [registrationOpen, setRegistrationOpen] = useState(getSystemConfig().allowRegistration)
 
   useEffect(() => {
     document.body.classList.add('auth-body')
     return () => document.body.classList.remove('auth-body')
+  }, [])
+
+  // Confirm against the shared backend whether self-registration is open.
+  useEffect(() => {
+    let alive = true
+    loadSystemConfigRemote().then((c) => { if (alive) setRegistrationOpen(c.allowRegistration) })
+    return () => { alive = false }
   }, [])
 
   const score = scorePassword(password)
@@ -74,6 +84,10 @@ export default function Register() {
     setError('')
     setSuccess(false)
 
+    if (!registrationOpen) {
+      setError('New account registration is currently closed by the CDRRMO administrator. Please contact your barangay office.')
+      return
+    }
     if (!firstName.trim() || !lastName.trim()) {
       setError('Please enter your first and last name.')
       return
@@ -300,11 +314,17 @@ export default function Register() {
               </button>
             </label>
 
+            {!registrationOpen && (
+              <div className="error-msg show" style={{ marginBottom: 12 }}>
+                New account registration is currently closed by the CDRRMO administrator.
+              </div>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
               className="btn btn-navy btn-full"
-              disabled={submitting}
+              disabled={submitting || !registrationOpen}
             >
               <svg
                 width="16"
@@ -321,7 +341,7 @@ export default function Register() {
                 <line x1="19" y1="8" x2="19" y2="14" />
                 <line x1="22" y1="11" x2="16" y2="11" />
               </svg>
-              {submitting ? 'Registering...' : 'Register Account'}
+              {submitting ? 'Registering...' : !registrationOpen ? 'Registration Closed' : 'Register Account'}
             </button>
           </form>
 
