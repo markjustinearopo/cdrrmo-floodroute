@@ -349,9 +349,16 @@ function userToDb(u) {
   return out
 }
 
+// Columns the UI actually needs. Deliberately excludes password_hash /
+// password_plain — Postgres now revokes anon/authenticated SELECT on those
+// two (see migration 20260817120000), so a bare `select('*')` here would
+// start erroring; naming columns also means nobody re-introduces the leak
+// by widening a query later.
+const ACCOUNT_COLUMNS = 'id, full_name, username, email, role, barangay, status, avatar, last_login'
+
 export const usersDb = {
   async list() {
-    const rows = unwrap(await supabase.from('accounts').select('*').order('id', { ascending: false }))
+    const rows = unwrap(await supabase.from('accounts').select(ACCOUNT_COLUMNS).order('id', { ascending: false }))
     return rows.map(userFromDb)
   },
   /** Full profile for the Account modal (includes phone + position). */
@@ -375,7 +382,7 @@ export const usersDb = {
       username: user.email || (user.name || 'user').toLowerCase().replace(/\s+/g, '.'),
       password_plain: user.password || 'changeme',
     }
-    return userFromDb(unwrap(await supabase.from('accounts').insert(row).select().single()))
+    return userFromDb(unwrap(await supabase.from('accounts').insert(row).select(ACCOUNT_COLUMNS).single()))
   },
   async createMany(users) {
     const rows = users.map((u) => ({
@@ -383,7 +390,7 @@ export const usersDb = {
       username: u.email || (u.name || 'user').toLowerCase().replace(/\s+/g, '.'),
       password_plain: u.password || 'changeme',
     }))
-    return unwrap(await supabase.from('accounts').insert(rows).select()).map(userFromDb)
+    return unwrap(await supabase.from('accounts').insert(rows).select(ACCOUNT_COLUMNS)).map(userFromDb)
   },
   async update(id, updates) {
     unwrap(await supabase.from('accounts').update(userToDb(updates)).eq('id', id))
