@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import api from '../../services/api.js'
 import db from '../../services/db.js'
+import { getUserLanguage, setUserLanguage } from '../../services/i18n.js'
 import { notifyAvatarChange } from '../Avatar.jsx'
 
 /** Downscale a chosen image to a small square-ish JPEG data URL so it stores
@@ -29,8 +30,12 @@ function fileToAvatarDataUrl(file, max = 256) {
 }
 
 /**
- * Account modal for the CDRRMO portal — Profile + Settings in one popup.
- * The gear icon opens it on Settings; the avatar opens it on Profile.
+ * Account modal for the CDRRMO portal — Profile + Preferences in one popup.
+ * The gear icon opens it on Preferences; the avatar opens it on Profile.
+ *
+ * "Preferences", not "Settings": this is the signed-in operator's own account,
+ * whereas the sidebar's Settings screen administers the whole system. The two
+ * were both called Settings and were routinely confused for each other.
  *
  * Wired to the signed-in account (api.getUser): the profile form loads from /
  * saves to the `accounts` table, preferences persist to `app_settings`, and
@@ -54,7 +59,8 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
     email: me.email || '', phone: '', position: '', avatar: me.avatar || '',
   })
   const fileRef = useRef(null)
-  const [prefs, setPrefs] = useState({ emailNotif: true, smsNotif: false, language: 'en' })
+  // language: '' = follow the system default set on Settings → General.
+  const [prefs, setPrefs] = useState(() => ({ emailNotif: true, smsNotif: false, language: getUserLanguage() }))
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
@@ -67,7 +73,12 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
       .then((p) => { if (alive && p) setProfile({ name: p.name, username: p.username, email: p.email, phone: p.phone, position: p.position, avatar: p.avatar || '' }) })
       .catch((e) => console.error('[Account] profile load failed', e))
     db.appSettings.get(`user_prefs:${meId}`)
-      .then((p) => { if (alive && p) setPrefs((cur) => ({ ...cur, ...p })) })
+      .then((p) => {
+        if (!alive || !p) return
+        setPrefs((cur) => ({ ...cur, ...p }))
+        // Mirror the saved override into i18n so it applies on this device too.
+        if (p.language !== undefined) setUserLanguage(p.language)
+      })
       .catch(() => {})
     return () => { alive = false }
   }, [meId])
@@ -128,6 +139,7 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
     setBusy(true)
     try {
       await db.appSettings.set(`user_prefs:${meId}`, prefs)
+      setUserLanguage(prefs.language) // repaint the UI in the chosen language now
       flash('Preferences saved.')
     } catch {
       flash('Could not save preferences.')
@@ -193,7 +205,7 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
             onClick={() => onTabChange('settings')}
             type="button"
           >
-            Settings
+            Preferences
           </button>
         </div>
 
@@ -305,9 +317,13 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
                     value={prefs.language}
                     onChange={(e) => setPrefs((p) => ({ ...p, language: e.target.value }))}
                   >
+                    <option value="">Use the system default</option>
                     <option value="en">English</option>
                     <option value="fil">Filipino</option>
                   </select>
+                  <span className="setting-sub">
+                    Your account only. Administrators set the system-wide default under Settings → General.
+                  </span>
                 </label>
 
                 <div className="account-actions">

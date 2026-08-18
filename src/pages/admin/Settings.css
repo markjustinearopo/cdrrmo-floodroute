@@ -479,3 +479,126 @@
   .set-savebar-actions { width: 100%; }
   .set-savebar-actions .mng-btn { flex: 1; justify-content: center; }
 }
+
+/* ============================================================
+   Tabbed Settings screen.
+
+   The five configuration pages and the barangay roster collapsed into
+   one route with a tab strip; these rules cover the strip plus the few
+   pieces the merge introduced (a flush save bar inside a panel, the
+   read-only threshold readout on the Alerts tab, and the account-type
+   badge that jumps to the permission matrix).
+   ============================================================ */
+
+.set-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #e5e2dd;
+  margin-bottom: 18px;
+  padding-bottom: 0;
+}
+.set-tabbar-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  padding-bottom: 12px;
+}
+.set-tabs {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  margin-bottom: -1px;
+}
+.set-tab {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 10px 14px 11px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.set-tab:hover { color: #1a1a1a; }
+.set-tab.active {
+  color: #c0181b;
+  border-bottom-color: #c0181b;
+}
+.set-tab:focus-visible {
+  outline: 2px solid #c0181b;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* Save bar sitting inside a panel body — no frame of its own. */
+.set-savebar--flush {
+  border: none;
+  padding: 0;
+  background: none;
+}
+
+/* Subhead with a trailing action (Add Account Type). */
+.set-subhead--split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Read-only mirror of a value owned by another tab. */
+.set-readonly {
+  margin-top: 14px;
+  border: 1px dashed #e5e2dd;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #faf9f7;
+}
+.set-readonly-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  margin-bottom: 8px;
+}
+.set-readonly-rows {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.set-readonly-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.set-readonly-val {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Account-type badge in the roster — clickable, jumps to its permissions. */
+.set-type-link {
+  appearance: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+.set-type-link:hover { filter: brightness(0.94); }
+
+@media (max-width: 720px) {
+  .set-tabbar { gap: 8px; }
+  .set-tabs { width: 100%; overflow-x: auto; }
+}

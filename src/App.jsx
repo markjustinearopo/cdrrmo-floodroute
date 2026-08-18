@@ -15,14 +15,9 @@ import AdminRoadStatus from './pages/admin/RoadStatus.jsx'
 import AdminOverrideRoutes from './pages/admin/OverrideRoutes.jsx'
 import AdminSavedRoutes from './pages/admin/SavedRoutes.jsx'
 import AdminAlerts from './pages/admin/Alerts.jsx'
-import AdminBarangay from './pages/admin/Barangay.jsx'
 import AdminIncidents from './pages/admin/Incidents.jsx'
 import AdminEvacuation from './pages/admin/Evacuation.jsx'
-import AdminUserManagement from './pages/admin/UserManagement.jsx'
-import AdminSystemConfig from './pages/admin/SystemConfig.jsx'
-import AdminRoles from './pages/admin/Roles.jsx'
-import AdminIntegrations from './pages/admin/Integrations.jsx'
-import AdminAlertSettings from './pages/admin/AlertSettings.jsx'
+import AdminSettings from './pages/admin/Settings.jsx'
 import AdminNotifications from './pages/admin/Notifications.jsx'
 import BarangayDashboard from './pages/barangay/Dashboard.jsx'
 import BarangayFloodMap from './pages/barangay/FloodMap.jsx'
@@ -75,15 +70,20 @@ export default function App() {
         <Route path="/admin/override-routes" element={<AdminOverrideRoutes />} />
         <Route path="/admin/saved-routes" element={<AdminSavedRoutes />} />
         <Route path="/admin/alerts" element={<AdminAlerts />} />
-        <Route path="/admin/barangay" element={<AdminBarangay />} />
         <Route path="/admin/incidents" element={<AdminIncidents />} />
         <Route path="/admin/evacuation" element={<AdminEvacuation />} />
-        <Route path="/admin/users" element={<AdminUserManagement />} />
-        <Route path="/admin/system-config" element={<AdminSystemConfig />} />
-        <Route path="/admin/roles" element={<AdminRoles />} />
-        <Route path="/admin/integrations" element={<AdminIntegrations />} />
-        <Route path="/admin/alert-settings" element={<AdminAlertSettings />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/notifications" element={<AdminNotifications />} />
+
+        {/* Settings used to be five separate screens plus the barangay roster.
+            Keep the old paths alive for one release so bookmarks and any
+            hard-coded links land on the matching tab instead of the login page. */}
+        <Route path="/admin/users" element={<Navigate to="/admin/settings?tab=users" replace />} />
+        <Route path="/admin/roles" element={<Navigate to="/admin/settings?tab=users" replace />} />
+        <Route path="/admin/system-config" element={<Navigate to="/admin/settings" replace />} />
+        <Route path="/admin/alert-settings" element={<Navigate to="/admin/settings?tab=alerts" replace />} />
+        <Route path="/admin/integrations" element={<Navigate to="/admin/settings?tab=integrations" replace />} />
+        <Route path="/admin/barangay" element={<Navigate to="/admin/settings?tab=barangays" replace />} />
       </Route>
 
       {/* Barangay Official portal — guarded, single-barangay jurisdiction. */}

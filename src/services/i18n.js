@@ -12,6 +12,7 @@
    switching it re-renders every screen that uses useT() instantly.
    ============================================================ */
 
+import { useEffect, useState } from 'react'
 import { useSystemConfig } from './systemConfig.js'
 
 /* Filipino (Tagalog) strings, keyed by their English source. Kept flat and
@@ -123,8 +124,58 @@ export function translate(key, lang = 'en', vars) {
   return s
 }
 
-/** Hook: returns a `t(key, vars)` bound to the operator's current language. */
+/* ── Per-user override ───────────────────────────────────────────────────
+   "Default Language" on Settings → General is the system-wide default. An
+   individual operator can override it for their own account under Preferences
+   (the topbar gear); that choice is theirs alone and must not change what
+   anyone else sees, so it is kept in localStorage — per browser profile,
+   never in the shared app_settings config — and mirrored from the account's
+   saved preferences when the Preferences modal loads them.
+
+   Empty / absent means "follow the system default". */
+const USER_LANG_KEY = 'cdrrmo_user_lang'
+const USER_LANG_EVENT = 'cdrrmo-user-lang'
+
+export function getUserLanguage() {
+  try {
+    return localStorage.getItem(USER_LANG_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+/** Set (or clear, with '') this operator's personal language override. */
+export function setUserLanguage(lang) {
+  try {
+    if (lang) localStorage.setItem(USER_LANG_KEY, lang)
+    else localStorage.removeItem(USER_LANG_KEY)
+  } catch { /* private mode — the override just won't stick */ }
+  window.dispatchEvent(new Event(USER_LANG_EVENT))
+}
+
+/** Subscribe to the override so a change repaints every screen immediately. */
+function useUserLanguage() {
+  const [lang, setLang] = useState(getUserLanguage)
+  useEffect(() => {
+    const sync = () => setLang(getUserLanguage())
+    window.addEventListener(USER_LANG_EVENT, sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener(USER_LANG_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [])
+  return lang
+}
+
+/**
+ * Hook: returns a `t(key, vars)` bound to the language this operator actually
+ * reads in — their personal override when they set one, the system default
+ * otherwise.
+ */
 export function useT() {
   const { language } = useSystemConfig()
-  return (key, vars) => translate(key, language || 'en', vars)
+  const userLang = useUserLanguage()
+  const active = userLang || language || 'en'
+  return (key, vars) => translate(key, active, vars)
 }

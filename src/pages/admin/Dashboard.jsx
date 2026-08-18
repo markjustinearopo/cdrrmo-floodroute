@@ -464,7 +464,7 @@ export default function Dashboard() {
           <button
             type="button"
             className="view-all-link"
-            onClick={() => navigate('/admin/barangay')}
+            onClick={() => navigate('/admin/settings?tab=barangays')}
           >
             {t('View All Barangays')}
           </button>
