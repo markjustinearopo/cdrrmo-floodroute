@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { BARANGAYS, EVAC_STATUSES } from '../../data/cabuyao.js'
 import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import EvacLocationPicker from '../../components/admin/EvacLocationPicker.jsx'
@@ -40,6 +41,7 @@ export default function Evacuation() {
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // center object, 'new', or null
+  const [confirmDelete, setConfirmDelete] = useState(null) // centre pending removal
   const [toast, setToast] = useState('')
 
   const stats = useMemo(() => ({
@@ -65,9 +67,10 @@ export default function Evacuation() {
     setTimeout(() => setToast(''), 2600)
   }
 
-  function remove(id) {
-    removeEvacCenter(id)
-    flash('Evacuation centre removed.')
+  function remove(center) {
+    removeEvacCenter(center.id)
+    setConfirmDelete(null)
+    flash(`${center.name} removed.`)
   }
 
   return (
@@ -166,7 +169,7 @@ export default function Evacuation() {
                       <td>
                         <div className="mng-row-actions">
                           <button type="button" className="mng-link" onClick={() => setEditing(c)}>Manage</button>
-                          <button type="button" className="mng-link subtle" onClick={() => remove(c.id)}>Remove</button>
+                          <button type="button" className="mng-link subtle" onClick={() => setConfirmDelete(c)}>Remove</button>
                         </div>
                       </td>
                     </tr>
@@ -194,6 +197,17 @@ export default function Evacuation() {
             setEditing(null)
             flash(isNew ? `${name} added — now visible on every map.` : `${name} updated.`)
           }}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Remove this evacuation centre?"
+          message={`Delete “${confirmDelete.name}” (${confirmDelete.barangay})? It will disappear from every map and from the Auto Route destination list. This cannot be undone.`}
+          confirmLabel="Remove centre"
+          tone="danger"
+          onConfirm={() => remove(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
         />
       )}
 

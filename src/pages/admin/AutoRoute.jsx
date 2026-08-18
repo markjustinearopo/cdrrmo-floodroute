@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from 'react-leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock, CoordReadout } from '../../components/admin/mapHelpers.jsx'
 import {
   ROUTE_TYPES,
@@ -114,6 +115,7 @@ export default function AutoRoute() {
   const [showTraffic, setShowTraffic] = usePersistedState('cdrrmo-layers-admin-autoroute-traffic', false)
 
   const [name, setName] = useState('')
+  const [confirmClear, setConfirmClear] = useState(false)
   const [coords, setCoords] = useState(null)
   const [toast, setToast] = useState('')
   const [use3D, setUse3D] = use3DPreference()
@@ -231,6 +233,7 @@ export default function AutoRoute() {
     setGoal(null)
     resetResult()
     setName('')
+    setConfirmClear(false)
   }
 
   function save() {
@@ -539,7 +542,7 @@ export default function AutoRoute() {
                 <SparkIcon /> Generate Route
               </button>
               {(start || goal) && (
-                <button type="button" className="ar-clear" onClick={clearAll}>Clear</button>
+                <button type="button" className="ar-clear" onClick={() => setConfirmClear(true)}>Clear</button>
               )}
             </section>
 
@@ -674,6 +677,19 @@ export default function AutoRoute() {
             )}
           </aside>
         </div>
+
+        {confirmClear && (
+          <ConfirmDialog
+            title="Clear this route?"
+            tone="danger"
+            confirmLabel="Clear route"
+            message={safe
+              ? 'The start point, destination and the generated route will be discarded. Save it first if you want to keep it.'
+              : 'The start point and destination will be discarded.'}
+            onConfirm={clearAll}
+            onCancel={() => setConfirmClear(false)}
+          />
+        )}
 
         <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
       </div>

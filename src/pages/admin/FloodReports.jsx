@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker } from 'react-leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { CABUYAO_CENTER } from '../../components/admin/mapHelpers.jsx'
 import { useFloodReports, useRoadReports } from '../../context/AdminDataContext.jsx'
 import {
@@ -62,6 +63,7 @@ export default function FloodReports() {
   const [query, setQuery] = useState('')
   const [detailId, setDetailId] = useState(null)
   const [notesDraft, setNotesDraft] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(null) // report pending deletion
   const [toast, setToast] = useState('')
 
   const official = api.getUser?.()?.fullName || api.getUser?.()?.username || 'CDRRMO'
@@ -148,6 +150,7 @@ export default function FloodReports() {
 
   function remove(report) {
     removeFloodReport(report.id)
+    setConfirmDelete(null)
     setDetailId(null)
     flash('Report deleted.')
   }
@@ -372,7 +375,7 @@ export default function FloodReports() {
               </div>
 
               <div className="mng-form-actions" style={{ justifyContent: 'space-between' }}>
-                <button type="button" className="mng-link subtle" onClick={() => remove(detail)}>Delete report</button>
+                <button type="button" className="mng-link subtle" onClick={() => setConfirmDelete(detail)}>Delete report</button>
                 <div style={{ display: 'flex', gap: 10 }}>
                   {detail.status !== 'pending' && (
                     <button type="button" className="mng-btn mng-btn-ghost" onClick={() => reopen(detail)}>Re-verify</button>
@@ -388,6 +391,17 @@ export default function FloodReports() {
             </div>
           </div>
         </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete this flood report?"
+          message={`Delete the ${floodLevelMeta(confirmDelete.level).label} report from Brgy. ${confirmDelete.barangay || '—'} (${confirmDelete.reporter || 'Resident'}, ${confirmDelete.reported})? It leaves the verification record permanently. This cannot be undone.`}
+          confirmLabel="Delete report"
+          tone="danger"
+          onConfirm={() => remove(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>

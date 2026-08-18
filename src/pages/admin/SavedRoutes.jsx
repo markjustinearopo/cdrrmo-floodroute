@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { MapContainer, TileLayer, ZoomControl, Polyline, Marker } from 'react-leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock, CoordReadout } from '../../components/admin/mapHelpers.jsx'
 import {
   ROUTE_TYPES,
@@ -31,6 +32,7 @@ export default function SavedRoutes() {
   const [selectedId, setSelectedId] = useState(null)
   const [coords, setCoords] = useState(null)
   const [filter, setFilter] = useState('all')   // 'all' | route type key
+  const [confirmDelete, setConfirmDelete] = useState(null) // route pending deletion
   const [toast, setToast] = useState('')
 
   const selected = routes.find((r) => r.id === selectedId) || null
@@ -42,9 +44,9 @@ export default function SavedRoutes() {
   }
 
   function handleDelete(r) {
-    if (!window.confirm(`Delete "${r.name}"? This cannot be undone.`)) return
     removeRoute(r.id)
     if (selectedId === r.id) setSelectedId(null)
+    setConfirmDelete(null)
     flash(`Deleted "${r.name}".`)
   }
 
@@ -145,7 +147,7 @@ export default function SavedRoutes() {
                         type="button"
                         className="sr-item-del"
                         title="Delete route"
-                        onClick={() => handleDelete(r)}
+                        onClick={() => setConfirmDelete(r)}
                       >
                         <TrashIcon />
                       </button>
@@ -273,6 +275,17 @@ export default function SavedRoutes() {
             </div>
           </div>
         </div>
+
+        {confirmDelete && (
+          <ConfirmDialog
+            title="Delete this saved route?"
+            message={`Delete “${confirmDelete.name}”? It disappears from the shared route library, so barangay officials and residents lose it too. This cannot be undone.`}
+            confirmLabel="Delete route"
+            tone="danger"
+            onConfirm={() => handleDelete(confirmDelete)}
+            onCancel={() => setConfirmDelete(null)}
+          />
+        )}
 
         <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
       </div>
