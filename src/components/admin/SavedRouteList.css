@@ -1,0 +1,168 @@
+/* ============================================================
+   Saved-routes list — one markup for all three mount points
+   (Routing → Saved, Routing → Draw's side panel, Routing →
+   Override's route picker).
+
+   Two densities: `srl--panel` for a side panel, `srl--page` for
+   the roomier standalone list on the Saved tab.
+   ============================================================ */
+
+.srl {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.srl-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  border: 1px solid #e5e2dd;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.srl-row:hover { border-color: #cbb26b; }
+.srl-row.active {
+  border-color: #c0181b;
+  box-shadow: 0 0 0 1px rgba(192, 24, 27, 0.16);
+}
+
+.srl-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: none;
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 9px 10px;
+}
+.srl--page .srl-main { padding: 12px 13px; }
+
+.srl-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.srl-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.srl-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.srl--page .srl-name { font-size: 0.875rem; }
+.srl-meta {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.srl-eta {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.srl-tag {
+  flex-shrink: 0;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #f0eee9;
+  color: #9a9a9a;
+}
+.srl-tag.on {
+  background: #b8860b;
+  color: #fff;
+}
+
+.srl-del {
+  flex-shrink: 0;
+  width: 36px;
+  border: none;
+  border-left: 1px solid #f0eee9;
+  background: none;
+  cursor: pointer;
+  color: #9a9a9a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.srl-del svg { width: 15px; height: 15px; }
+.srl-del:hover { background: #fee2e2; color: #b91c1c; }
+
+.srl-empty {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  line-height: 1.55;
+  padding: 14px 12px;
+  border: 1px dashed #e5e2dd;
+  border-radius: 10px;
+  background: #faf9f7;
+}
+
+/* ── Type filter chips ── */
+.srl-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.srl-chip {
+  --chip-color: #c0181b;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e5e2dd;
+  background: #fff;
+  border-radius: 999px;
+  padding: 5px 11px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.srl-chip:hover { border-color: var(--chip-color); color: #1a1a1a; }
+.srl-chip.active {
+  border-color: var(--chip-color);
+  background: var(--chip-color);
+  color: #fff;
+}
+.srl-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.srl-chip.active .srl-chip-dot { background: #fff !important; }
+.srl-chip-count {
+  font-size: 0.6875rem;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}

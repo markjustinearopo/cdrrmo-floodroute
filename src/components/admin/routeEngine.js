@@ -420,12 +420,20 @@ function decorate(graph, result, opts) {
     }
     if (info?.named) {
       const last = via[via.length - 1]
-      if (last && last.name === info.name) last.m += edge.d
-      else via.push({ name: info.name, m: edge.d })
+      // Carry the way ids of each named run so the result panel can offer
+      // "avoid this road" — one named stretch can span several OSM ways.
+      if (last && last.name === info.name) {
+        last.m += edge.d
+        last.wayIds.add(edge.wayId)
+      } else {
+        via.push({ name: info.name, m: edge.d, wayIds: new Set([edge.wayId]) })
+      }
     }
   }
   // Drop sub-40 m brushes past cross-streets — they aren't part of the story.
-  const viaRoads = via.filter((v) => v.m >= 40)
+  const viaRoads = via
+    .filter((v) => v.m >= 40)
+    .map((v) => ({ name: v.name, m: v.m, wayIds: [...v.wayIds] }))
 
   const meanRisk = result.distanceM > 0 ? result.exposure / result.distanceM : 0
   return {
@@ -444,7 +452,7 @@ function decorate(graph, result, opts) {
     worstTraffic, // worst level along the path ('light'…'gridlock') or null
     worstTrafficM, // metres spent at that worst level
     worstTrafficRoad, // friendly name of the worst-congested road, if any
-    viaRoads, // ordered named roads the path follows: [{ name, m }, …]
+    viaRoads, // ordered named roads the path follows: [{ name, m, wayIds }, …]
   }
 }
 

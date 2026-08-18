@@ -451,7 +451,7 @@ export default function FloodMap() {
               })}
 
               {/* Searched location: flyTo + pin + glowing road highlight */}
-              <SearchResultLayer result={searchResult} barangays={barangays} navigateTo="/admin/route-planning" />
+              <SearchResultLayer result={searchResult} barangays={barangays} navigateTo="/admin/routing?tab=draw" />
 
               <FocusController bounds={focusBounds} />
               <CoordReadout onChange={setCoords} />

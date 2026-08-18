@@ -1,0 +1,261 @@
+/* ============================================================
+   Route result panel — the metrics / exposure / comparison /
+   turn-sheet block shared by every routing tab.
+
+   Ported from Auto Route's `.ar-*` result section (the only
+   complete version) and un-scoped from `.auto-route` so it can
+   mount anywhere. Adds the avoid-a-road control.
+   ============================================================ */
+
+.rrp-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.rrp-metric {
+  background: #faf9f7;
+  border: 1px solid #f0eee9;
+  border-radius: 9px;
+  padding: 9px 6px;
+  text-align: center;
+}
+.rrp-metric-val {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.rrp-metric-lbl {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  margin-top: 3px;
+}
+
+.rrp-riskline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #5a5a5a;
+  background: #f7f5f2;
+}
+.rrp-riskline.high { background: #fef2f2; color: #8b1416; }
+.rrp-riskline.moderate { background: #fff5eb; color: #9a4d09; }
+.rrp-riskline.low { background: #f1faf5; color: #146a3f; }
+.rrp-riskdot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* Congestion readout — same chip as the flood risk line, amber-tinted. */
+.rrp-trafficline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 7px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #6b5300;
+  background: #fefce8;
+}
+.rrp-trafficdot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* Comparison */
+.rrp-compare {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #f0eee9;
+  border-radius: 9px;
+  background: #fff;
+}
+.rrp-compare-note { font-size: 0.6875rem; color: #7a7a7a; line-height: 1.5; }
+.rrp-compare-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3a3a3a;
+  padding: 2px 0;
+}
+.rrp-compare-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.rrp-compare-val { margin-left: auto; font-variant-numeric: tabular-nums; color: #1a1a1a; }
+.rrp-compare-delta {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px dashed #e5e2dd;
+  font-size: 0.6875rem;
+  color: #7a7a7a;
+  line-height: 1.5;
+}
+.rrp-compare-delta b { color: #1a1a1a; }
+
+/* Via roads — the turn sheet of named roads the route follows */
+.rrp-via {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #f0eee9;
+  border-radius: 9px;
+  background: #faf9f7;
+}
+.rrp-via-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  margin-bottom: 7px;
+}
+.rrp-via-title svg {
+  width: 12px;
+  height: 12px;
+  stroke: #9a9a9a;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.rrp-via-hint {
+  margin-left: auto;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.625rem;
+  color: #b8b3aa;
+}
+.rrp-via-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rrp-via-row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0 3px 16px;
+  font-size: 0.75rem;
+}
+/* Mini itinerary spine: a dot per road, a thread connecting them */
+.rrp-via-row::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #1a7a4a;
+}
+.rrp-via-row::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: calc(50% + 5px);
+  bottom: -8px;
+  width: 1.5px;
+  background: #d9e7df;
+}
+.rrp-via-row:last-child::after { display: none; }
+.rrp-via-name {
+  font-weight: 600;
+  color: #2a2a2a;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rrp-via-dist {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: #9a9a9a;
+}
+.rrp-via-more {
+  margin-top: 5px;
+  padding-left: 16px;
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+}
+
+/* Avoid-a-road: the via row becomes a button that reveals "avoid" on hover. */
+.rrp-via-avoid {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+.rrp-via-x {
+  flex-shrink: 0;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c0181b;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.rrp-via-avoid:hover .rrp-via-name { color: #c0181b; text-decoration: line-through; }
+.rrp-via-avoid:hover .rrp-via-x,
+.rrp-via-avoid:focus-visible .rrp-via-x { opacity: 1; }
+
+/* Excluded roads */
+.rrp-avoided {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px dashed #f0c9ca;
+  border-radius: 9px;
+  background: #fff7f7;
+}
+.rrp-avoided-title {
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b91c1c;
+  margin-bottom: 7px;
+}
+.rrp-avoided-rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rrp-avoided-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #f0c9ca;
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #8b1416;
+  cursor: pointer;
+}
+.rrp-avoided-chip:hover { background: #fee2e2; }
+.rrp-avoided-x { font-size: 0.875rem; line-height: 1; opacity: 0.7; }
