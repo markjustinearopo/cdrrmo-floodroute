@@ -1,28 +1,24 @@
 import { useMemo, useState } from 'react'
-import AdminLayout from '../../components/admin/AdminLayout.jsx'
-import { useIntegrations, nowLabel } from '../../context/AdminDataContext.jsx'
-import { INTEGRATION_STATUS_LABEL as STATUS_LABEL, INTEGRATION_SECRET_KEYS } from '../../data/integrations.js'
-import './Manage.css'
-import './Settings.css'
+import { useIntegrations, nowLabel } from '../../../context/AdminDataContext.jsx'
+import { INTEGRATION_STATUS_LABEL as STATUS_LABEL, INTEGRATION_SECRET_KEYS } from '../../../data/integrations.js'
+import { SettingsNote, TabHead } from '../SettingsKit.jsx'
 
 /**
- * CDRRMO Admin — API Integrations (Settings).
+ * Settings → Integrations (was the API Integrations page).
  *
  * The external services the system talks to: the rainfall/weather feed, the
  * email gateway (Resend via Supabase Edge Functions), the map tile provider,
- * and web push. Each card carries a connection status, the
- * keys/endpoints needed to reach it and an enable switch. Secrets are masked.
+ * and web push. Each card carries a connection status, the keys/endpoints
+ * needed to reach it and an enable switch. Secrets are masked.
  *
  * Configuration lives in the shared AdminDataContext store (persisted,
  * mirrored on the Flood Map's System Modules panel). "Test" really probes the
  * keyless live feeds and records the response time and last-check stamp.
  */
-
-export default function Integrations() {
+export default function IntegrationsTab({ onToast }) {
   const { integrations: items, setIntegration } = useIntegrations()
   const [configuring, setConfiguring] = useState(null) // integration id
   const [testing, setTesting] = useState(null) // integration id being probed
-  const [toast, setToast] = useState('')
 
   const stats = useMemo(() => ({
     total: items.length,
@@ -33,17 +29,12 @@ export default function Integrations() {
 
   const current = configuring ? items.find((i) => i.id === configuring) : null
 
-  function flash(msg) {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2600)
-  }
-
   function toggleEnabled(id) {
     const i = items.find((x) => x.id === id)
     if (!i) return
     // Can't enable a service that was never configured.
     if (!i.enabled && i.status !== 'connected') {
-      return flash(`Configure ${i.name} before enabling it.`)
+      return onToast(`Configure ${i.name} before enabling it.`)
     }
     setIntegration(id, { enabled: !i.enabled })
   }
@@ -61,13 +52,13 @@ export default function Integrations() {
       enabled: connected ? current.enabled : false,
     })
     setConfiguring(null)
-    flash(connected ? `${current.name} connected.` : `${current.name} configuration cleared.`)
+    onToast(connected ? `${current.name} connected.` : `${current.name} configuration cleared.`)
   }
 
   function disconnect(id) {
     setIntegration(id, { status: 'disconnected', enabled: false, values: {} })
     const it = items.find((i) => i.id === id)
-    flash(`${it?.name || 'Integration'} disconnected.`)
+    onToast(`${it?.name || 'Integration'} disconnected.`)
   }
 
   /** Probe the service for real (keyless feeds carry a reachable testUrl). */
@@ -76,7 +67,7 @@ export default function Integrations() {
       // No public probe target — verify configuration shape instead.
       const ok = i.status === 'connected'
       setIntegration(i.id, { lastCheck: nowLabel(), lastCheckAt: Date.now() })
-      return flash(ok
+      return onToast(ok
         ? `${i.name}: configuration present — full validation needs the live gateway.`
         : `${i.name} is not configured yet.`)
     }
@@ -92,7 +83,7 @@ export default function Integrations() {
         lastCheckAt: Date.now(),
         responseMs: ms,
       })
-      flash(ok ? `${i.name} reachable — ${ms} ms.` : `${i.name} responded with HTTP ${res.status}.`)
+      onToast(ok ? `${i.name} reachable — ${ms} ms.` : `${i.name} responded with HTTP ${res.status}.`)
     } catch {
       setIntegration(i.id, {
         status: 'error',
@@ -100,98 +91,92 @@ export default function Integrations() {
         lastCheckAt: Date.now(),
         responseMs: null,
       })
-      flash(`${i.name} is unreachable.`)
+      onToast(`${i.name} is unreachable.`)
     } finally {
       setTesting(null)
     }
   }
 
   return (
-    <AdminLayout>
-      <div className="set">
-        <div className="mng-head">
-          <div className="mng-head-titles">
-            <div className="mng-head-icon">
-              <svg viewBox="0 0 24 24">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-              </svg>
-            </div>
-            <div>
-              <div className="mng-title">API Integrations</div>
-              <div className="mng-sub">Connect the external services the system depends on</div>
-            </div>
-          </div>
-        </div>
+    <div className="set">
+      <TabHead
+        icon={(
+          <svg viewBox="0 0 24 24">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+        )}
+        title="API Integrations"
+        sub="Connect the external services the system depends on"
+      />
 
-        <div className="mng-stats">
-          <Stat color="blue" value={stats.total} label="Integrations" />
-          <Stat color="green" value={stats.connected} label="Connected" />
-          <Stat color="slate" value={stats.enabled} label="Enabled" />
-          <Stat color="red" value={stats.issues} label="Issues" />
-        </div>
-
-        <div className="set-int-grid">
-          {items.map((i) => {
-            const primary = i.fields[0]
-            const primaryVal = i.values[primary.key]
-            return (
-              <div key={i.id} className="set-int">
-                <div className="set-int-top">
-                  <div className="set-int-icon"><Icon name={i.icon} /></div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="set-int-name">{i.name}</div>
-                    <div className="set-int-cat">{i.category}</div>
-                  </div>
-                  <span className={`set-status ${i.status}`}>{STATUS_LABEL[i.status]}</span>
-                </div>
-
-                <div className="set-int-desc">{i.desc}</div>
-
-                <div className="set-int-meta">
-                  <span className="set-int-endpoint">
-                    {primaryVal
-                      ? `${primary.label}: ${INTEGRATION_SECRET_KEYS.has(primary.key) ? maskSecret(primaryVal) : primaryVal}`
-                      : <span className="mng-muted">Not configured</span>}
-                  </span>
-                  {i.status === 'connected' && (
-                    <button type="button" className="mng-link subtle" onClick={() => disconnect(i.id)}>Disconnect</button>
-                  )}
-                </div>
-
-                {/* Live usage stats from the last real probe */}
-                {i.lastCheck && (
-                  <div className="set-int-stats">
-                    Last check: {i.lastCheck}
-                    {i.responseMs != null && ` · ${i.responseMs} ms`}
-                  </div>
-                )}
-
-                <div className="set-int-actions">
-                  <button type="button" className="mng-link" onClick={() => setConfiguring(i.id)}>Configure</button>
-                  <button
-                    type="button"
-                    className="mng-link"
-                    disabled={testing === i.id}
-                    onClick={() => testConnection(i)}
-                  >
-                    {testing === i.id ? 'Testing…' : 'Test'}
-                  </button>
-                  <label className="switch" title={i.status === 'connected' ? 'Enable / disable' : 'Configure first'}>
-                    <input type="checkbox" checked={i.enabled} onChange={() => toggleEnabled(i.id)} />
-                    <span className="switch-slider" />
-                  </label>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="mng-note">
-          <SparkIcon />
-          <span>Keys are masked; configuration persists and mirrors onto the Flood Map's System Modules panel. "Test" really probes the keyless live feeds and records response time.</span>
-        </div>
+      <div className="mng-stats">
+        <Stat color="blue" value={stats.total} label="Integrations" />
+        <Stat color="green" value={stats.connected} label="Connected" />
+        <Stat color="slate" value={stats.enabled} label="Enabled" />
+        <Stat color="red" value={stats.issues} label="Issues" />
       </div>
+
+      <div className="set-int-grid">
+        {items.map((i) => {
+          const primary = i.fields[0]
+          const primaryVal = i.values[primary.key]
+          return (
+            <div key={i.id} className="set-int">
+              <div className="set-int-top">
+                <div className="set-int-icon"><Icon name={i.icon} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="set-int-name">{i.name}</div>
+                  <div className="set-int-cat">{i.category}</div>
+                </div>
+                <span className={`set-status ${i.status}`}>{STATUS_LABEL[i.status]}</span>
+              </div>
+
+              <div className="set-int-desc">{i.desc}</div>
+
+              <div className="set-int-meta">
+                <span className="set-int-endpoint">
+                  {primaryVal
+                    ? `${primary.label}: ${INTEGRATION_SECRET_KEYS.has(primary.key) ? maskSecret(primaryVal) : primaryVal}`
+                    : <span className="mng-muted">Not configured</span>}
+                </span>
+                {i.status === 'connected' && (
+                  <button type="button" className="mng-link subtle" onClick={() => disconnect(i.id)}>Disconnect</button>
+                )}
+              </div>
+
+              {/* Live usage stats from the last real probe */}
+              {i.lastCheck && (
+                <div className="set-int-stats">
+                  Last check: {i.lastCheck}
+                  {i.responseMs != null && ` · ${i.responseMs} ms`}
+                </div>
+              )}
+
+              <div className="set-int-actions">
+                <button type="button" className="mng-link" onClick={() => setConfiguring(i.id)}>Configure</button>
+                <button
+                  type="button"
+                  className="mng-link"
+                  disabled={testing === i.id}
+                  onClick={() => testConnection(i)}
+                >
+                  {testing === i.id ? 'Testing…' : 'Test'}
+                </button>
+                <label className="switch" title={i.status === 'connected' ? 'Enable / disable' : 'Configure first'}>
+                  <input type="checkbox" checked={i.enabled} onChange={() => toggleEnabled(i.id)} />
+                  <span className="switch-slider" />
+                </label>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <SettingsNote>
+        Keys are masked; configuration persists and mirrors onto the Flood Map's System Modules panel. "Test" really
+        probes the keyless live feeds and records response time.
+      </SettingsNote>
 
       {/* Configure modal */}
       {current && (
@@ -225,9 +210,7 @@ export default function Integrations() {
           </div>
         </div>
       )}
-
-      <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
-    </AdminLayout>
+    </div>
   )
 }
 
@@ -262,7 +245,4 @@ function Icon({ name }) {
     default:
       return <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /></svg>
   }
-}
-function SparkIcon() {
-  return <svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /></svg>
 }

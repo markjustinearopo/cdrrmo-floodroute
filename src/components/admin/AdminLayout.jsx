@@ -52,7 +52,6 @@ const NAV = [
     section: 'Manage',
     items: [
       { label: 'Alerts', to: '/admin/alerts', icon: BellIcon },
-      { label: 'Barangay', to: '/admin/barangay', icon: UsersIcon },
       { label: 'Flood Reports', to: '/admin/flood-reports', icon: FloodReportIcon },
       { label: 'Incidents', to: '/admin/incidents', icon: TriangleIcon },
       { label: 'Evacuation', to: '/admin/evacuation', icon: HomeIcon },
@@ -61,11 +60,9 @@ const NAV = [
   {
     section: 'Settings',
     items: [
-      { label: 'User Management', to: '/admin/users', icon: UserCogIcon },
-      { label: 'System Configuration', to: '/admin/system-config', icon: SlidersIcon },
-      { label: 'Permissions & Roles', to: '/admin/roles', icon: ShieldIcon },
-      { label: 'API Integrations', to: '/admin/integrations', icon: PlugIcon },
-      { label: 'Alert Settings', to: '/admin/alert-settings', icon: BellCogIcon },
+      // One entry, five tabs (General · Users & Access · Barangays · Alerts ·
+      // Integrations). The tab lives in the URL, so deep links still work.
+      { label: 'Settings', to: '/admin/settings', icon: SlidersIcon },
     ],
   },
 ]
@@ -248,7 +245,8 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           <button
             type="button"
             className="icon-btn"
-            title="Settings"
+            title="Preferences"
+            aria-label="Preferences"
             onClick={() => {
               setAccountTab('settings')
               setMenu('account')
