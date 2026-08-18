@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { BARANGAYS } from '../../data/cabuyao.js'
 import {
   ROLES, ROLE_LABEL, USER_STATUSES, USER_STATUS_LABEL,
@@ -105,6 +106,7 @@ export default function UserManagement() {
   const [editing, setEditing] = useState(null) // user object, {} for new, or null
   const [importing, setImporting] = useState(false)
   const [importPreview, setImportPreview] = useState(null) // { valid, errors, fileName }
+  const [confirmDelete, setConfirmDelete] = useState(null) // account pending deletion
   const [toast, setToast] = useState('')
 
   const stats = useMemo(() => ({
@@ -156,10 +158,10 @@ export default function UserManagement() {
     updateUser(id, { status })
     flash(status === 'suspended' ? `${u.name} suspended.` : `${u.name} reactivated.`)
   }
-  function remove(id) {
-    const u = users.find((x) => x.id === id)
-    removeUser(id)
-    flash(`${u?.name || 'Account'} removed.`)
+  function remove(user) {
+    removeUser(user.id)
+    setConfirmDelete(null)
+    flash(`${user.name || 'Account'} removed.`)
   }
 
   /* ── Bulk import ── */
@@ -300,7 +302,7 @@ export default function UserManagement() {
                         <button
                           type="button"
                           className="mng-link subtle"
-                          onClick={() => remove(u.id)}
+                          onClick={() => setConfirmDelete(u)}
                           disabled={u.role === 'admin' && stats.total > 0 && users.filter((x) => x.role === 'admin').length === 1}
                           title={users.filter((x) => x.role === 'admin').length === 1 && u.role === 'admin' ? 'Cannot remove the last administrator' : undefined}
                         >
@@ -431,6 +433,17 @@ export default function UserManagement() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete this account?"
+          message={`Delete “${confirmDelete.name}” (${confirmDelete.email})? They lose access immediately and the account cannot be recovered. Suspend instead if this is temporary.`}
+          confirmLabel="Delete account"
+          tone="danger"
+          onConfirm={() => remove(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>

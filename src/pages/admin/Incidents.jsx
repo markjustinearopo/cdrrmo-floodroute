@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { BARANGAYS, INCIDENT_TYPES, PRIORITIES, RESPONSE_TEAMS } from '../../data/cabuyao.js'
 import { useIncidents, useSavedRoutes } from '../../context/AdminDataContext.jsx'
 import { CABUYAO_CENTER } from '../../components/admin/mapHelpers.jsx'
@@ -70,6 +71,7 @@ export default function Incidents() {
   const [photo, setPhoto] = useState(null) // pending evidence for the report modal
   const [detailId, setDetailId] = useState(null)
   const [selected, setSelected] = useState(() => new Set())
+  const [confirmDelete, setConfirmDelete] = useState(null) // incident pending deletion
   const [toast, setToast] = useState('')
 
   const stats = useMemo(() => ({
@@ -142,13 +144,14 @@ export default function Incidents() {
   function setStatus(id, status) {
     updateIncident(id, { status })
   }
-  function remove(id) {
-    removeIncident(id)
+  function remove(incident) {
+    removeIncident(incident.id)
     setSelected((prev) => {
       const next = new Set(prev)
-      next.delete(id)
+      next.delete(incident.id)
       return next
     })
+    setConfirmDelete(null)
     flash('Incident removed.')
   }
 
@@ -359,7 +362,7 @@ export default function Incidents() {
                         {i.status === 'resolved' && (
                           <button type="button" className="mng-link subtle" onClick={() => setStatus(i.id, i.team ? 'assigned' : 'new')}>Reopen</button>
                         )}
-                        <button type="button" className="mng-link subtle" onClick={() => remove(i.id)}>Delete</button>
+                        <button type="button" className="mng-link subtle" onClick={() => setConfirmDelete(i)}>Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -507,6 +510,17 @@ export default function Incidents() {
             </div>
           </div>
         </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete this incident?"
+          message={`Delete the ${confirmDelete.type} incident in Brgy. ${confirmDelete.barangay}${confirmDelete.location ? ` (${confirmDelete.location})` : ''}? It will be removed from the log on every portal. This cannot be undone.`}
+          confirmLabel="Delete incident"
+          tone="danger"
+          onConfirm={() => remove(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>

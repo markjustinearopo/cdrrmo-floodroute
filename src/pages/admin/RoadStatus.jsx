@@ -58,6 +58,7 @@ export default function RoadStatus() {
   const [rejectId, setRejectId] = useState(null)
   const [rejectNote, setRejectNote] = useState('')
   const [editing, setEditing] = useState(null) // road-condition editor
+  const [confirmClear, setConfirmClear] = useState(null) // 'conditions' | 'traffic'
 
   const isTraffic = mode === 'traffic'
 
@@ -426,7 +427,7 @@ export default function RoadStatus() {
                     {congested.length > 0 && <span className="rs-pill">{congested.length}</span>}
                   </h3>
                   {congested.length > 0 && (
-                    <button type="button" className="rs-clear" onClick={clearAllTraffic}>
+                    <button type="button" className="rs-clear" onClick={() => setConfirmClear('traffic')}>
                       Clear all
                     </button>
                   )}
@@ -463,7 +464,7 @@ export default function RoadStatus() {
                     {flagged.length > 0 && <span className="rs-pill">{flagged.length}</span>}
                   </h3>
                   {flagged.length > 0 && (
-                    <button type="button" className="rs-clear" onClick={clearAllConditions}>
+                    <button type="button" className="rs-clear" onClick={() => setConfirmClear('conditions')}>
                       Clear all
                     </button>
                   )}
@@ -538,6 +539,23 @@ export default function RoadStatus() {
           )}
           onConfirm={() => { rejectRoadRequest(rejectId, rejectNote.trim()); setRejectId(null) }}
           onCancel={() => setRejectId(null)}
+        />
+      )}
+
+      {confirmClear && (
+        <ConfirmDialog
+          title={confirmClear === 'traffic' ? 'Clear all congestion?' : 'Clear all road conditions?'}
+          tone="danger"
+          confirmLabel={confirmClear === 'traffic' ? 'Clear congestion' : 'Clear conditions'}
+          message={confirmClear === 'traffic'
+            ? `All ${congested.length} congestion tag${congested.length === 1 ? '' : 's'} will be removed and every road returns to free-flowing for the route engine. This cannot be undone.`
+            : `All ${flagged.length} flagged road${flagged.length === 1 ? '' : 's'} will be reset to passable on every portal, and the saved reports behind them are deleted. This cannot be undone.`}
+          onConfirm={() => {
+            if (confirmClear === 'traffic') clearAllTraffic()
+            else clearAllConditions()
+            setConfirmClear(null)
+          }}
+          onCancel={() => setConfirmClear(null)}
         />
       )}
 

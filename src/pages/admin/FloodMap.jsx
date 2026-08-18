@@ -18,6 +18,7 @@ import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodR
 import { BarangayRiskLayer, InundationGrid, FocusController } from '../../components/admin/BarangayRiskLayer.jsx'
 import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
+import { FloodAreaMarkers } from '../../components/admin/FloodAreasLayer.jsx'
 import { WeatherPanel } from '../../components/admin/WeatherPanel.jsx'
 import { barangayBounds } from '../../data/cabuyaoBarangays.js'
 import {
@@ -139,7 +140,9 @@ export default function FloodMap() {
   // (Flood-prone areas, verified reports, risk markers and saved routes were
   // deliberately dropped from this map — each has its own dedicated screen —
   // to keep the toggle panel readable.)
-  const [overlays, setOverlays] = usePersistedState('cdrrmo-layers-admin-floodmap-overlays-v2', { incidents: false, roads: false, evac: false })
+  // v3 adds floodAreas — CDRRMO operators were the only portal that could not
+  // see the flood-prone-area pins residents and barangay officials already get.
+  const [overlays, setOverlays] = usePersistedState('cdrrmo-layers-admin-floodmap-overlays-v3', { incidents: false, roads: false, evac: false, floodAreas: true })
   const toggleOverlay = (k) => setOverlays((v) => ({ ...v, [k]: !v[k] }))
 
   // Layer visibility + intensity (the on-map toggle control). Default: the
@@ -343,6 +346,10 @@ export default function FloodMap() {
 
               {/* ── Operational overlays (shared store) ── */}
 
+              {/* Admin-managed flood-prone areas — the same pins the barangay
+                  and resident maps show. */}
+              {overlays.floodAreas && <FloodAreaMarkers areas={floodAreas} />}
+
               {/* Flagged road segments: closed = solid red, flooded = dashed orange */}
               {overlays.roads && flaggedRoadLines.map((r) => (
                 <Polyline
@@ -454,9 +461,9 @@ export default function FloodMap() {
             {/* Floating smart search (2D view; the result layer is Leaflet-only) */}
             {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 
-            {/* On-map layer toggles + intensity. Six toggles, same names the
-                Hazard Layer uses — flood-prone areas / verified reports /
-                risk markers / routes live on their own dedicated screens. */}
+            {/* On-map layer toggles + intensity. Same names the Hazard Layer
+                uses — verified reports / risk markers / routes live on their
+                own dedicated screens. */}
             <MapLayerToggles
               opacity={intensity}
               onOpacity={setIntensity}
@@ -467,6 +474,7 @@ export default function FloodMap() {
                 { key: 'incidents', label: 'Incidents', color: '#dc2626', on: overlays.incidents, onToggle: () => toggleOverlay('incidents') },
                 { key: 'roads', label: 'Flagged Roads', color: '#f97316', on: overlays.roads, onToggle: () => toggleOverlay('roads') },
                 { key: 'evac', label: 'Evacuation Centers', color: '#16a34a', on: overlays.evac, onToggle: () => toggleOverlay('evac') },
+                { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#0284c7', on: overlays.floodAreas, onToggle: () => toggleOverlay('floodAreas') },
               ]}
             />
 

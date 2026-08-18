@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import ROADS_BUNDLE from '../../data/cabuyaoRoads.json'
+import db from '../../services/db.js'
 import './routingHelpers.css'
 
 /* ── Cabuyao road-network bounding box (S, W, N, E) ──────────────────────────
@@ -330,6 +331,8 @@ export function RoadNetworkLayer({ roads, statusMap = {}, trafficMap = {}, view 
 const ROUTES_KEY = 'cdrrmo_routes'
 const ROAD_STATUS_KEY = 'cdrrmo_road_status'
 const ROAD_TRAFFIC_KEY = 'cdrrmo_road_traffic'
+// Supabase app_settings row backing the congestion board (see hydrateTraffic).
+const TRAFFIC_DBKEY = 'road_traffic'
 
 function readJSON(key, fallback) {
   try {
@@ -425,11 +428,43 @@ export function useRoadStatus() {
 
 /* ── Traffic map ({ [wayId]: 'light' | 'moderate' | 'heavy' | 'gridlock' }) ──
    The manual congestion board — a sibling of useRoadStatus, kept in its own
-   localStorage key so flood conditions and traffic stay independent and flow
-   between the routing screens the same way. Phase 3 swaps the source for a
+   key so flood conditions and traffic stay independent and flow between the
+   routing screens the same way, and persisted to Supabase so the paint is
+   shared across operators and survives a refresh on any machine. Phase 3 swaps the source for a
    live Waze feed; every consumer reads this hook, so only this changes. */
 export function loadTrafficStatus() {
   return readJSON(ROAD_TRAFFIC_KEY, {})
+}
+
+/* Congestion is shared operational state — one operator paints it, every other
+   console has to see it — so the `road_traffic` app_settings row is the source
+   of truth and the localStorage key is only a synchronous cache in front of it
+   (the same split road conditions use, where AdminDataContext mirrors the
+   road_status rows into cdrrmo_road_status).
+
+   Hydration runs once per page load, shared across every consumer that mounts
+   the hook. A local paint before the fetch lands wins: `trafficDirty` blocks
+   the remote value from clobbering an edit the operator already made. */
+let trafficHydration = null
+let trafficDirty = false
+
+function hydrateTraffic() {
+  if (trafficHydration) return trafficHydration
+  trafficHydration = db.appSettings.get(TRAFFIC_DBKEY, null)
+    .then((remote) => {
+      if (trafficDirty || !remote || typeof remote !== 'object') return
+      const cur = readJSON(ROAD_TRAFFIC_KEY, {})
+      if (JSON.stringify(cur) !== JSON.stringify(remote)) writeJSON(ROAD_TRAFFIC_KEY, remote)
+    })
+    .catch(() => {}) // offline / backend unreachable — keep painting from the cache
+  return trafficHydration
+}
+
+/* Write-through: cache first (so the map recolours instantly), then the row. */
+function persistTraffic(next) {
+  trafficDirty = true
+  writeJSON(ROAD_TRAFFIC_KEY, next)
+  db.appSettings.set(TRAFFIC_DBKEY, next).catch(() => {})
 }
 
 export function useTrafficStatus() {
@@ -440,6 +475,7 @@ export function useTrafficStatus() {
       if (!e.detail || e.detail.key === ROAD_TRAFFIC_KEY) setTrafficMap(loadTrafficStatus())
     }
     window.addEventListener('cdrrmo-store', sync)
+    hydrateTraffic() // shared one-shot; the sync listener above picks up the result
     return () => window.removeEventListener('cdrrmo-store', sync)
   }, [])
 
@@ -448,14 +484,14 @@ export function useTrafficStatus() {
       const next = { ...prev }
       if (!level || level === 'clear') delete next[id]
       else next[id] = level
-      writeJSON(ROAD_TRAFFIC_KEY, next)
+      persistTraffic(next)
       return next
     })
   }, [])
 
   const clearAllTraffic = useCallback(() => {
     setTrafficMap({})
-    writeJSON(ROAD_TRAFFIC_KEY, {})
+    persistTraffic({})
   }, [])
 
   return [trafficMap, { setTraffic, clearAllTraffic }]
