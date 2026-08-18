@@ -41,27 +41,33 @@ const NAV = [
   {
     section: 'Routing',
     items: [
-      { label: 'Auto Route', to: '/admin/auto-route', icon: SparkIcon },
-      { label: 'Road Status', to: '/admin/road-status', icon: ListIcon },
-      { label: 'Route Planning', to: '/admin/route-planning', icon: TargetIcon },
-      { label: 'Override Routes', to: '/admin/override-routes', icon: ShuffleIcon },
-      { label: 'Saved Routes', to: '/admin/saved-routes', icon: BookmarkIcon },
+      // One entry, four tabs (Generate · Draw · Override · Saved) — they all
+      // drive the same flood-weighted A* and only differ in how the route is
+      // specified. The tab lives in the URL, so deep links still work.
+      { label: 'Routing', to: '/admin/routing', icon: TargetIcon },
     ],
   },
   {
-    section: 'Manage',
+    section: 'Respond',
     items: [
       { label: 'Alerts', to: '/admin/alerts', icon: BellIcon },
       { label: 'Flood Reports', to: '/admin/flood-reports', icon: FloodReportIcon },
       { label: 'Incidents', to: '/admin/incidents', icon: TriangleIcon },
+      // Road Status sat under Routing, but nobody opens it to plan a trip —
+      // they open it because a road just went under. That is response.
+      { label: 'Road Status', to: '/admin/road-status', icon: ListIcon },
       { label: 'Evacuation', to: '/admin/evacuation', icon: HomeIcon },
     ],
   },
   {
-    section: 'Settings',
+    section: 'Admin',
     items: [
+      // The full system event log — alerts issued, incidents filed, road
+      // changes. It was routed but had no sidebar entry, reachable only
+      // through the bell popup, which is no place for an audit trail.
+      { label: 'Notifications', to: '/admin/notifications', icon: BellIcon },
       // One entry, five tabs (General · Users & Access · Barangays · Alerts ·
-      // Integrations). The tab lives in the URL, so deep links still work.
+      // Integrations).
       { label: 'Settings', to: '/admin/settings', icon: SlidersIcon },
     ],
   },

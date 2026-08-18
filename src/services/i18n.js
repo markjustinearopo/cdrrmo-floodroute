@@ -22,6 +22,8 @@ const FIL = {
   Monitor: 'Pagsubaybay',
   Routing: 'Ruta',
   Manage: 'Pamahalaan',
+  Respond: 'Pagtugon',
+  Admin: 'Pangasiwaan',
   Settings: 'Mga Setting',
 
   // ── Sidebar items ──
@@ -35,6 +37,7 @@ const FIL = {
   'Route Planning': 'Pagpaplano ng Ruta',
   'Override Routes': 'I-override na Ruta',
   'Saved Routes': 'Mga Nakaimbak na Ruta',
+  Notifications: 'Mga Abiso',
   Alerts: 'Mga Alerto',
   Barangay: 'Barangay',
   'Flood Reports': 'Mga Ulat ng Baha',

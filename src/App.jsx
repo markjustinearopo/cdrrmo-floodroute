@@ -9,11 +9,8 @@ import AdminFloodAreas from './pages/admin/FloodAreas.jsx'
 import AdminFloodReports from './pages/admin/FloodReports.jsx'
 import AdminHazardLayer from './pages/admin/HazardLayer.jsx'
 import AdminReports from './pages/admin/Reports.jsx'
-import AdminAutoRoute from './pages/admin/AutoRoute.jsx'
-import AdminRoutePlanning from './pages/admin/RoutePlanning.jsx'
+import AdminRouting from './pages/admin/Routing.jsx'
 import AdminRoadStatus from './pages/admin/RoadStatus.jsx'
-import AdminOverrideRoutes from './pages/admin/OverrideRoutes.jsx'
-import AdminSavedRoutes from './pages/admin/SavedRoutes.jsx'
 import AdminAlerts from './pages/admin/Alerts.jsx'
 import AdminIncidents from './pages/admin/Incidents.jsx'
 import AdminEvacuation from './pages/admin/Evacuation.jsx'
@@ -64,11 +61,8 @@ export default function App() {
         <Route path="/admin/flood-reports" element={<AdminFloodReports />} />
         <Route path="/admin/hazard-layer" element={<AdminHazardLayer />} />
         <Route path="/admin/reports" element={<AdminReports />} />
-        <Route path="/admin/auto-route" element={<AdminAutoRoute />} />
-        <Route path="/admin/route-planning" element={<AdminRoutePlanning />} />
+        <Route path="/admin/routing" element={<AdminRouting />} />
         <Route path="/admin/road-status" element={<AdminRoadStatus />} />
-        <Route path="/admin/override-routes" element={<AdminOverrideRoutes />} />
-        <Route path="/admin/saved-routes" element={<AdminSavedRoutes />} />
         <Route path="/admin/alerts" element={<AdminAlerts />} />
         <Route path="/admin/incidents" element={<AdminIncidents />} />
         <Route path="/admin/evacuation" element={<AdminEvacuation />} />
@@ -84,6 +78,12 @@ export default function App() {
         <Route path="/admin/alert-settings" element={<Navigate to="/admin/settings?tab=alerts" replace />} />
         <Route path="/admin/integrations" element={<Navigate to="/admin/settings?tab=integrations" replace />} />
         <Route path="/admin/barangay" element={<Navigate to="/admin/settings?tab=barangays" replace />} />
+
+        {/* Routing was four screens calling the same engine; they are now tabs. */}
+        <Route path="/admin/auto-route" element={<Navigate to="/admin/routing" replace />} />
+        <Route path="/admin/route-planning" element={<Navigate to="/admin/routing?tab=draw" replace />} />
+        <Route path="/admin/override-routes" element={<Navigate to="/admin/routing?tab=override" replace />} />
+        <Route path="/admin/saved-routes" element={<Navigate to="/admin/routing?tab=saved" replace />} />
       </Route>
 
       {/* Barangay Official portal — guarded, single-barangay jurisdiction. */}
