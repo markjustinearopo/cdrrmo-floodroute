@@ -1,22 +1,44 @@
 /* ============================================================
-   Road condition editor — set status + flood depth (feet) + note.
+   Road condition editor — set status + flood depth + note.
 
-   Shared by the Road Status page and the Dashboard's click-to-flag map,
-   so flagging a road ALWAYS asks the same questions (what condition,
-   how deep, why) instead of silently flipping the segment. Uses the
-   global mng-* modal styling (Manage.css, loaded app-wide).
+   The one way a road's condition changes. All four routes into it now come
+   through here: the Road Status board, the Dashboard's click-to-flag map, the
+   Road Status road list, and approving a barangay's proposed change — which
+   used to apply the barangay's request verbatim without a CDRRMO operator ever
+   seeing the depth they were signing off on.
+
+   Depth is entered in METRES to match the rest of the product (services/
+   depth.js) and converted to feet on save, because road_status.flood_depth_ft
+   is still a feet column and moving it is a database change, not a UI one.
+
+   Uses the global mng-* modal styling (Manage.css, loaded app-wide).
    ============================================================ */
 
 import { useState } from 'react'
 import { ROAD_STATUS } from './routingHelpers.jsx'
+import { ftToM, mToFt, formatFeetHint } from '../../services/depth.js'
 
-export default function RoadConditionModal({ road, onClose, onSave }) {
+export default function RoadConditionModal({
+  road,
+  onClose,
+  onSave,
+  title = 'Road Condition',
+  subtitle,
+  saveLabel,
+}) {
   const [status, setStatus] = useState(road.status === 'blocked' ? 'blocked' : road.status === 'flooded' ? 'flooded' : 'flooded')
-  const [depthFt, setDepthFt] = useState(road.depthFt ?? '')
+  const [depthM, setDepthM] = useState(() => {
+    const m = ftToM(road.depthFt)
+    return m == null ? '' : String(+m.toFixed(2))
+  })
   const [reason, setReason] = useState(road.reason || '')
+
+  const feetHint = formatFeetHint(depthM === '' ? null : Number(depthM))
 
   function handleSave(e) {
     e.preventDefault()
+    // Store feet: the column is feet, the operator thinks in metres.
+    const depthFt = depthM === '' ? '' : +mToFt(Number(depthM)).toFixed(2)
     onSave({ ...road, status, depthFt, reason })
   }
 
@@ -25,8 +47,10 @@ export default function RoadConditionModal({ road, onClose, onSave }) {
       <div className="mng-modal" role="dialog" aria-modal="true" style={{ maxWidth: 460 }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="mng-modal-head">
           <div>
-            <div className="mng-modal-title">Road Condition</div>
-            <div className="mng-modal-sub">{road.name}{road.barangay ? ` · ${road.barangay}` : ''}</div>
+            <div className="mng-modal-title">{title}</div>
+            <div className="mng-modal-sub">
+              {subtitle || <>{road.name}{road.barangay ? ` · ${road.barangay}` : ''}</>}
+            </div>
           </div>
           <button type="button" className="mng-modal-close" onClick={onClose} aria-label="Close">×</button>
         </div>
@@ -56,14 +80,17 @@ export default function RoadConditionModal({ road, onClose, onSave }) {
           {status !== 'open' && (
             <>
               <label>
-                Flood Depth (feet)
+                Flood Depth (metres)
                 <input
-                  type="number" min="0" step="0.5"
-                  value={depthFt}
-                  onChange={(e) => setDepthFt(e.target.value)}
-                  placeholder={status === 'blocked' ? 'e.g. 3 (optional for a closure)' : 'e.g. 2'}
+                  type="number" min="0" step="0.05"
+                  value={depthM}
+                  onChange={(e) => setDepthM(e.target.value)}
+                  placeholder={status === 'blocked' ? 'e.g. 0.9 (optional for a closure)' : 'e.g. 0.6'}
                   autoFocus
                 />
+                <span className="fa-depth-hint">
+                  {feetHint || 'Measured on the ground in feet? The equivalent shows here.'}
+                </span>
               </label>
               <label>
                 Reason / Note
@@ -86,7 +113,7 @@ export default function RoadConditionModal({ road, onClose, onSave }) {
           <div className="mng-form-actions">
             <button type="button" className="mng-btn mng-btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="mng-btn">
-              {status === 'open' ? 'Set Passable' : 'Save Condition'}
+              {saveLabel || (status === 'open' ? 'Set Passable' : 'Save Condition')}
             </button>
           </div>
         </form>

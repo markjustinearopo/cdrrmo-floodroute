@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
-import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import RecordList from '../../components/admin/RecordList.jsx'
 import { BARANGAYS, EVAC_STATUSES } from '../../data/cabuyao.js'
 import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import EvacLocationPicker from '../../components/admin/EvacLocationPicker.jsx'
@@ -22,9 +22,9 @@ const STATUS_LABEL = Object.fromEntries(EVAC_STATUSES.map((s) => [s.value, s.lab
 
 const FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'open', label: 'Open' },
-  { key: 'full', label: 'Full' },
-  { key: 'closed', label: 'Closed' },
+  { key: 'open', label: 'Open', test: (c) => c.status === 'open' },
+  { key: 'full', label: 'Full', test: (c) => c.status === 'full' },
+  { key: 'closed', label: 'Closed', test: (c) => c.status === 'closed' },
 ]
 
 function occClass(occupancy, capacity, status) {
@@ -38,27 +38,37 @@ function occClass(occupancy, capacity, status) {
 
 export default function Evacuation() {
   const { evacuationCenters: centers, addEvacCenter, updateEvacCenter, removeEvacCenter } = useEvacCenters()
-  const [filter, setFilter] = useState('all')
-  const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // center object, 'new', or null
-  const [confirmDelete, setConfirmDelete] = useState(null) // centre pending removal
   const [toast, setToast] = useState('')
 
-  const stats = useMemo(() => ({
-    total: centers.length,
-    open: centers.filter((c) => c.status === 'open').length,
-    capacity: centers.reduce((sum, c) => sum + Number(c.capacity || 0), 0),
-    evacuees: centers.reduce((sum, c) => sum + Number(c.occupancy || 0), 0),
-  }), [centers])
+  const stats = useMemo(() => [
+    { color: 'blue', value: centers.length, label: 'Centres' },
+    { color: 'green', value: centers.filter((c) => c.status === 'open').length, label: 'Open' },
+    { color: 'slate', value: centers.reduce((s, c) => s + Number(c.capacity || 0), 0).toLocaleString(), label: 'Total Capacity' },
+    { color: 'amber', value: centers.reduce((s, c) => s + Number(c.occupancy || 0), 0).toLocaleString(), label: 'Current Evacuees' },
+  ], [centers])
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return centers.filter((c) => {
-      if (filter !== 'all' && c.status !== filter) return false
-      if (q && !(`${c.name} ${c.barangay} ${c.manager}`.toLowerCase().includes(q))) return false
-      return true
-    })
-  }, [centers, filter, query])
+  const columns = useMemo(() => [
+    { key: 'name', header: 'Evacuation Centre', className: 'mng-strong', render: (c) => c.name },
+    { key: 'barangay', header: 'Barangay (Location)', render: (c) => c.barangay },
+    {
+      key: 'occ',
+      header: 'Occupancy',
+      render: (c) => {
+        const pct = c.capacity ? Math.min(100, (c.occupancy / c.capacity) * 100) : 0
+        return (
+          <div className="mng-occ">
+            <div className="mng-occ-track">
+              <div className={`mng-occ-fill ${occClass(c.occupancy, c.capacity, c.status)}`} style={{ width: `${pct}%` }} />
+            </div>
+            <span className="mng-occ-txt">{c.occupancy.toLocaleString()}/{c.capacity.toLocaleString()}</span>
+          </div>
+        )
+      },
+    },
+    { key: 'manager', header: 'Manager', render: (c) => c.manager || <span className="mng-muted">— Unassigned</span> },
+    { key: 'status', header: 'Status', render: (c) => <span className={`mng-badge ${c.status}`}>{STATUS_LABEL[c.status]}</span> },
+  ], [])
 
   const current = editing && editing !== 'new' ? editing : null
 
@@ -67,9 +77,9 @@ export default function Evacuation() {
     setTimeout(() => setToast(''), 2600)
   }
 
+  // RecordList owns the confirmation — this only runs after the user says yes.
   function remove(center) {
     removeEvacCenter(center.id)
-    setConfirmDelete(null)
     flash(`${center.name} removed.`)
   }
 
@@ -94,91 +104,26 @@ export default function Evacuation() {
           </button>
         </div>
 
-        <div className="mng-stats">
-          <Stat color="blue" value={stats.total} label="Centres" />
-          <Stat color="green" value={stats.open} label="Open" />
-          <Stat color="slate" value={stats.capacity.toLocaleString()} label="Total Capacity" />
-          <Stat color="amber" value={stats.evacuees.toLocaleString()} label="Current Evacuees" />
-        </div>
-
-        <div className="mng-toolbar">
-          <div className="mng-search">
-            <SearchIcon />
-            <input
-              type="search"
-              placeholder="Search centre, barangay or manager…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <div className="mng-filters">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                className={`mng-chip ${filter === f.key ? 'active' : ''}`}
-                onClick={() => setFilter(f.key)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mng-card">
-          <table className="mng-table">
-            <thead>
-              <tr>
-                <th>Evacuation Centre</th>
-                <th>Barangay (Location)</th>
-                <th>Occupancy</th>
-                <th>Manager</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="mng-empty">
-                    <span className="mng-empty-strong">
-                      {centers.length === 0 ? 'No evacuation centres yet' : 'No centres match this filter'}
-                    </span>
-                    {centers.length === 0
-                      ? 'Use “Add Centre” to register an evacuation centre.'
-                      : 'Try a different filter or clear your search.'}
-                  </td>
-                </tr>
-              ) : (
-                visible.map((c) => {
-                  const pct = c.capacity ? Math.min(100, (c.occupancy / c.capacity) * 100) : 0
-                  return (
-                    <tr key={c.id}>
-                      <td className="mng-strong">{c.name}</td>
-                      <td>{c.barangay}</td>
-                      <td>
-                        <div className="mng-occ">
-                          <div className="mng-occ-track">
-                            <div className={`mng-occ-fill ${occClass(c.occupancy, c.capacity, c.status)}`} style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="mng-occ-txt">{c.occupancy.toLocaleString()}/{c.capacity.toLocaleString()}</span>
-                        </div>
-                      </td>
-                      <td>{c.manager || <span className="mng-muted">— Unassigned</span>}</td>
-                      <td><span className={`mng-badge ${c.status}`}>{STATUS_LABEL[c.status]}</span></td>
-                      <td>
-                        <div className="mng-row-actions">
-                          <button type="button" className="mng-link" onClick={() => setEditing(c)}>Manage</button>
-                          <button type="button" className="mng-link subtle" onClick={() => setConfirmDelete(c)}>Remove</button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        <RecordList
+          rows={centers}
+          rowLabel={(c) => c.name}
+          stats={stats}
+          filters={FILTERS}
+          searchKeys={(c) => `${c.name} ${c.barangay} ${c.manager}`}
+          searchPlaceholder="Search centre, barangay or manager…"
+          columns={columns}
+          onEdit={(c) => setEditing(c)}
+          editLabel={() => 'Manage'}
+          onDelete={remove}
+          deleteLabel={() => 'Remove'}
+          deleteConfirm={(c) => ({
+            title: 'Remove this evacuation centre?',
+            message: `Delete “${c.name}” (${c.barangay})? It will disappear from every map and from the Auto Route destination list. This cannot be undone.`,
+            confirmLabel: 'Remove centre',
+          })}
+          emptyAll={{ title: 'No evacuation centres yet', sub: 'Use “Add Centre” to register an evacuation centre.' }}
+          empty={{ title: 'No centres match this filter', sub: 'Try a different filter or clear your search.' }}
+        />
 
         <div className="mng-note">
           <SparkIcon />
@@ -200,16 +145,6 @@ export default function Evacuation() {
         />
       )}
 
-      {confirmDelete && (
-        <ConfirmDialog
-          title="Remove this evacuation centre?"
-          message={`Delete “${confirmDelete.name}” (${confirmDelete.barangay})? It will disappear from every map and from the Auto Route destination list. This cannot be undone.`}
-          confirmLabel="Remove centre"
-          tone="danger"
-          onConfirm={() => remove(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </AdminLayout>
@@ -329,22 +264,9 @@ function EvacCentreModal({ center, addEvacCenter, updateEvacCenter, onClose, onS
   )
 }
 
-function Stat({ color, value, label }) {
-  return (
-    <div className={`mng-stat ${color}`}>
-      <div className="mng-stat-val">{value}</div>
-      <div className="mng-stat-lbl">{label}</div>
-    </div>
-  )
-}
 function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-  )
-}
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
   )
 }
 function SparkIcon() {

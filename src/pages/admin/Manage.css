@@ -697,3 +697,20 @@
 @media (max-width: 460px) {
   .mng-stats { grid-template-columns: 1fr; }
 }
+
+/* RecordList's non-table body (Notifications, Integrations) uses the same card
+   shell as the table, so the empty state needs its own block padding. */
+.mng-empty--block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: #9a9a9a;
+  line-height: 1.6;
+}
+
+/* RecordList's bulk-select column. */
+.mng-table th.mng-check-col,
+.mng-table td.mng-check-col { width: 28px; }

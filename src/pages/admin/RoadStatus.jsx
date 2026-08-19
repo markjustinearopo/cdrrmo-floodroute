@@ -16,6 +16,7 @@ import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
 import RoadConditionModal from '../../components/admin/RoadConditionModal.jsx'
 import { useRoadRequests, useRoadReports } from '../../context/AdminDataContext.jsx'
 import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
+import { ftToM, formatMeters } from '../../services/depth.js'
 import './Manage.css'
 import './RoadStatus.css'
 
@@ -59,6 +60,7 @@ export default function RoadStatus() {
   const [rejectNote, setRejectNote] = useState('')
   const [editing, setEditing] = useState(null) // road-condition editor
   const [confirmClear, setConfirmClear] = useState(null) // 'conditions' | 'traffic'
+  const [approving, setApproving] = useState(null) // barangay request under review
 
   const isTraffic = mode === 'traffic'
 
@@ -343,7 +345,7 @@ export default function RoadStatus() {
                       {r.reason && <div className="rs-req-reason">“{r.reason}”</div>}
                       <div className="rs-req-by">Requested by {r.requestedBy || r.barangay}</div>
                       <div className="rs-req-actions">
-                        <button type="button" className="rs-act rs-act--approve" onClick={() => approveRoadRequest(r.id)}>
+                        <button type="button" className="rs-act rs-act--approve" onClick={() => setApproving(r)}>
                           Approve
                         </button>
                         <button type="button" className="rs-act rs-act--reject" onClick={() => { setRejectId(r.id); setRejectNote('') }}>
@@ -483,7 +485,7 @@ export default function RoadStatus() {
                           onClick={() => openEditor({ id: r.id, name: r.name })}
                         >
                           {r.name}
-                          {r.depthFt != null && <span className="rs-flagged-depth">{r.depthFt} ft</span>}
+                          {r.depthFt != null && <span className="rs-flagged-depth">{formatMeters(ftToM(r.depthFt))}</span>}
                         </button>
                         <span className={`rs-badge ${r.status}`}>{ROAD_STATUS[r.status].label}</span>
                         <button
@@ -564,6 +566,35 @@ export default function RoadStatus() {
           road={editing}
           onClose={() => setEditing(null)}
           onSave={saveCondition}
+        />
+      )}
+
+      {/* Approving a barangay request goes through the same editor as every
+          other road change. It used to apply the request verbatim, so nobody
+          at CDRRMO ever saw the depth they were signing off on — and the
+          operator could not correct it without re-opening the road afterwards. */}
+      {approving && (
+        <RoadConditionModal
+          title="Approve road change"
+          subtitle={`${approving.roadName || `Road #${approving.wayId}`} · requested by ${approving.requestedBy || approving.barangay}`}
+          saveLabel="Approve & apply"
+          road={{
+            wayId: approving.wayId,
+            name: approving.roadName || `Road #${approving.wayId}`,
+            barangay: approving.barangay,
+            status: approving.requestedStatus,
+            depthFt: approving.depthFt ?? '',
+            reason: approving.reason || '',
+          }}
+          onClose={() => setApproving(null)}
+          onSave={(data) => {
+            // Mark the request decided first, then write the operator's actual
+            // call — approveRoadRequest paints the REQUESTED status, so saving
+            // second is what lets the operator override it.
+            approveRoadRequest(approving.id)
+            saveCondition(data)
+            setApproving(null)
+          }}
         />
       )}
     </AdminLayout>

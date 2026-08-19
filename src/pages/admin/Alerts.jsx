@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import RecordList from '../../components/admin/RecordList.jsx'
 import { BARANGAYS, ALERT_LEVELS } from '../../data/cabuyao.js'
 import { useAlerts, nowLabel, fillAlertTemplate } from '../../context/AdminDataContext.jsx'
 import { sendAlertEmail } from '../../services/emailAlert.js'
@@ -20,11 +21,11 @@ const LEVEL_LABEL = { high: 'High', moderate: 'Moderate', safe: 'All Clear' }
 
 const FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active' },
-  { key: 'high', label: 'High' },
-  { key: 'moderate', label: 'Moderate' },
-  { key: 'scheduled', label: 'Scheduled' },
-  { key: 'resolved', label: 'Resolved' },
+  { key: 'active', label: 'Active', test: (a) => a.status === 'active' },
+  { key: 'high', label: 'High', test: (a) => a.level === 'high' },
+  { key: 'moderate', label: 'Moderate', test: (a) => a.level === 'moderate' },
+  { key: 'scheduled', label: 'Scheduled', test: (a) => a.status === 'scheduled' },
+  { key: 'resolved', label: 'Resolved', test: (a) => a.status === 'resolved' },
 ]
 
 // datetime-local needs "YYYY-MM-DDTHH:mm" — pre-fill ~1 hour from now.
@@ -36,8 +37,6 @@ function defaultScheduleValue() {
 
 export default function Alerts() {
   const { alerts, addAlert, updateAlert, resolveAlert, removeAlert } = useAlerts()
-  const [filter, setFilter] = useState('all')
-  const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [scheduling, setScheduling] = useState(false)
   const [toast, setToast] = useState('')
@@ -66,25 +65,12 @@ export default function Alerts() {
     })
   }
 
-  const stats = useMemo(() => ({
-    active: alerts.filter((a) => a.status === 'active').length,
-    high: alerts.filter((a) => a.status === 'active' && a.level === 'high').length,
-    moderate: alerts.filter((a) => a.status === 'active' && a.level === 'moderate').length,
-    resolved: alerts.filter((a) => a.status === 'resolved').length,
-  }), [alerts])
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return alerts.filter((a) => {
-      if (filter === 'active' && a.status !== 'active') return false
-      if (filter === 'resolved' && a.status !== 'resolved') return false
-      if (filter === 'scheduled' && a.status !== 'scheduled') return false
-      if (filter === 'high' && a.level !== 'high') return false
-      if (filter === 'moderate' && a.level !== 'moderate') return false
-      if (q && !(`${a.title} ${a.barangay} ${a.message}`.toLowerCase().includes(q))) return false
-      return true
-    })
-  }, [alerts, filter, query])
+  const stats = useMemo(() => [
+    { color: 'red', value: alerts.filter((a) => a.status === 'active').length, label: 'Active' },
+    { color: 'red', value: alerts.filter((a) => a.status === 'active' && a.level === 'high').length, label: 'High' },
+    { color: 'amber', value: alerts.filter((a) => a.status === 'active' && a.level === 'moderate').length, label: 'Moderate' },
+    { color: 'green', value: alerts.filter((a) => a.status === 'resolved').length, label: 'Resolved' },
+  ], [alerts])
 
   function flash(msg) {
     setToast(msg)
@@ -138,18 +124,27 @@ export default function Alerts() {
   function reopen(id) {
     updateAlert(id, { status: 'active', issued: nowLabel(), issuedAt: Date.now() })
   }
+  // RecordList owns the confirmation — this only runs after the user says yes.
   function remove(alert) {
-    setConfirm({
-      title: 'Withdraw this alert?',
-      message: `"${alert.title}" (${alert.barangay}) will be permanently removed from the record. This cannot be undone.`,
-      confirmLabel: 'Withdraw alert',
-      onConfirm: () => {
-        removeAlert(alert.id)
-        setConfirm(null)
-        flash('Alert withdrawn.')
-      },
-    })
+    removeAlert(alert.id)
+    flash('Alert withdrawn.')
   }
+
+  const columns = useMemo(() => [
+    {
+      key: 'alert', header: 'Alert',
+      render: (a) => (
+        <>
+          <div className="mng-strong">{a.title}</div>
+          {a.message && <div className="mng-muted" style={{ fontSize: '0.75rem' }}>{a.message}</div>}
+        </>
+      ),
+    },
+    { key: 'barangay', header: 'Barangay', render: (a) => a.barangay },
+    { key: 'level', header: 'Level', render: (a) => <span className={`mng-badge ${a.level}`}>{LEVEL_LABEL[a.level]}</span> },
+    { key: 'issued', header: 'Issued', className: 'mng-muted mng-num', render: (a) => a.issued },
+    { key: 'status', header: 'Status', render: (a) => <span className={`mng-badge ${a.status}`}>{a.status}</span> },
+  ], [])
 
   return (
     <AdminLayout>
@@ -174,94 +169,29 @@ export default function Alerts() {
         </div>
 
         {/* Stats */}
-        <div className="mng-stats">
-          <Stat color="red" value={stats.active} label="Active Alerts" />
-          <Stat color="red" value={stats.high} label="High Level" />
-          <Stat color="amber" value={stats.moderate} label="Moderate Level" />
-          <Stat color="slate" value={stats.resolved} label="Resolved" />
-        </div>
-
-        {/* Toolbar */}
-        <div className="mng-toolbar">
-          <div className="mng-search">
-            <SearchIcon />
-            <input
-              type="search"
-              placeholder="Search alerts by title, barangay…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <div className="mng-filters">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                className={`mng-chip ${filter === f.key ? 'active' : ''}`}
-                onClick={() => setFilter(f.key)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="mng-card">
-          <table className="mng-table">
-            <thead>
-              <tr>
-                <th>Alert</th>
-                <th>Barangay</th>
-                <th>Level</th>
-                <th>Issued</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="mng-empty">
-                    <span className="mng-empty-strong">
-                      {alerts.length === 0 ? 'No alerts issued yet' : 'No alerts match this filter'}
-                    </span>
-                    {alerts.length === 0
-                      ? 'Use “Issue Alert” to broadcast a flood-hazard warning to a barangay.'
-                      : 'Try a different filter or clear your search.'}
-                  </td>
-                </tr>
-              ) : (
-                visible.map((a) => (
-                  <tr key={a.id}>
-                    <td>
-                      <div className="mng-strong">{a.title}</div>
-                      {a.message && <div className="mng-muted" style={{ fontSize: '0.75rem' }}>{a.message}</div>}
-                    </td>
-                    <td>{a.barangay}</td>
-                    <td><span className={`mng-badge ${a.level}`}>{LEVEL_LABEL[a.level]}</span></td>
-                    <td className="mng-muted mng-num" style={{ fontSize: '0.75rem' }}>{a.issued}</td>
-                    <td><span className={`mng-badge ${a.status}`}>{a.status}</span></td>
-                    <td>
-                      <div className="mng-row-actions">
-                        {a.status === 'active' && (
-                          <button type="button" className="mng-link" onClick={() => resolve(a)}>Resolve</button>
-                        )}
-                        {a.status === 'scheduled' && (
-                          <button type="button" className="mng-link" onClick={() => reopen(a.id)}>Issue now</button>
-                        )}
-                        {a.status === 'resolved' && (
-                          <button type="button" className="mng-link subtle" onClick={() => reopen(a.id)}>Reopen</button>
-                        )}
-                        <button type="button" className="mng-link subtle" onClick={() => remove(a)}>Withdraw</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <RecordList
+          rows={alerts}
+          rowLabel={(a) => a.title}
+          stats={stats}
+          filters={FILTERS}
+          searchKeys={(a) => `${a.title} ${a.barangay} ${a.message}`}
+          searchPlaceholder="Search alert, barangay or message…"
+          columns={columns}
+          rowActions={(a) => [
+            ...(a.status === 'active' ? [{ label: 'Resolve', onClick: () => resolve(a) }] : []),
+            ...(a.status === 'scheduled' ? [{ label: 'Issue now', onClick: () => reopen(a.id) }] : []),
+            ...(a.status === 'resolved' ? [{ label: 'Reopen', onClick: () => reopen(a.id), subtle: true }] : []),
+          ]}
+          onDelete={remove}
+          deleteLabel={() => 'Withdraw'}
+          deleteConfirm={(a) => ({
+            title: 'Withdraw this alert?',
+            message: `"${a.title}" (${a.barangay}) will be permanently removed from the record. This cannot be undone.`,
+            confirmLabel: 'Withdraw alert',
+          })}
+          emptyAll={{ title: 'No alerts issued yet', sub: 'Use “Issue Alert” to broadcast a flood-hazard warning to a barangay.' }}
+          empty={{ title: 'No alerts match this filter', sub: 'Try a different filter or clear your search.' }}
+        />
 
         <div className="mng-note">
           <SparkIcon />
@@ -367,23 +297,10 @@ export default function Alerts() {
   )
 }
 
-function Stat({ color, value, label }) {
-  return (
-    <div className={`mng-stat ${color}`}>
-      <div className="mng-stat-val">{value}</div>
-      <div className="mng-stat-lbl">{label}</div>
-    </div>
-  )
-}
 
 function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-  )
-}
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
   )
 }
 function SparkIcon() {
