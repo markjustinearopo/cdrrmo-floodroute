@@ -96,7 +96,7 @@ async function fetchForecast() {
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
     `&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,` +
     `weather_code,cloud_cover,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
-    `&hourly=precipitation,precipitation_probability` +
+    `&hourly=precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m,weather_code` +
     `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,` +
     `precipitation_probability_max,wind_speed_10m_max,sunrise,sunset,uv_index_max` +
     `&past_days=1&forecast_days=7&timezone=Asia%2FManila`
@@ -116,6 +116,69 @@ function buildRainHistory(data) {
   const out = []
   for (let i = idx - 7; i <= idx; i++) out.push(i >= 0 ? Number(precip[i]) || 0 : 0)
   return out
+}
+
+/**
+ * The full hourly series, kept rather than collapsed to "now".
+ *
+ * Open-Meteo returns ~7 days of hourly values in the same response the topbar
+ * chips already use; the app was reading index `now` and discarding the rest.
+ * The time scrubber runs on what was being thrown away — no extra request.
+ *
+ * `nowIndex` is the offset-0 anchor: the row matching the current hour.
+ * Everything after it is forecast, everything before it is the past day we ask
+ * for anyway (past_days=1) and is not offered to the scrubber.
+ */
+function buildHourly(data) {
+  const h = data?.hourly
+  if (!Array.isArray(h?.time)) return { time: [], precip: [], pop: [], wind: [], gust: [], code: [], nowIndex: 0 }
+  const nowKey = (data?.current?.time || '').slice(0, 13) // "YYYY-MM-DDTHH"
+  let nowIndex = h.time.findIndex((t) => t.slice(0, 13) === nowKey)
+  if (nowIndex < 0) nowIndex = 0
+  const nums = (arr) => (Array.isArray(arr) ? arr.map((v) => (v == null ? null : Number(v))) : [])
+  return {
+    time: h.time,
+    precip: nums(h.precipitation),
+    pop: nums(h.precipitation_probability),
+    wind: nums(h.wind_speed_10m),
+    gust: nums(h.wind_gusts_10m),
+    code: nums(h.weather_code),
+    nowIndex,
+  }
+}
+
+/**
+ * One forecast hour, `offset` hours from now (0 = the current hour).
+ * Returns null past the end of the series, so callers can clamp honestly
+ * instead of extrapolating.
+ */
+export function hourlyAt(weather, offset = 0) {
+  const h = weather?.hourly
+  if (!h?.time?.length) return null
+  const i = h.nowIndex + Math.max(0, Math.round(offset))
+  if (i >= h.time.length) return null
+  const iso = h.time[i]
+  const at = new Date(iso)
+  return {
+    index: i,
+    offset,
+    iso,
+    // "3 PM" / "Tue 3 PM" once the scrub crosses midnight.
+    label: at.toLocaleTimeString('en-PH', { hour: 'numeric', hour12: true, timeZone: 'Asia/Manila' }),
+    dayLabel: at.toLocaleDateString('en-PH', { weekday: 'short', timeZone: 'Asia/Manila' }),
+    precipMm: h.precip[i] ?? 0,
+    pop: h.pop[i] ?? null,
+    windKmh: h.wind[i] ?? null,
+    gustKmh: h.gust[i] ?? null,
+    code: h.code[i] ?? null,
+  }
+}
+
+/** How many forecast hours the feed actually gave us (0 when offline). */
+export function forecastHorizon(weather) {
+  const h = weather?.hourly
+  if (!h?.time?.length) return 0
+  return Math.max(0, h.time.length - 1 - h.nowIndex)
 }
 
 // Forecast days starting at TODAY (skips the past_days entry). Returns 5 days.
@@ -172,6 +235,7 @@ const EMPTY = {
   },
   today: {},
   rainHistory: Array(8).fill(0),
+  hourly: { time: [], precip: [], pop: [], wind: [], gust: [], code: [], nowIndex: 0 },
   forecast: [],
   discharge: null,
   updatedAt: null,
@@ -205,6 +269,7 @@ async function loadWeather() {
     },
     today: buildToday(forecastRes),
     rainHistory: buildRainHistory(forecastRes),
+    hourly: buildHourly(forecastRes),
     forecast: buildForecast(forecastRes),
     discharge,
     updatedAt: Date.now(),

@@ -16,7 +16,9 @@ import {
 import { Link } from 'react-router-dom'
 import { ftToM, formatMeters } from '../../services/depth.js'
 import { useLiveWeather } from '../../services/weather.js'
-import { useFloodRisk, barangayRiskSamples, hazardSummary } from '../../components/admin/floodRisk.js'
+import { useFloodRiskAtScrub, barangayRiskSamples, hazardSummary } from '../../components/admin/floodRisk.js'
+import TimeScrubber, { ForecastBadge } from '../../components/admin/TimeScrubber.jsx'
+import { hourlyAt } from '../../services/weather.js'
 import { BarangayRiskLayer, InundationGrid, FocusController } from '../../components/admin/BarangayRiskLayer.jsx'
 import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
@@ -112,7 +114,12 @@ const NOAH_LABEL = { 1: 'Low', 2: 'Moderate', 3: 'High' }
 export default function FloodMap() {
   // ── Live feeds ──
   const { weather } = useLiveWeather()
-  const { field, loading: fieldLoading, refresh: refreshField } = useFloodRisk()
+  // Follows the time scrubber: identical to useFloodRisk() at "now", and the
+  // projected field for whichever hour the operator has dragged to.
+  const {
+    field, loading: fieldLoading, refresh: refreshField,
+    forecast: isForecast, offset: hourOffset, projecting,
+  } = useFloodRiskAtScrub()
   const [routes] = useRoutes()
 
   // ── NOAH 100-yr flood hazard zones ──
@@ -311,8 +318,11 @@ export default function FloodMap() {
         {/* ── Map + Right panel (Live Map subtab) ── */}
         {subtab === 'live' && (
         <div className="map-panel-wrap">
-          {/* Map */}
-          <div className="map-area">
+          {/* Map. The forecast frame tints the map itself, not just the
+              scrubber, so a projected hour can never be screenshotted or
+              glanced at as though it were current conditions. */}
+          <div className={`map-area ${isForecast ? 'forecast-frame' : ''}`}>
+            {isForecast && <ForecastBadge hour={hourlyAt(weather, hourOffset)} offset={hourOffset} />}
             {use3D ? (
               <FloodMap3DView
                 barangays={barangays}
@@ -518,9 +528,13 @@ export default function FloodMap() {
               <BarangayDetailCard sample={selectedSample} onClose={() => setSelected(null)} />
             )}
 
-            {/* Legend (live timestamp + risk ramp) */}
+            {/* Legend (timestamp + risk ramp) */}
             <div className="map-legend">
-              <span className="legend-live">Live | Updated {updated} PHT</span>
+              <span className={`legend-live ${isForecast ? 'legend-live--forecast' : ''}`}>
+                {isForecast
+                  ? `Forecast | +${hourOffset}h from ${updated} PHT`
+                  : `Live | Updated ${updated} PHT`}
+              </span>
               <span className="legend-ramp" aria-hidden="true">
                 <i style={{ background: RISK_META.safe.color }} />
                 <i style={{ background: RISK_META.low.color }} />
@@ -535,6 +549,9 @@ export default function FloodMap() {
                 ? `${coords.lat.toFixed(4)} N, ${coords.lng.toFixed(4)} E | Zoom: ${coords.zoom}`
                 : 'No map data'}
             </div>
+
+            {/* The clock this whole screen is being read at. */}
+            <TimeScrubber weather={weather} projecting={projecting} />
           </div>
 
           {/* ── Right Panel ── */}

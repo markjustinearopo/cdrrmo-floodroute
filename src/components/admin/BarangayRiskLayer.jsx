@@ -148,6 +148,20 @@ export function FocusController({ bounds }) {
       first.current = false
       if (!bounds) return undefined
     }
+    // Leaflet derives a zoom from the container's pixel size, and a container
+    // that has not been laid out yet is 0×0 — which makes that arithmetic NaN
+    // and throws "Invalid LatLng object: (NaN, NaN)" out of flyToBounds,
+    // taking the whole map down with it. React's double-invoked effects in
+    // development hit this reliably on first paint. Skip the flight until the
+    // map has a size; the next change re-runs this, and CabuyaoLock has
+    // already framed the city in the meantime.
+    const size = map.getSize()
+    if (!size || size.x === 0 || size.y === 0) return undefined
+
+    const target = bounds || CABUYAO_LAND_BOUNDS
+    const flat = [target[0][0], target[0][1], target[1][0], target[1][1]]
+    if (!flat.every(Number.isFinite)) return undefined
+
     if (bounds) map.flyToBounds(bounds, { padding: [40, 40], maxZoom: 16, duration: 0.6 })
     else map.flyToBounds(CABUYAO_LAND_BOUNDS, { padding: [16, 16], duration: 0.6 })
     return undefined
