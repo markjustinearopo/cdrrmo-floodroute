@@ -8,6 +8,7 @@ import {
 import { useUsers } from '../../../context/AdminDataContext.jsx'
 import db from '../../../services/db.js'
 import { SaveBar, SettingsNote, TabHead } from '../SettingsKit.jsx'
+import RecordList from '../RecordList.jsx'
 
 /**
  * Settings → Users & Access (was User Management + Permissions & Roles).
@@ -27,11 +28,11 @@ import { SaveBar, SettingsNote, TabHead } from '../SettingsKit.jsx'
 
 const FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'admin', label: 'Administrators' },
-  { key: 'operator', label: 'Operators' },
-  { key: 'officer', label: 'Barangay Officers' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'suspended', label: 'Suspended' },
+  { key: 'admin', label: 'Administrators', test: (u) => u.role === 'admin' },
+  { key: 'operator', label: 'Operators', test: (u) => u.role === 'operator' },
+  { key: 'officer', label: 'Barangay Officers', test: (u) => u.role === 'officer' },
+  { key: 'pending', label: 'Pending', test: (u) => u.status === 'pending' },
+  { key: 'suspended', label: 'Suspended', test: (u) => u.status === 'suspended' },
 ]
 
 function initials(name) {
@@ -124,12 +125,9 @@ export default function UsersTab({ onToast }) {
   const { users, addUser, addUsers, updateUser, removeUser } = useUsers()
 
   /* ── Accounts ── */
-  const [filter, setFilter] = useState('all')
-  const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // user object, {} for new, or null
   const [importing, setImporting] = useState(false)
   const [importPreview, setImportPreview] = useState(null) // { valid, errors, fileName }
-  const [confirmDelete, setConfirmDelete] = useState(null) // account pending deletion
 
   /* ── Account types / permissions ── */
   const initial = loadRolesState()
@@ -155,22 +153,12 @@ export default function UsersTab({ onToast }) {
     return () => { alive = false }
   }, [])
 
-  const stats = useMemo(() => ({
-    total: users.length,
-    active: users.filter((u) => u.status === 'active').length,
-    pending: users.filter((u) => u.status === 'pending').length,
-    suspended: users.filter((u) => u.status === 'suspended').length,
-  }), [users])
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return users.filter((u) => {
-      if (['admin', 'operator', 'officer'].includes(filter) && u.role !== filter) return false
-      if (['pending', 'suspended'].includes(filter) && u.status !== filter) return false
-      if (q && !(`${u.name} ${u.email} ${u.barangay}`.toLowerCase().includes(q))) return false
-      return true
-    })
-  }, [users, filter, query])
+  const stats = useMemo(() => [
+    { color: 'blue', value: users.length, label: 'Total Accounts' },
+    { color: 'green', value: users.filter((u) => u.status === 'active').length, label: 'Active' },
+    { color: 'amber', value: users.filter((u) => u.status === 'pending').length, label: 'Pending' },
+    { color: 'red', value: users.filter((u) => u.status === 'suspended').length, label: 'Suspended' },
+  ], [users])
 
   // Live account counts per account type from the shared users store.
   const counts = useMemo(() => {
@@ -211,7 +199,6 @@ export default function UsersTab({ onToast }) {
   }
   function remove(user) {
     removeUser(user.id)
-    setConfirmDelete(null)
     onToast(`${user.name || 'Account'} removed.`)
   }
 
@@ -307,6 +294,54 @@ export default function UsersTab({ onToast }) {
 
   const onlyOneAdmin = users.filter((x) => x.role === 'admin').length === 1
 
+  const accountColumns = useMemo(() => [
+    {
+      key: 'account',
+      header: 'Account',
+      render: (u) => (
+        <div className="set-user">
+          <div className={`set-user-av ${u.role === 'admin' ? 'admin' : ''}`}>
+            {u.avatar ? <img src={u.avatar} alt={u.name} className="set-user-av-img" /> : initials(u.name)}
+          </div>
+          <div>
+            <div className="set-user-name">{u.name}</div>
+            <div className="set-user-email">{u.email}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Account Type',
+      render: (u) => (
+        <button
+          type="button"
+          className={`mng-badge role-${u.role} set-type-link`}
+          title={`See what ${ROLE_LABEL[u.role] || u.role} accounts can do`}
+          onClick={() => setSelected(u.role)}
+        >
+          {ROLE_LABEL[u.role] || u.role}
+        </button>
+      ),
+    },
+    {
+      key: 'scope',
+      header: 'Barangay Scope',
+      render: (u) => (u.barangay === 'All' ? <span className="mng-muted">All barangays</span> : u.barangay),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (u) => <span className={`mng-badge ${u.status}`}>{USER_STATUS_LABEL[u.status]}</span>,
+    },
+    {
+      key: 'lastActive',
+      header: 'Last Active',
+      className: 'mng-muted mng-num',
+      render: (u) => <span style={{ fontSize: '0.75rem' }}>{u.lastActive}</span>,
+    },
+  ], [])
+
   return (
     <div className="set">
       <TabHead
@@ -332,114 +367,33 @@ export default function UsersTab({ onToast }) {
         )}
       />
 
-      <div className="mng-stats">
-        <Stat color="blue" value={stats.total} label="Total Accounts" />
-        <Stat color="green" value={stats.active} label="Active" />
-        <Stat color="amber" value={stats.pending} label="Pending" />
-        <Stat color="red" value={stats.suspended} label="Suspended" />
-      </div>
-
       {/* ══ 1. Accounts ══ */}
       <div className="set-subhead">Accounts — who can sign in</div>
 
-      <div className="mng-toolbar">
-        <div className="mng-search">
-          <SearchIcon />
-          <input
-            type="search"
-            placeholder="Search by name, email or barangay…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-        <div className="mng-filters">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              className={`mng-chip ${filter === f.key ? 'active' : ''}`}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mng-card">
-        <table className="mng-table">
-          <thead>
-            <tr>
-              <th>Account</th>
-              <th>Account Type</th>
-              <th>Barangay Scope</th>
-              <th>Status</th>
-              <th>Last Active</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="mng-empty">
-                  <span className="mng-empty-strong">No accounts match this view</span>
-                  Try a different filter or clear your search.
-                </td>
-              </tr>
-            ) : (
-              visible.map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    <div className="set-user">
-                      <div className={`set-user-av ${u.role === 'admin' ? 'admin' : ''}`}>
-                        {u.avatar
-                          ? <img src={u.avatar} alt={u.name} className="set-user-av-img" />
-                          : initials(u.name)}
-                      </div>
-                      <div>
-                        <div className="set-user-name">{u.name}</div>
-                        <div className="set-user-email">{u.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className={`mng-badge role-${u.role} set-type-link`}
-                      title={`See what ${ROLE_LABEL[u.role] || u.role} accounts can do`}
-                      onClick={() => setSelected(u.role)}
-                    >
-                      {ROLE_LABEL[u.role] || u.role}
-                    </button>
-                  </td>
-                  <td>{u.barangay === 'All'
-                    ? <span className="mng-muted">All barangays</span>
-                    : u.barangay}</td>
-                  <td><span className={`mng-badge ${u.status}`}>{USER_STATUS_LABEL[u.status]}</span></td>
-                  <td className="mng-muted mng-num" style={{ fontSize: '0.75rem' }}>{u.lastActive}</td>
-                  <td>
-                    <div className="mng-row-actions">
-                      <button type="button" className="mng-link" onClick={() => setEditing(u)}>Edit</button>
-                      <button type="button" className="mng-link subtle" onClick={() => toggleStatus(u.id)}>
-                        {u.status === 'suspended' ? 'Activate' : 'Suspend'}
-                      </button>
-                      <button
-                        type="button"
-                        className="mng-link subtle"
-                        onClick={() => setConfirmDelete(u)}
-                        disabled={u.role === 'admin' && onlyOneAdmin}
-                        title={onlyOneAdmin && u.role === 'admin' ? 'Cannot remove the last administrator' : undefined}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <RecordList
+        rows={users}
+        rowLabel={(u) => u.name}
+        stats={stats}
+        filters={FILTERS}
+        searchKeys={(u) => `${u.name} ${u.email} ${u.barangay}`}
+        searchPlaceholder="Search by name, email or barangay…"
+        columns={accountColumns}
+        onEdit={setEditing}
+        rowActions={(u) => [{
+          label: u.status === 'suspended' ? 'Activate' : 'Suspend',
+          onClick: () => toggleStatus(u.id),
+          subtle: true,
+        }]}
+        onDelete={remove}
+        deleteLabel={() => 'Remove'}
+        canDelete={(u) => !(u.role === 'admin' && onlyOneAdmin)}
+        deleteConfirm={(u) => ({
+          title: 'Delete this account?',
+          message: `Delete “${u.name}” (${u.email})? They lose access immediately and the account cannot be recovered. Suspend instead if this is temporary.`,
+          confirmLabel: 'Delete account',
+        })}
+        empty={{ title: 'No accounts match this view', sub: 'Try a different filter or clear your search.' }}
+      />
 
       {/* ══ 2. Account types & their permissions ══ */}
       <div className="set-divider" />
@@ -700,17 +654,6 @@ export default function UsersTab({ onToast }) {
             </form>
           </div>
         </div>
-      )}
-
-      {confirmDelete && (
-        <ConfirmDialog
-          title="Delete this account?"
-          message={`Delete “${confirmDelete.name}” (${confirmDelete.email})? They lose access immediately and the account cannot be recovered. Suspend instead if this is temporary.`}
-          confirmLabel="Delete account"
-          tone="danger"
-          onConfirm={() => remove(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
-        />
       )}
 
       {confirmRoleDelete && role && (
