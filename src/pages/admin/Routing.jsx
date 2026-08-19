@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { ROUTE_TYPES, useCabuyaoRoads } from '../../components/admin/routingHelpers.jsx'
 import { useRouteGraph } from '../../components/admin/routeEngine.js'
-import { useFloodRisk, NEUTRAL_FIELD } from '../../components/admin/floodRisk.js'
+import { useFloodRiskAtScrub, NEUTRAL_FIELD } from '../../components/admin/floodRisk.js'
+import { useLiveWeather, hourlyAt } from '../../services/weather.js'
+import TimeScrubber, { ForecastBadge } from '../../components/admin/TimeScrubber.jsx'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import GenerateTab from '../../components/admin/routing/GenerateTab.jsx'
 import DrawTab from '../../components/admin/routing/DrawTab.jsx'
@@ -53,7 +55,14 @@ export default function Routing() {
   // Loaded once for the whole screen instead of once per former page.
   const { roads } = useCabuyaoRoads()
   const graph = useRouteGraph(roads)
-  const { field, loading: fieldLoading, refresh: refreshField } = useFloodRisk()
+  // The routing engine reads `live.riskAt` out of this, so pointing the
+  // scrubber at 3 PM is what makes A* solve against 3 PM's hazard surface —
+  // the route re-solves rather than the map merely re-colouring under it.
+  const {
+    field, baselineField, loading: fieldLoading, refresh: refreshField,
+    forecast: isForecast, offset: hourOffset, projecting,
+  } = useFloodRiskAtScrub()
+  const { weather } = useLiveWeather()
   const [use3D, setUse3D] = use3DPreference()
   const [type, setType] = useState('evacuation')
 
@@ -77,8 +86,11 @@ export default function Routing() {
   }, [])
 
   const shared = useMemo(
-    () => ({ roads, graph, live, fieldLoading, refreshField, use3D, type, setType }),
-    [roads, graph, live, fieldLoading, refreshField, use3D, type],
+    () => ({
+      roads, graph, live, baselineField, fieldLoading, refreshField, use3D, type, setType,
+      isForecast, hourOffset, forecastHour: hourlyAt(weather, hourOffset),
+    }),
+    [roads, graph, live, baselineField, fieldLoading, refreshField, use3D, type, isForecast, hourOffset, weather],
   )
 
   return (
@@ -134,9 +146,14 @@ export default function Routing() {
 
         {/* Keying on the tab drops the previous tab's draft instead of leaking
             a half-drawn route into the next one. */}
-        <div className="rt-tabpanel">
+        <div className={`rt-tabpanel ${isForecast ? 'forecast-frame' : ''}`}>
+          {isForecast && <ForecastBadge hour={hourlyAt(weather, hourOffset)} offset={hourOffset} />}
           <Component key={active} shared={shared} onToast={flash} onGoToTab={goToTab} />
         </div>
+
+        {/* Only the tabs that actually solve a route follow the clock; Saved is
+            a library of past decisions, so scrubbing it would mean nothing. */}
+        {active !== 'saved' && <TimeScrubber weather={weather} projecting={projecting} />}
 
         <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
       </div>

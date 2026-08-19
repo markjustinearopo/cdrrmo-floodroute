@@ -1,0 +1,283 @@
+/* ============================================================
+   Time scrubber — the clock the map is being read at.
+
+   Two visual states, and the difference between them has to be
+   unmissable: LIVE is the ordinary chrome of the app; FORECAST
+   goes amber and stays amber, because the whole risk of this
+   feature is someone reading a projection as the present.
+   ============================================================ */
+
+.ts {
+  flex-shrink: 0;
+  background: #fff;
+  border-top: 1px solid #e5e2dd;
+  padding: 9px 16px 10px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+/* Forecast mode: amber wash + a top rule that reads as a warning strip. */
+.ts--forecast {
+  background: #fffbeb;
+  border-top: 2px solid #f59e0b;
+}
+
+.ts--offline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  padding: 12px 16px;
+}
+
+.ts-icon {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* ── Header row ── */
+.ts-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+
+.ts-when {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+}
+.ts--forecast .ts-when { color: #92400e; }
+
+.ts-chip {
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #f59e0b;
+  color: #fff;
+}
+.ts-chip--live {
+  background: #16a34a;
+}
+
+.ts-time {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+.ts--forecast .ts-time { color: #78350f; }
+
+.ts-delta {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #b45309;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-working {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  font-style: italic;
+}
+
+.ts-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-left: auto;
+}
+.ts-rain {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #1a1a1a;
+}
+.ts-rain--dry, .ts-rain--none { color: #9a9a9a; }
+.ts-rain--light { color: #0284c7; }
+.ts-rain--heavy { color: #2563eb; }
+.ts-rain--intense { color: #f97316; }
+.ts-rain--torrential { color: #c0181b; }
+
+.ts-rain-lbl {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+.ts-pop {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-actions {
+  display: flex;
+  gap: 6px;
+}
+.ts-btn {
+  appearance: none;
+  border: 1px solid #e5e2dd;
+  background: #fff;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #3a3a3a;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.ts-btn:hover:not(:disabled) { border-color: #cbb26b; }
+.ts-btn:disabled { opacity: 0.45; cursor: default; }
+.ts-btn--now {
+  border-color: #16a34a;
+  color: #15803d;
+}
+.ts-btn--now:disabled { border-color: #e5e2dd; color: #9a9a9a; }
+
+/* ── Track: rainfall bars behind a range input ── */
+.ts-track {
+  position: relative;
+  padding-top: 26px;
+}
+
+.ts-bars {
+  position: absolute;
+  inset: 0 0 14px 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  pointer-events: none;
+}
+.ts-bar {
+  flex: 1 1 0;
+  min-width: 0;
+  background: #dbeafe;
+  border-radius: 1px 1px 0 0;
+  transition: background 0.15s ease;
+}
+.ts--forecast .ts-bar { background: #fde68a; }
+.ts-bar.on {
+  background: #c0181b;
+}
+
+.ts-range {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.ts-range::-webkit-slider-runnable-track {
+  height: 3px;
+  background: #d8d4cd;
+  border-radius: 999px;
+}
+.ts-range::-moz-range-track {
+  height: 3px;
+  background: #d8d4cd;
+  border-radius: 999px;
+}
+.ts-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6.5px;
+  border-radius: 50%;
+  background: #c0181b;
+  border: 2.5px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.ts-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #c0181b;
+  border: 2.5px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.ts--forecast .ts-range::-webkit-slider-thumb { background: #b45309; }
+.ts--forecast .ts-range::-moz-range-thumb { background: #b45309; }
+.ts-range:focus-visible { outline: 2px solid #c0181b; outline-offset: 4px; border-radius: 999px; }
+
+.ts-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.625rem;
+  color: #9a9a9a;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-note {
+  margin-top: 6px;
+  font-size: 0.625rem;
+  line-height: 1.5;
+  color: #9a9a9a;
+}
+.ts--forecast .ts-note { color: #92400e; }
+
+/* ── The map's own forecast treatment ──────────────────────────────────────
+   Applied by the screens that host a scrubber, so the tint follows the map
+   itself and not just the control strip. */
+.forecast-frame {
+  position: relative;
+}
+.forecast-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 500; /* above Leaflet panes, below its controls */
+  border: 3px solid #f59e0b;
+  box-shadow: inset 0 0 32px rgba(245, 158, 11, 0.18);
+}
+
+.forecast-badge {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #f59e0b;
+  color: #fff;
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: 0 3px 12px rgba(180, 83, 9, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.forecast-badge svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 700px) {
+  .ts-readout { margin-left: 0; width: 100%; }
+  .ts-note { font-size: 0.5625rem; }
+}

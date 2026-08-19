@@ -12,7 +12,8 @@ import {
   useTrafficStatus,
 } from '../routingHelpers.jsx'
 import { planRoute, planToNearestSafe, DEFAULT_ALPHA, DEFAULT_BETA } from '../routeEngine.js'
-import { barangayRiskSamples } from '../floodRisk.js'
+import { barangayRiskSamples, projectedRoadStatus } from '../floodRisk.js'
+import { liveThresholds } from '../../../services/systemConfig.js'
 import { BarangayRiskLayer, InundationGrid } from '../BarangayRiskLayer.jsx'
 import Map3D from '../Map3D.jsx'
 import {
@@ -55,7 +56,7 @@ import RouteResultPanel, { SHORTEST_COLOR } from '../RouteResultPanel.jsx'
  * on its own screen; here it is a constraint on the route in front of you.
  */
 export default function GenerateTab({ shared, onToast }) {
-  const { roads, graph, live, fieldLoading, refreshField, use3D, type, setType } = shared
+  const { roads, graph, live, baselineField, fieldLoading, refreshField, use3D, type, setType, isForecast, forecastHour } = shared
   const [statusMap] = useRoadStatus()
   const [trafficMap] = useTrafficStatus()
   const [, { addRoute }] = useSavedRoutes()
@@ -70,6 +71,8 @@ export default function GenerateTab({ shared, onToast }) {
   const [alpha, setAlpha] = useState(DEFAULT_ALPHA)
   // Roads the operator excluded from the result panel: name → wayIds[]
   const [avoided, setAvoided] = useState(() => new Map())
+  // Off by default, and it stays off by default. See the toggle's note.
+  const [projectClosures, setProjectClosures] = useState(false)
 
   // ── Result + overlays ──
   const [plan, setPlan] = useState(null)
@@ -143,14 +146,34 @@ export default function GenerateTab({ shared, onToast }) {
   }, [roads, trafficMap])
   const trafficCount = Object.keys(trafficMap).length
 
+  /* Roads the MODEL expects to be under water at the scrubbed hour.
+
+     This is the only thing that actually moves a route across a forecast: rain
+     falls on the whole city at once, so it raises every road's cost together
+     and the engine returns the same path looking worse. A road crossing from
+     passable to not is a step, and steps reroute.
+
+     It is opt-in and stays that way. The model is uncalibrated — nothing in
+     this system has been checked against a measured flood — and thresholding a
+     smooth estimate turns a soft number into a hard claim about a named street.
+     The operator gets to see how many roads it wants to flag before deciding
+     whether to believe it. */
+  const projectedClosures = useMemo(() => {
+    if (!isForecast || !projectClosures || !roads || !baselineField) return null
+    // Against the live field, so this is the roads the forecast ADDS.
+    return projectedRoadStatus(roads, live, liveThresholds().high, baselineField)
+  }, [isForecast, projectClosures, roads, live, baselineField])
+  const projectedCount = projectedClosures ? Object.keys(projectedClosures).length : 0
+
   // Operator-excluded roads join the solve as blocked, exactly like a road
   // flagged Closed on Road Status — same mechanism, different author.
   const effectiveStatus = useMemo(() => {
-    if (avoided.size === 0) return statusMap
-    const next = { ...statusMap }
+    if (avoided.size === 0 && !projectedClosures) return statusMap
+    // Projected first so an operator's own flag always wins over the model.
+    const next = { ...projectedClosures, ...statusMap }
     for (const wayIds of avoided.values()) for (const id of wayIds) next[id] = 'blocked'
     return next
-  }, [statusMap, avoided])
+  }, [statusMap, avoided, projectedClosures])
 
   // Traffic only weighs on VEHICLE routes — evacuation is on foot, so
   // car congestion neither detours nor slows it (β = 0). Convoy/response
@@ -161,7 +184,14 @@ export default function GenerateTab({ shared, onToast }) {
     [live, effectiveStatus, trafficMap, alpha, beta],
   )
 
+  // Which hazard field the route currently on screen was solved against.
+  // Compared by identity, so a scrub (or a feed refresh) is detectable.
+  const liveRef = useRef(live)
+  liveRef.current = live
+  const solvedFieldRef = useRef(null)
+
   const solve = useCallback((opts) => {
+    solvedFieldRef.current = liveRef.current
     if (!graph || graph.size === 0) {
       onToast('Road network unavailable.')
       return null
@@ -202,6 +232,16 @@ export default function GenerateTab({ shared, onToast }) {
     setName(`${ROUTE_TYPES[type].label} Auto Route`)
     return 'points'
   }, [graph, openCentres, type, onToast])
+
+  /* The route has to describe the hour the scrubber is pointing at. Leaving a
+     route on screen that was solved against a different hour would be the worst
+     kind of wrong here — it looks current and is not — so moving the clock
+     re-solves it. This is also the demo: drag, and the line moves. */
+  useEffect(() => {
+    if (!plan?.ok) return
+    if (solvedFieldRef.current === live) return
+    solve(routeOpts)
+  }, [live, plan, routeOpts, solve])
 
   function generate() {
     const outcome = solve(routeOpts)
@@ -505,7 +545,26 @@ export default function GenerateTab({ shared, onToast }) {
           />
           <div className="ar-range-ends"><span>Shortest</span><span>Safest</span></div>
 
+          {isForecast && projectClosures && (
+            <div className="ar-forecast-note">
+              <b>{projectedCount.toLocaleString()}</b> road{projectedCount === 1 ? '' : 's'} the model
+              expects to go under between now and this hour — where projected depth crosses{' '}
+              {liveThresholds().high} m having been below it now. Roads already over that line
+              are left out: that is standing terrain, not something this forecast does.
+              This is an uncalibrated estimate, not a survey, and projected roads are costed
+              as flooded rather than closed, so the engine will still route through one if
+              there is no alternative.
+            </div>
+          )}
+
           <div className="ar-toggles">
+            {isForecast && (
+              <Toggle
+                label={`Project road closures${projectedCount ? ` (${projectedCount})` : ''}`}
+                on={projectClosures}
+                onChange={() => setProjectClosures((v) => !v)}
+              />
+            )}
             <Toggle label="Flood-risk heat" on={showRisk} onChange={() => setShowRisk((v) => !v)} />
             <Toggle label={`Road hazards${hazardCount ? ` (${hazardCount})` : ''}`} on={showHazards} onChange={() => setShowHazards((v) => !v)} />
             <Toggle label={`Live traffic${trafficCount ? ` (${trafficCount})` : ''}`} on={showTraffic} onChange={() => setShowTraffic((v) => !v)} />
@@ -527,7 +586,17 @@ export default function GenerateTab({ shared, onToast }) {
         {/* Result — the shared panel, with avoid-a-road wired to the solve */}
         {safe && (
           <section className="ar-section">
-            <h3 className="ar-section-title">Recommended Route</h3>
+            <h3 className="ar-section-title">
+              {isForecast ? 'Projected Route' : 'Recommended Route'}
+            </h3>
+            {isForecast && (
+              <div className="ar-forecast-note">
+                Solved against the modelled hazard at{' '}
+                <b>{forecastHour ? `${forecastHour.dayLabel} ${forecastHour.label}` : 'a future hour'}</b>.
+                Roads flagged by hand on Road Status are treated as still flagged then —
+                the model projects the weather, not an operator's next decision.
+              </div>
+            )}
             <RouteResultPanel
               plan={plan}
               color={color}

@@ -766,3 +766,10 @@
 }
 .fm-add-area:hover { border-color: #c0181b; color: #c0181b; }
 .fm-add-area svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; }
+
+/* The map area now stacks map + scrubber, so the Leaflet canvas takes the
+   remaining height instead of the scrubber overflowing it. */
+.map-area { display: flex; flex-direction: column; }
+.map-area > .leaflet-container,
+.map-area > .map3d { flex: 1 1 auto; min-height: 0; }
+.legend-live--forecast { color: #b45309; font-weight: 700; }

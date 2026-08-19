@@ -27,7 +27,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { DEPTH_THRESHOLDS, levelFromDepth } from './mapHelpers.jsx'
-import { fetchWeather, reloadWeather } from '../../services/weather.js'
+import { fetchWeather, reloadWeather, hourlyAt } from '../../services/weather.js'
+import { useForecastHour } from '../../services/forecastHour.js'
 import { BARANGAY_CENTROIDS, CABUYAO_LAND_BBOX, isOnLand } from '../../data/cabuyaoBarangays.js'
 import TERRAIN from '../../data/cabuyaoElevation.json'
 
@@ -105,7 +106,15 @@ function floodSusceptibility(elev) {
  * and the colours intensify toward red as rain and river discharge climb,
  * while the high western ground stays green. Wind is a minor hazard nudge.
  */
-function buildField({ elevation, weather, discharge }) {
+/* Accumulated rainfall that saturates the ground, in mm. ~60 mm is a day of
+   serious Habagat rain — the point past which Cabuyao's low ground is holding
+   water rather than shedding it. */
+const ACCUM_REF_MM = 60
+/* Weight of the pooling term (see buildField). Kept well under the base term so
+   accumulation shifts the picture without ever swamping the terrain. */
+const POOL_W = 0.45
+
+function buildField({ elevation, weather, discharge, accumMm = 0 }) {
   const liveElevation = Array.isArray(elevation)
 
   // Elevation range across the city (informational — surfaced in meta).
@@ -122,6 +131,7 @@ function buildField({ elevation, weather, discharge }) {
   const windNorm = weather ? clamp01(weather.wind / WIND_REF_KMH) : 0
   const dischNorm = discharge != null ? clamp01(discharge / DISCHARGE_REF) : 0
   const wetness = clamp01(0.6 * rainNorm + 0.4 * dischNorm)
+  const saturation = clamp01(accumMm / ACCUM_REF_MM)
 
   const grid = []
   for (let r = 0; r < GRID_N; r++) {
@@ -131,7 +141,16 @@ function buildField({ elevation, weather, discharge }) {
       // Topographic susceptibility. Without live elevation, assume a flat,
       // moderately-susceptible plain so wetness still shapes the field.
       const susceptibility = liveElevation ? floodSusceptibility(elevation[idx]) : 0.5
-      const risk = clamp01(susceptibility * (0.5 + 0.5 * wetness) + 0.08 * windNorm)
+      // Pooling. Rain arriving NOW is a city-wide scalar, so on its own it
+      // scales every cell alike and the hazard picture only brightens. What
+      // actually redistributes risk over hours is ACCUMULATION: low ground
+      // takes the rain that falls on it plus the runoff shed from everything
+      // upslope, so it fills disproportionately. The squared term is a coarse
+      // stand-in for that flow concentration — a heuristic, not a routed
+      // hydrological model — and it is what makes a forecast hour a different
+      // SHAPE rather than the same shape turned up.
+      const pooling = susceptibility * susceptibility * saturation * POOL_W
+      const risk = clamp01(susceptibility * (0.5 + 0.5 * wetness) + pooling + 0.08 * windNorm)
       row.push(risk)
     }
     grid.push(row)
@@ -146,6 +165,8 @@ function buildField({ elevation, weather, discharge }) {
       minElev: liveElevation ? minEl : null,
       maxElev: liveElevation ? maxEl : null,
       wetness,
+      accumMm: +Number(accumMm || 0).toFixed(1),
+      saturation,
       sources: {
         // Bundled terrain (always on) blended with live Open-Meteo Flood discharge.
         floodHub: true,
@@ -153,6 +174,10 @@ function buildField({ elevation, weather, discharge }) {
         osm: true, // the road graph is always OSM
       },
       live: Boolean(weather) || discharge != null,
+      // Set by fieldForHour() for anything downstream that needs to know it is
+      // looking at a projection rather than the present.
+      hourOffset: 0,
+      forecast: false,
     },
   }
 }
@@ -288,6 +313,86 @@ async function loadField() {
   }
 }
 
+/* ── Forecast-hour fields ────────────────────────────────────────────────────
+   The same model, run against a future hour of the Open-Meteo hourly series
+   instead of the current reading. Nothing about the terrain changes — only the
+   rain and wind arriving on top of it — which is exactly the honest claim: the
+   susceptibility is measured, the weather is forecast.
+
+   ONE THING DOES NOT MOVE: river discharge. The Flood API gives a daily figure,
+   not an hourly one, so the discharge term is held at today's value across the
+   whole scrub. That makes a projected hour slightly conservative for a rising
+   river, and the UI says so rather than implying the whole model is hourly.
+
+   Fields are cached per offset and dropped whenever the live field refreshes,
+   so a scrub never renders against a stale forecast. */
+const hourFieldCache = new Map()
+
+/**
+ * Build a field from an explicit set of weather numbers.
+ *
+ * The forecast-hour path uses this, and so does anything that needs to ask
+ * "what would the hazard surface look like under X" — including checking that
+ * the model actually responds to accumulation rather than only brightening.
+ */
+export function fieldFromWeather({ precipMm = 0, windKmh = 0, accumMm = 0, discharge = null }) {
+  const { grid, meta } = buildField({
+    elevation: TERRAIN.elevation,
+    weather: { precip: precipMm, wind: windKmh },
+    discharge,
+    accumMm,
+  })
+  return { grid, cells: fieldCells(grid), riskAt: makeRiskAt(grid), meta }
+}
+
+function clearHourFields() {
+  hourFieldCache.clear()
+}
+
+export async function fetchFloodFieldForHour(offset = 0) {
+  const n = Math.max(0, Math.round(offset))
+  if (n === 0) return fetchFloodField()
+  if (hourFieldCache.has(n)) return hourFieldCache.get(n)
+
+  const p = (async () => {
+    const wx = await fetchWeather().catch(() => null)
+    const hour = wx ? hourlyAt(wx, n) : null
+    // Past the end of the feed there is no honest answer — fall back to live
+    // rather than extrapolating a number nobody forecast.
+    if (!hour) return fetchFloodField()
+
+    // Rain that will have FALLEN by this hour, summed from the real hourly
+    // series. This is what saturates the ground; the hour's own rate only
+    // says how hard it is coming down at that moment.
+    let accumMm = 0
+    for (let i = 1; i <= n; i++) accumMm += hourlyAt(wx, i)?.precipMm ?? 0
+
+    const f = fieldFromWeather({
+      precipMm: hour.precipMm ?? 0,
+      windKmh: hour.gustKmh ?? hour.windKmh ?? 0,
+      accumMm,
+      discharge: wx?.discharge ?? null, // daily figure — held flat, see above
+    })
+    return {
+      ...f,
+      meta: {
+        ...f.meta,
+        hourOffset: n,
+        forecast: true,
+        hourLabel: hour.label,
+        hourDayLabel: hour.dayLabel,
+        hourIso: hour.iso,
+        pop: hour.pop,
+        // Discharge is the daily value, not a projection for this hour.
+        dischargeIsDaily: true,
+      },
+    }
+  })()
+
+  hourFieldCache.set(n, p)
+  return p
+}
+
 export function fetchFloodField() {
   if (fieldCache) return Promise.resolve(fieldCache)
   if (fieldPromise) return fieldPromise
@@ -341,6 +446,7 @@ export function useFloodRisk() {
       reloadWeather()
       fieldCache = null
       fieldPromise = null
+      clearHourFields() // projections were built on the old feed
       setNonce((n) => n + 1)
     }, FIELD_REFRESH_MS)
     return () => clearInterval(id)
@@ -352,10 +458,58 @@ export function useFloodRisk() {
     reloadWeather()
     fieldCache = null
     fieldPromise = null
+    clearHourFields() // projections were built on the old feed
     setNonce((n) => n + 1)
   }, [])
 
   return { field, loading, error, refresh }
+}
+
+/**
+ * The flood field at whatever hour the time scrubber is pointing at.
+ *
+ * A drop-in for useFloodRisk() on any screen that should follow the scrubber:
+ * at offset 0 it IS useFloodRisk (same cache, same refresh), and past that it
+ * swaps in the projected field for that hour. Callers get the extra `forecast`
+ * and `hour` flags so they can label what they are showing.
+ *
+ * The previous field stays on screen while the next one builds, so dragging
+ * the scrubber never flashes an empty map.
+ */
+export function useFloodRiskAtScrub() {
+  const [offset, , isForecast] = useForecastHour()
+  const live = useFloodRisk()
+  // The present, kept alongside the projection so consumers can express a
+  // forecast as a CHANGE from now rather than an absolute claim.
+  const baselineField = live.field
+  const [projected, setProjected] = useState(null)
+  const [projecting, setProjecting] = useState(false)
+
+  useEffect(() => {
+    if (offset === 0) {
+      setProjected(null)
+      setProjecting(false)
+      return undefined
+    }
+    let active = true
+    setProjecting(true)
+    fetchFloodFieldForHour(offset)
+      .then((f) => active && (setProjected(f), setProjecting(false)))
+      .catch(() => active && setProjecting(false))
+    return () => { active = false }
+  }, [offset])
+
+  // Hold the last good field while the next hour builds.
+  const field = offset === 0 ? live.field : (projected || live.field)
+
+  return {
+    ...live,
+    field,
+    baselineField,
+    offset,
+    forecast: isForecast,
+    projecting,
+  }
 }
 
 // A safe no-op field so callers can always destructure `riskAt`.
@@ -377,6 +531,51 @@ const DEPTH_PER_RISK = 0.83
 
 export function estDepthFromRisk(risk) {
   return Math.max(0, risk * DEPTH_PER_RISK)
+}
+
+/**
+ * Roads the model expects to be under water deep enough to stop a vehicle, at
+ * whatever hour the given field describes. Returns a statusMap-shaped object
+ * ({ wayId: 'flooded' }) so it drops straight into the routing engine beside
+ * the operator's own flags.
+ *
+ * This is what actually makes a forecast reroute anything, and it is worth
+ * being precise about why. A smooth hazard field cannot move a route: rain
+ * falls on the whole of a 10 km city at once, so it raises every road's cost
+ * together and A*, which only compares roads against each other, returns the
+ * same path looking slightly worse. What changes a route is a road crossing
+ * the line from passable to not — a step, not a slope. That is the real claim
+ * a forecast makes anyway: not "things get worse", but "this road goes under".
+ *
+ * Deliberately 'flooded' and never 'blocked'. Flooded is a heavy cost the
+ * engine will pay if there is genuinely no alternative; blocked is impassable
+ * and would let a model estimate strand someone. A projection does not get to
+ * close a road — only an operator does, on Road Status.
+ *
+ * `baseline` is the field for right now, and passing it is what keeps this
+ * honest. The model sits close to the depth thresholds even on a dry day, so
+ * asked for an absolute answer it will name thousands of roads as already
+ * under water — and routing against that at +1h, having ignored it at 0h,
+ * would produce a huge jump that has nothing to do with the forecast. With a
+ * baseline, the answer is the DIFFERENCE the forecast predicts: the roads that
+ * go under between now and then. That is both the smaller claim and the one an
+ * operator actually asked for.
+ */
+export function projectedRoadStatus(roads, field, thresholdM, baseline = null) {
+  const out = {}
+  if (!roads?.features || !field?.riskAt || !thresholdM) return out
+  for (const f of roads.features) {
+    const coords = f.geometry?.coordinates
+    if (!Array.isArray(coords) || coords.length === 0) continue
+    const [lng, lat] = coords[Math.floor(coords.length / 2)] || []
+    if (lat == null || lng == null) continue
+    if (estDepthFromRisk(field.riskAt(lat, lng)) < thresholdM) continue
+    // Already over the line right now — that is a standing condition of the
+    // terrain, not something this hour's weather does.
+    if (baseline?.riskAt && estDepthFromRisk(baseline.riskAt(lat, lng)) >= thresholdM) continue
+    out[f.properties.id] = 'flooded'
+  }
+  return out
 }
 
 /* ── NOAH-style hazard bands (shared by the 2D + 3D inundation surfaces) ──── */
