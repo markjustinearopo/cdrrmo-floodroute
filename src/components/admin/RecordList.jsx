@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import ConfirmDialog from '../ConfirmDialog.jsx'
 
 /**
@@ -30,8 +30,12 @@ import ConfirmDialog from '../ConfirmDialog.jsx'
  *
  *   columns      — [{ key, header, render(row), align, className, headerStyle }]
  *   renderItem   — alternative to `columns` for list/card bodies (Notifications,
- *                  Integrations) that share the chrome but not the table
+ *                  Integrations) that share the chrome but not the table.
+ *                  Its output is rendered as a direct child of listClassName —
+ *                  no wrapper div — so a CSS grid or flex row still sees the
+ *                  element it expects.
  *   listClassName— wrapper class when using renderItem
+ *   cardless     — skip the .mng-card frame (a card grid brings its own)
  *
  *   onEdit(row)      — adds an "Edit" row action (label via editLabel)
  *   editLabel(row)   — defaults to 'Edit'
@@ -66,6 +70,7 @@ export default function RecordList({
   columns,
   renderItem,
   listClassName = '',
+  cardless = false,
 
   onEdit,
   editLabel = () => 'Edit',
@@ -174,7 +179,7 @@ export default function RecordList({
 
       {selection && selection.selected.size > 0 && bulkBar}
 
-      <div className="mng-card">
+      <div className={cardless ? '' : 'mng-card'}>
         {columns ? (
           <table className="mng-table">
             <thead>
@@ -252,9 +257,7 @@ export default function RecordList({
         ) : (
           <div className={listClassName}>
             {visible.map((row) => (
-              <div key={rowKey(row)} className="rl-item">
-                {renderItem(row, { actions: actionsFor(row) })}
-              </div>
+              <Fragment key={rowKey(row)}>{renderItem(row, { actions: actionsFor(row) })}</Fragment>
             ))}
           </div>
         )}

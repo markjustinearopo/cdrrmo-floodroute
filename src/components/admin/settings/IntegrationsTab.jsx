@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useIntegrations, nowLabel } from '../../../context/AdminDataContext.jsx'
 import { INTEGRATION_STATUS_LABEL as STATUS_LABEL, INTEGRATION_SECRET_KEYS } from '../../../data/integrations.js'
 import { SettingsNote, TabHead } from '../SettingsKit.jsx'
+import RecordList from '../RecordList.jsx'
 
 /**
  * Settings → Integrations (was the API Integrations page).
@@ -15,17 +16,24 @@ import { SettingsNote, TabHead } from '../SettingsKit.jsx'
  * mirrored on the Flood Map's System Modules panel). "Test" really probes the
  * keyless live feeds and records the response time and last-check stamp.
  */
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'connected', label: 'Connected', test: (i) => i.status === 'connected' },
+  { key: 'enabled', label: 'Enabled', test: (i) => i.enabled },
+  { key: 'issues', label: 'Issues', test: (i) => i.status === 'error' },
+]
+
 export default function IntegrationsTab({ onToast }) {
   const { integrations: items, setIntegration } = useIntegrations()
   const [configuring, setConfiguring] = useState(null) // integration id
   const [testing, setTesting] = useState(null) // integration id being probed
 
-  const stats = useMemo(() => ({
-    total: items.length,
-    connected: items.filter((i) => i.status === 'connected').length,
-    enabled: items.filter((i) => i.enabled).length,
-    issues: items.filter((i) => i.status === 'error').length,
-  }), [items])
+  const stats = useMemo(() => [
+    { color: 'blue', value: items.length, label: 'Integrations' },
+    { color: 'green', value: items.filter((i) => i.status === 'connected').length, label: 'Connected' },
+    { color: 'slate', value: items.filter((i) => i.enabled).length, label: 'Enabled' },
+    { color: 'red', value: items.filter((i) => i.status === 'error').length, label: 'Issues' },
+  ], [items])
 
   const current = configuring ? items.find((i) => i.id === configuring) : null
 
@@ -110,19 +118,21 @@ export default function IntegrationsTab({ onToast }) {
         sub="Connect the external services the system depends on"
       />
 
-      <div className="mng-stats">
-        <Stat color="blue" value={stats.total} label="Integrations" />
-        <Stat color="green" value={stats.connected} label="Connected" />
-        <Stat color="slate" value={stats.enabled} label="Enabled" />
-        <Stat color="red" value={stats.issues} label="Issues" />
-      </div>
-
-      <div className="set-int-grid">
-        {items.map((i) => {
+      <RecordList
+        rows={items}
+        rowLabel={(i) => i.name}
+        stats={stats}
+        filters={FILTERS}
+        searchKeys={(i) => `${i.name} ${i.category} ${i.desc}`}
+        searchPlaceholder="Search integration or category…"
+        listClassName="set-int-grid"
+        cardless
+        empty={{ title: 'No integration matches this view', sub: 'Try a different filter or clear your search.' }}
+        renderItem={(i) => {
           const primary = i.fields[0]
           const primaryVal = i.values[primary.key]
           return (
-            <div key={i.id} className="set-int">
+            <div className="set-int">
               <div className="set-int-top">
                 <div className="set-int-icon"><Icon name={i.icon} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -170,8 +180,8 @@ export default function IntegrationsTab({ onToast }) {
               </div>
             </div>
           )
-        })}
-      </div>
+        }}
+      />
 
       <SettingsNote>
         Keys are masked; configuration persists and mirrors onto the Flood Map's System Modules panel. "Test" really
