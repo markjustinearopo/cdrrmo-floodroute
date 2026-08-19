@@ -635,3 +635,134 @@
   line-height: 1.45;
   text-align: center;
 }
+
+/* ============================================================
+   Hazard tab — folded in from the standalone Hazard Layer screen
+   (its map was this map; only these three blocks were unique).
+   ============================================================ */
+.fm-hazard { display: flex; flex-direction: column; gap: 16px; }
+.fm-hazard-sec { display: flex; flex-direction: column; }
+.fm-hazard-title {
+  margin: 0 0 9px;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+}
+.fm-hazard-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.fm-hazard-stat {
+  background: #faf9f7;
+  border: 1px solid #f0eee9;
+  border-radius: 9px;
+  padding: 10px;
+}
+.fm-hazard-stat-val {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.fm-hazard-stat-unit {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9a9a9a;
+  margin-left: 3px;
+}
+.fm-hazard-stat-lbl {
+  margin-top: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #9a9a9a;
+}
+.fm-hazard-note {
+  margin: 9px 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: #7a7a7a;
+}
+.fm-hazard-legend { display: flex; flex-direction: column; gap: 6px; }
+.fm-hazard-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+.fm-hazard-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.fm-hazard-legend-lbl { font-weight: 600; color: #2a2a2a; }
+.fm-hazard-legend-sub { margin-left: auto; font-size: 0.6875rem; color: #9a9a9a; }
+.fm-hazard-feed {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #f0eee9;
+  border-radius: 9px;
+  background: #faf9f7;
+}
+.fm-hazard-feed-val {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+.fm-hazard-feed-src { margin-left: auto; font-size: 0.625rem; color: #9a9a9a; }
+.fm-hazard-refresh {
+  margin-top: 9px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #e5e2dd;
+  background: #fff;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3a3a3a;
+  cursor: pointer;
+}
+.fm-hazard-refresh:hover:not(:disabled) { border-color: #cbb26b; }
+.fm-hazard-refresh:disabled { opacity: 0.6; cursor: default; }
+
+/* Subtab bar: the System Modules entry is a link out to Integrations, which
+   owns that truth — styled as a subtab but visibly outbound. */
+.subtab-bar .subtab--link {
+  margin-left: auto;
+  text-decoration: none;
+  color: #9a9a9a;
+}
+.subtab-bar .subtab--link:hover { color: #c0181b; }
+.subtab-ext { width: 11px; height: 11px; opacity: 0.7; }
+
+/* Embedded Incidents (Flood Map -> Incident Reports subtab): the real page,
+   without the page-level padding it gets when it owns the screen. */
+.mng--embedded { padding: 16px; overflow-y: auto; height: 100%; }
+
+/* Add-a-flood-area button beside the map layer toggles. */
+.fm-add-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 1px solid #e5e2dd;
+  background: #fff;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3a3a3a;
+  cursor: pointer;
+}
+.fm-add-area:hover { border-color: #c0181b; color: #c0181b; }
+.fm-add-area svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; }

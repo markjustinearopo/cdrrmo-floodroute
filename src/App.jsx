@@ -5,9 +5,9 @@ import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import AdminDashboard from './pages/admin/Dashboard.jsx'
 import AdminFloodMap from './pages/admin/FloodMap.jsx'
-import AdminFloodAreas from './pages/admin/FloodAreas.jsx'
+
 import AdminFloodReports from './pages/admin/FloodReports.jsx'
-import AdminHazardLayer from './pages/admin/HazardLayer.jsx'
+
 import AdminReports from './pages/admin/Reports.jsx'
 import AdminRouting from './pages/admin/Routing.jsx'
 import AdminRoadStatus from './pages/admin/RoadStatus.jsx'
@@ -57,9 +57,7 @@ export default function App() {
       <Route element={<RequireAuth group="admin" />}>
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/flood-map" element={<AdminFloodMap />} />
-        <Route path="/admin/flood-areas" element={<AdminFloodAreas />} />
         <Route path="/admin/flood-reports" element={<AdminFloodReports />} />
-        <Route path="/admin/hazard-layer" element={<AdminHazardLayer />} />
         <Route path="/admin/reports" element={<AdminReports />} />
         <Route path="/admin/routing" element={<AdminRouting />} />
         <Route path="/admin/road-status" element={<AdminRoadStatus />} />
@@ -80,6 +78,10 @@ export default function App() {
         <Route path="/admin/barangay" element={<Navigate to="/admin/settings?tab=barangays" replace />} />
 
         {/* Routing was four screens calling the same engine; they are now tabs. */}
+        {/* Hazard Layer and Flood-Prone Areas are layers on the Flood Map now. */}
+        <Route path="/admin/hazard-layer" element={<Navigate to="/admin/flood-map" replace />} />
+        <Route path="/admin/flood-areas" element={<Navigate to="/admin/flood-map" replace />} />
+
         <Route path="/admin/auto-route" element={<Navigate to="/admin/routing" replace />} />
         <Route path="/admin/route-planning" element={<Navigate to="/admin/routing?tab=draw" replace />} />
         <Route path="/admin/override-routes" element={<Navigate to="/admin/routing?tab=override" replace />} />

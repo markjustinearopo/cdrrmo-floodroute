@@ -404,3 +404,13 @@
   .flood-areas .fa-map-area { height: 52vh; flex: 0 0 auto; }
   .flood-areas .fa-panel { width: 100%; border-left: none; border-top: 1px solid #e5e2dd; }
 }
+
+/* Live feet readout under the metres input — CDRRMO measures on the ground in
+   feet, so this confirms the operator typed the number they meant. */
+.fa-depth-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9a9a9a;
+}

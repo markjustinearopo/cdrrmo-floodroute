@@ -13,8 +13,9 @@ import {
   CabuyaoLock,
   CoordReadout,
 } from '../../components/admin/mapHelpers.jsx'
+import { Link } from 'react-router-dom'
 import { useLiveWeather } from '../../services/weather.js'
-import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
+import { useFloodRisk, barangayRiskSamples, hazardSummary } from '../../components/admin/floodRisk.js'
 import { BarangayRiskLayer, InundationGrid, FocusController } from '../../components/admin/BarangayRiskLayer.jsx'
 import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
@@ -30,8 +31,8 @@ import {
 } from '../../components/admin/routingHelpers.jsx'
 import { useAlerts, useEvacCenters, useIncidents, useRoadReports, useFloodAreas } from '../../context/AdminDataContext.jsx'
 import { useRoadStatus, getCabuyaoRoads } from '../../components/admin/routingHelpers.jsx'
-import SystemModulesPanel from '../../components/admin/SystemModulesPanel.jsx'
-import IncidentReportsPanel from '../../components/admin/IncidentReportsPanel.jsx'
+import Incidents from './Incidents.jsx'
+import FloodAreaEditor from '../../components/admin/FloodAreaEditor.jsx'
 import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import { useBarangayLayers } from '../../components/admin/mapbox3dHelpers.js'
 import { useEvacCentres3D } from '../../components/admin/routing3d.js'
@@ -63,13 +64,25 @@ import './FloodMap.css'
  * shared with the other admin map screens via ../../components/admin/mapHelpers.
  */
 
+/* System Modules used to be a third subtab here, mirroring the Integrations
+   screen — a second surface for the same truth, so the two could disagree
+   about whether a service was up. It is now a link to the one that owns it. */
 const MAP_SUBTABS = [
   { key: 'live', label: 'Live Map', icon: MapIcon },
-  { key: 'modules', label: 'System Modules', icon: GridIcon },
   { key: 'incidents', label: 'Incident Reports', icon: AlertTriangleIcon },
 ]
 
-const PANEL_TABS = ['Overview', 'Weather', 'Alerts', 'Routes', 'Barangays']
+/* 'Hazard' carries the summary the standalone Hazard Layer screen used to
+   own — the only part of that page that was not already on this one. */
+const PANEL_TABS = ['Overview', 'Hazard', 'Weather', 'Alerts', 'Routes', 'Barangays']
+
+/* Risk classification legend — same vocabulary as the Dashboard. */
+const RISK_LEGEND = [
+  { level: 'high', label: 'High Risk', sub: '≥ 0.5 m flood depth' },
+  { level: 'moderate', label: 'Moderate', sub: '0.3 – 0.5 m' },
+  { level: 'low', label: 'Low Risk', sub: '0.1 – 0.3 m' },
+  { level: 'safe', label: 'Safe', sub: '< 0.1 m' },
+]
 
 // Eight hourly buckets for the rainfall mini-chart (-8h … Now).
 const RAIN_TICKS = ['-8h', '-7', '-6', '-5', '-4', '-3', '-2', 'Now']
@@ -98,7 +111,7 @@ const NOAH_LABEL = { 1: 'Low', 2: 'Moderate', 3: 'High' }
 export default function FloodMap() {
   // ── Live feeds ──
   const { weather } = useLiveWeather()
-  const { field } = useFloodRisk()
+  const { field, loading: fieldLoading, refresh: refreshField } = useFloodRisk()
   const [routes] = useRoutes()
 
   // ── NOAH 100-yr flood hazard zones ──
@@ -110,6 +123,9 @@ export default function FloodMap() {
 
   // ── Shared store ──
   const { alerts, resolveAlert } = useAlerts()
+  const { addFloodArea, updateFloodArea } = useFloodAreas()
+  // Flood-prone area being edited in place from its pin ('new' = add).
+  const [editingArea, setEditingArea] = useState(null)
   const { incidents, updateIncident } = useIncidents()
   const { evacuationCenters, updateEvacCenter } = useEvacCenters()
   const { roadReports } = useRoadReports()
@@ -210,6 +226,8 @@ export default function FloodMap() {
   // Roads" figure (and vocabulary) the Hazard Layer summary reports, so the
   // two screens never describe the same city state with different numbers.
   const flaggedRoadCount = Object.keys(roadStatus).length
+  // Hazard summary — the figures the standalone Hazard Layer screen showed.
+  const hazard = useMemo(() => hazardSummary(field, barangays, roadStatus), [field, barangays, roadStatus])
 
   const risk = useMemo(() => {
     const counts = { high: 0, moderate: 0, low: 0, safe: 0 }
@@ -275,13 +293,19 @@ export default function FloodMap() {
               {label}
             </button>
           ))}
+          {/* Not a subtab: Integrations owns the module status, so this points
+              at it rather than mirroring it here. */}
+          <Link className="subtab subtab--link" to="/admin/settings?tab=integrations">
+            <GridIcon />
+            System Modules
+            <ExternalIcon />
+          </Link>
           {/* 2D (classic Leaflet) ⇄ 3D (Mapbox terrain) — only the live map. */}
           {subtab === 'live' && <MapViewToggle value={use3D} onChange={setUse3D} />}
         </div>
 
-        {/* System Modules + Incident Reports subtabs render full-bleed panels. */}
-        {subtab === 'modules' && <SystemModulesPanel />}
-        {subtab === 'incidents' && <IncidentReportsPanel />}
+        {/* The real Incidents screen, not a second copy of it. */}
+        {subtab === 'incidents' && <Incidents embedded />}
 
         {/* ── Map + Right panel (Live Map subtab) ── */}
         {subtab === 'live' && (
@@ -348,7 +372,9 @@ export default function FloodMap() {
 
               {/* Admin-managed flood-prone areas — the same pins the barangay
                   and resident maps show. */}
-              {overlays.floodAreas && <FloodAreaMarkers areas={floodAreas} />}
+              {overlays.floodAreas && (
+                <FloodAreaMarkers areas={floodAreas} onSelect={(a) => setEditingArea(a)} />
+              )}
 
               {/* Flagged road segments: closed = solid red, flooded = dashed orange */}
               {overlays.roads && flaggedRoadLines.map((r) => (
@@ -461,6 +487,14 @@ export default function FloodMap() {
             {/* Floating smart search (2D view; the result layer is Leaflet-only) */}
             {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 
+            {/* Flood-prone areas are managed here now, on the map that shows
+                them — click a pin to edit, or add one from scratch. */}
+            {overlays.floodAreas && (
+              <button type="button" className="fm-add-area" onClick={() => setEditingArea('new')}>
+                <PlusIcon /> Add flood-prone area
+              </button>
+            )}
+
             {/* On-map layer toggles + intensity. Same names the Hazard Layer
                 uses — verified reports / risk markers / routes live on their
                 own dedicated screens. */}
@@ -468,7 +502,7 @@ export default function FloodMap() {
               opacity={intensity}
               onOpacity={setIntensity}
               layers={[
-                { key: 'noah', label: 'NOAH Flood Hazard', color: '#c0181b', on: layers.noah, onToggle: () => toggleLayer('noah') },
+                { key: 'noah', label: 'NOAH hazard bands', color: '#c0181b', on: layers.noah, onToggle: () => toggleLayer('noah') },
                 { key: 'barangays', label: 'Barangay Risk', color: '#c0181b', on: layers.barangays, onToggle: () => toggleLayer('barangays') },
                 { key: 'inundation', label: 'Live Inundation', color: '#2563eb', on: layers.inundation, onToggle: () => toggleLayer('inundation') },
                 { key: 'incidents', label: 'Incidents', color: '#dc2626', on: overlays.incidents, onToggle: () => toggleOverlay('incidents') },
@@ -525,6 +559,15 @@ export default function FloodMap() {
                   rainHistory={rainHistory}
                   forecast={forecast}
                   riskSummary={riskSummary}
+                />
+              )}
+
+              {panelTab === 'Hazard' && (
+                <HazardTab
+                  summary={hazard}
+                  discharge={weather.discharge}
+                  loading={fieldLoading}
+                  onRefresh={refreshField}
                 />
               )}
 
@@ -624,7 +667,20 @@ export default function FloodMap() {
         <span className="sr-only">{bannerText}</span>
 
         {/* Shared confirmation for destructive actions */}
-        {confirm && (
+        {/* Flood-prone area editor, opened from a pin on the map itself. */}
+      {editingArea && (
+        <FloodAreaEditor
+          area={editingArea === 'new' ? null : editingArea}
+          onClose={() => setEditingArea(null)}
+          onSave={(data, id) => {
+            if (id) updateFloodArea(id, data)
+            else addFloodArea(data)
+            setEditingArea(null)
+          }}
+        />
+      )}
+
+      {confirm && (
           <ConfirmDialog
             title={confirm.title}
             message={confirm.message}
@@ -836,6 +892,85 @@ function StatCard({ color, icon, value, label }) {
       <div className="stat-num">{value}</div>
       <div className="stat-lbl">{label}</div>
     </div>
+  )
+}
+
+/**
+ * Hazard tab — the live hazard summary, the risk-classification legend and the
+ * river-discharge feed. These three blocks were the whole reason the separate
+ * Hazard Layer screen existed; its map was this map, with the same layers.
+ */
+function HazardTab({ summary, discharge, loading, onRefresh }) {
+  const dischargeText = discharge?.value != null ? `${discharge.value.toFixed(1)} m³/s` : '--'
+  return (
+    <div className="fm-hazard">
+      <section className="fm-hazard-sec">
+        <h3 className="fm-hazard-title">Hazard Summary</h3>
+        <div className="fm-hazard-stats">
+          <HazardStat label="At-Risk Area" value={`${summary.inundatedAreaKm2}`} unit="km²" />
+          <HazardStat label="Est. Avg Depth" value={`~${summary.avgFloodDepth.toFixed(2)}`} unit="m" />
+          <HazardStat label="High-Risk Brgys" value={`${summary.highRiskZones}`} />
+          <HazardStat label="Flagged Roads" value={`${summary.affectedRoads}`} />
+        </div>
+        <p className="fm-hazard-note">
+          Depths are model estimates (Open-Meteo + terrain), not sensor readings.
+          Verify on the ground before acting.
+        </p>
+      </section>
+
+      <section className="fm-hazard-sec">
+        <h3 className="fm-hazard-title">Risk Classification</h3>
+        <div className="fm-hazard-legend">
+          {RISK_LEGEND.map((r) => (
+            <div className="fm-hazard-legend-row" key={r.level}>
+              <span className="fm-hazard-swatch" style={{ background: RISK_META[r.level]?.color }} />
+              <span className="fm-hazard-legend-lbl">{r.label}</span>
+              <span className="fm-hazard-legend-sub">{r.sub}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="fm-hazard-sec">
+        <h3 className="fm-hazard-title">Live River Discharge</h3>
+        <div className="fm-hazard-feed">
+          <span className="fm-hazard-feed-val">{dischargeText}</span>
+          <span className="fm-hazard-feed-src">Open-Meteo Flood</span>
+        </div>
+        <p className="fm-hazard-note">
+          Modeled discharge near Cabuyao. Feeds the flood-risk model behind the
+          hazard surface on the map.
+        </p>
+        <button type="button" className="fm-hazard-refresh" onClick={onRefresh} disabled={loading}>
+          {loading ? 'Refreshing…' : 'Refresh feeds'}
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function HazardStat({ label, value, unit }) {
+  return (
+    <div className="fm-hazard-stat">
+      <div className="fm-hazard-stat-val">
+        {value}{unit && <span className="fm-hazard-stat-unit">{unit}</span>}
+      </div>
+      <div className="fm-hazard-stat-lbl">{label}</div>
+    </div>
+  )
+}
+
+function PlusIcon() {
+  return <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+}
+
+function ExternalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="subtab-ext">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
   )
 }
 

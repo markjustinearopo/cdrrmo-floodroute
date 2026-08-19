@@ -10,7 +10,8 @@ const ROLE_GROUP = {
   resident: 'resident',
 }
 const HOME = {
-  admin: '/admin/dashboard',
+  // The map, not the dashboard — see getRoleForRedirect in services/api.js.
+  admin: '/admin/flood-map',
   barangay: '/barangay/dashboard',
   resident: '/resident/dashboard',
 }
