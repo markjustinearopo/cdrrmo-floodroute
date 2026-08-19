@@ -1,13 +1,13 @@
 /* ============================================================
    FloodAreasLayer — the shared Leaflet overlay for the city's
-   documented flood-prone areas (depth in feet).
+   documented flood-prone areas (depth in metres).
 
    One implementation, reused by every flood map (admin / barangay /
    resident) and the admin Flood-Prone Areas management screen, so a
    record looks and reads the same everywhere. Each area is a teardrop
    pin from the shared pin family (coloured + sized by severity, droplet
    glyph — warning triangle for flash floods) with a detailed popup:
-   depth in feet with a severity meter, flood type, provenance
+   depth in metres with a severity meter, flood type, provenance
    (observed record vs estimated band), the rain drivers, the storms it
    was recorded under, and the CDRRMO note.
    ============================================================ */
@@ -19,20 +19,30 @@ import {
   floodSeverity,
   formatFloodDepth,
 } from '../../data/floodAreas.js'
+import { depthMeters } from '../../services/depth.js'
 import { pinIcon, PIN_SIZE } from '../map/pinIcons.js'
 import { nowLabel } from '../../context/AdminDataContext.jsx'
 import './FloodAreasLayer.css'
 
-/* Depth (ft) that fills the popup severity meter — deeper stays capped. */
-const METER_FULL_FT = 4
+/* Depth (m) that fills the popup severity meter — deeper stays capped.
+   1.22 m is the old 4 ft cap, so the meter reads identically. */
+const METER_FULL_M = 1.22
 
-/** Detailed popup body for one flood-prone area (also used by the manage page). */
-export function FloodAreaPopup({ area }) {
+/**
+ * Detailed popup body for one flood-prone area.
+ *
+ * `onEdit` adds the edit affordance for the admin Flood Map. It lives in the
+ * popup rather than on the pin click itself: clicking a pin is how everyone —
+ * admin, barangay, resident — reads the record, and the popup carries the
+ * provenance line the editor has no room for. Hijacking that gesture to throw
+ * up a modal would cost the read to buy the write.
+ */
+export function FloodAreaPopup({ area, onEdit }) {
   const sev = floodSeverity(area)
   const meta = FLOOD_SEVERITY_META[sev]
-  const ft = Number(area.depthFt) || 0
+  const m = depthMeters(area) || 0
   // Flash floods read as full-severity even without a pooled depth.
-  const meterPct = area.type === 'flash_flood' && !ft ? 100 : Math.min(100, (ft / METER_FULL_FT) * 100)
+  const meterPct = area.type === 'flash_flood' && !m ? 100 : Math.min(100, (m / METER_FULL_M) * 100)
   return (
     <div className="fa-popup">
       <div className="fa-popup-head">
@@ -59,6 +69,11 @@ export function FloodAreaPopup({ area }) {
       <div className="fa-popup-foot">
         {area.reportedBy || 'CDRRMO'}{area.updatedAt ? ` · ${nowLabel(area.updatedAt)}` : ''}
       </div>
+      {onEdit && (
+        <button type="button" className="fa-popup-edit" onClick={() => onEdit(area)}>
+          Edit this area
+        </button>
+      )}
     </div>
   )
 }
@@ -67,7 +82,7 @@ export function FloodAreaPopup({ area }) {
  * Render the flood-prone areas as map markers (shared pin family).
  *   areas    — array of flood-area records
  *   only     — optional barangay name to filter to (barangay jurisdiction view)
- *   onSelect — optional click handler (manage screen highlights the row)
+ *   onSelect — optional handler for the popup's "Edit this area" button
  *   interactive — when false, no popup/click (e.g. static report context)
  */
 export function FloodAreaMarkers({ areas = [], only = null, onSelect, interactive = true }) {
@@ -86,14 +101,17 @@ export function FloodAreaMarkers({ areas = [], only = null, onSelect, interactiv
             glyph: a.type === 'flash_flood' ? 'alert' : 'drop',
             size: PIN_SIZE[sev],
           })}
-          eventHandlers={onSelect ? { click: () => onSelect(a) } : undefined}
         >
           {!interactive && (
             <Tooltip direction="top">
               <b>{a.name}</b> · {formatFloodDepth(a)}
             </Tooltip>
           )}
-          {interactive && <Popup><FloodAreaPopup area={a} /></Popup>}
+          {interactive && (
+            <Popup>
+              <FloodAreaPopup area={a} onEdit={onSelect} />
+            </Popup>
+          )}
         </Marker>
       )
     })

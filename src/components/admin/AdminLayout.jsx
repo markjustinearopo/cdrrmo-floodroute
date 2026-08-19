@@ -32,19 +32,10 @@ const NAV = [
     section: 'Monitor',
     items: [
       { label: 'Dashboard', to: '/admin/dashboard', icon: DashboardIcon },
+      // Hazard Layer and Flood-Prone Areas were separate screens showing the
+      // same city with the same overlays. Both are layers on this map now.
       { label: 'Flood Map', to: '/admin/flood-map', icon: MapIcon },
-      { label: 'Flood-Prone Areas', to: '/admin/flood-areas', icon: DropIcon },
-      { label: 'Hazard Layer', to: '/admin/hazard-layer', icon: LayersIcon },
       { label: 'Reports', to: '/admin/reports', icon: ReportIcon },
-    ],
-  },
-  {
-    section: 'Routing',
-    items: [
-      // One entry, four tabs (Generate · Draw · Override · Saved) — they all
-      // drive the same flood-weighted A* and only differ in how the route is
-      // specified. The tab lives in the URL, so deep links still work.
-      { label: 'Routing', to: '/admin/routing', icon: TargetIcon },
     ],
   },
   {
@@ -55,8 +46,17 @@ const NAV = [
       { label: 'Incidents', to: '/admin/incidents', icon: TriangleIcon },
       // Road Status sat under Routing, but nobody opens it to plan a trip —
       // they open it because a road just went under. That is response.
-      { label: 'Road Status', to: '/admin/road-status', icon: ListIcon },
       { label: 'Evacuation', to: '/admin/evacuation', icon: HomeIcon },
+      { label: 'Road Status', to: '/admin/road-status', icon: ListIcon },
+    ],
+  },
+  {
+    section: 'Plan',
+    items: [
+      // One entry, four tabs (Generate · Draw · Override · Saved) — they all
+      // drive the same flood-weighted A* and only differ in how the route is
+      // specified. The tab lives in the URL, so deep links still work.
+      { label: 'Routing', to: '/admin/routing', icon: TargetIcon },
     ],
   },
   {
@@ -363,22 +363,6 @@ function MapIcon() {
     </svg>
   )
 }
-function LayersIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" />
-      <polyline points="2 12 12 17 22 12" />
-    </svg>
-  )
-}
-function DropIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-    </svg>
-  )
-}
 function ReportIcon() {
   return (
     <svg viewBox="0 0 24 24">
@@ -406,31 +390,6 @@ function ListIcon() {
       <line x1="3" y1="6" x2="3.01" y2="6" />
       <line x1="3" y1="12" x2="3.01" y2="12" />
       <line x1="3" y1="18" x2="3.01" y2="18" />
-    </svg>
-  )
-}
-function ShuffleIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <polyline points="17 1 21 5 17 9" />
-      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-      <polyline points="7 23 3 19 7 15" />
-      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-    </svg>
-  )
-}
-function SparkIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
-      <path d="M19 15l.7 1.9L21.5 17.5 19.7 18l-.7 1.9-.7-1.9L16.5 17.5l1.8-.6L19 15z" />
-    </svg>
-  )
-}
-function BookmarkIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </svg>
   )
 }

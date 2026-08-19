@@ -118,13 +118,15 @@ export const usersApi = {
   remove: (id) => db.users.remove(id),
 }
 
-// Maps a role to its dashboard route within the React app.
+// Maps a role to its landing route within the React app. CDRRMO staff land on
+// the Flood Map: the map is where the work actually happens, and an operator
+// opening the system during an event wants the city, not a summary of it.
 export function getRoleForRedirect(role) {
   const map = {
-    admin: '/admin/dashboard',
-    staff: '/admin/dashboard', // accounts.role CHECK uses 'staff' for EOC/operator
-    operator: '/admin/dashboard',
-    viewer: '/admin/dashboard',
+    admin: '/admin/flood-map',
+    staff: '/admin/flood-map', // accounts.role CHECK uses 'staff' for EOC/operator
+    operator: '/admin/flood-map',
+    viewer: '/admin/flood-map',
     officer: '/barangay/dashboard',
     barangay: '/barangay/dashboard',
     resident: '/resident/dashboard',

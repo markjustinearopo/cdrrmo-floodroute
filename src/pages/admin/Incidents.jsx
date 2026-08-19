@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { BARANGAYS, INCIDENT_TYPES, PRIORITIES, RESPONSE_TEAMS } from '../../data/cabuyao.js'
@@ -58,7 +58,14 @@ function compressImage(file) {
   })
 }
 
-export default function Incidents() {
+/**
+ * `embedded` drops the AdminLayout chrome so the Flood Map's Incident Reports
+ * subtab can mount this component itself. That subtab used to render a
+ * separate near-copy of this page (IncidentReportsPanel) — same store, second
+ * markup, two places to fix a bug.
+ */
+export default function Incidents({ embedded = false }) {
+  const Shell = embedded ? Fragment : AdminLayout
   const { incidents: items, addIncident, updateIncident, removeIncident } = useIncidents()
   const [, { addRoute }] = useSavedRoutes()
   const [roadStatusMap] = useRoadStatus()
@@ -214,8 +221,8 @@ export default function Incidents() {
   }
 
   return (
-    <AdminLayout>
-      <div className="mng">
+    <Shell>
+      <div className={`mng ${embedded ? 'mng--embedded' : ''}`}>
         <div className="mng-head">
           <div className="mng-head-titles">
             <div className="mng-head-icon">
@@ -524,7 +531,7 @@ export default function Incidents() {
       )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
-    </AdminLayout>
+    </Shell>
   )
 }
 

@@ -23,6 +23,7 @@ const FIL = {
   Routing: 'Ruta',
   Manage: 'Pamahalaan',
   Respond: 'Pagtugon',
+  Plan: 'Pagpaplano',
   Admin: 'Pangasiwaan',
   Settings: 'Mga Setting',
 

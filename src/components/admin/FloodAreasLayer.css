@@ -108,3 +108,19 @@
   border: 1.5px solid #fff;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
+
+/* Admin-only edit affordance inside the pin popup — the read stays the click. */
+.fa-popup-edit {
+  margin-top: 9px;
+  width: 100%;
+  padding: 7px;
+  border: 1px solid #e5e2dd;
+  background: #fff;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #c0181b;
+  cursor: pointer;
+}
+.fa-popup-edit:hover { background: #fef2f2; border-color: #c0181b; }
