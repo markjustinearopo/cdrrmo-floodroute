@@ -14,6 +14,8 @@
      Impassable Road → Dark Red
    ============================================================ */
 
+import { ftToM, formatMeters } from '../services/depth.js'
+
 /** Ordered flood levels a resident can pick (drives the form + filters). */
 export const FLOOD_LEVELS = [
   { value: 'none', label: 'No Flood' },
@@ -49,12 +51,15 @@ export function verifyStatusMeta(status) {
   return VERIFY_STATUS_META[status] || VERIFY_STATUS_META.pending
 }
 
-/** "3.5 ft" | "4 ft" | null — optional water depth in feet. */
+/**
+ * "1.1 m" | "0.3 m" | null — the reported water depth, shown in metres.
+ *
+ * Residents submit and we still STORE feet (the resident form and its existing
+ * rows are their own write path), so the conversion happens here at the display
+ * edge. Metres is what the rest of the product speaks — see services/depth.js.
+ */
 export function formatReportDepth(depthFt) {
-  if (depthFt == null || depthFt === '') return null
-  const ft = Number(depthFt)
-  if (Number.isNaN(ft)) return null
-  return `${ft % 1 === 0 ? ft : ft.toFixed(1)} ft`
+  return formatMeters(ftToM(depthFt))
 }
 
 /**

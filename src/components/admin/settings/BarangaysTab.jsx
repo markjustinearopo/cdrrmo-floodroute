@@ -3,6 +3,7 @@ import { BARANGAYS, levelFromDepth } from '../../../data/cabuyao.js'
 import { useBarangayAssignments } from '../../../context/AdminDataContext.jsx'
 import { useFloodRisk, barangayRiskSamples } from '../floodRisk.js'
 import { SettingsNote, TabHead } from '../SettingsKit.jsx'
+import RecordList from '../RecordList.jsx'
 
 /**
  * Settings → Barangays (was the Barangay page under Manage).
@@ -15,6 +16,10 @@ import { SettingsNote, TabHead } from '../SettingsKit.jsx'
  * shared AdminDataContext store (persisted, visible system-wide). The
  * flood-status badge is derived live from the flood-risk field
  * (safeness = flood depth) and is read-only.
+ *
+ * First screen onto RecordList. It gained filter chips in the move — not a new
+ * feature so much as the one it should always have had: every sibling roster
+ * had them, this one just never did.
  */
 
 const OPS_STATUSES = [
@@ -25,10 +30,16 @@ const OPS_STATUSES = [
 const STATUS_LABEL = Object.fromEntries(OPS_STATUSES.map((s) => [s.value, s.label]))
 const RISK_LABEL = { high: 'High', moderate: 'Moderate', low: 'Low', safe: 'Safe' }
 
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'unassigned', label: 'Unassigned', test: (b) => !b.captain.trim() },
+  { key: 'atrisk', label: 'At Risk', test: (b) => ['high', 'moderate'].includes(levelFromDepth(b.floodDepth)) },
+  { key: 'active', label: 'Active Response', test: (b) => b.status === 'active' },
+]
+
 export default function BarangaysTab({ onToast }) {
   const { barangayAssignments, assignBarangay } = useBarangayAssignments()
   const { field } = useFloodRisk()
-  const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null) // barangay name being assigned
 
   // Fixed roster × saved assignments × live flood depth from the risk field.
@@ -42,18 +53,32 @@ export default function BarangaysTab({ onToast }) {
     }))
   }, [barangayAssignments, field])
 
-  const stats = useMemo(() => ({
-    total: rows.length,
-    assigned: rows.filter((b) => b.captain.trim()).length,
-    unassigned: rows.filter((b) => !b.captain.trim()).length,
-    atRisk: rows.filter((b) => ['high', 'moderate'].includes(levelFromDepth(b.floodDepth))).length,
-  }), [rows])
+  const stats = useMemo(() => [
+    { color: 'blue', value: rows.length, label: 'Barangays' },
+    { color: 'green', value: rows.filter((b) => b.captain.trim()).length, label: 'Captain Assigned' },
+    { color: 'amber', value: rows.filter((b) => !b.captain.trim()).length, label: 'Unassigned' },
+    {
+      color: 'red',
+      value: rows.filter((b) => ['high', 'moderate'].includes(levelFromDepth(b.floodDepth))).length,
+      label: 'At-Risk (Flood)',
+    },
+  ], [rows])
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((b) => `${b.name} ${b.captain} ${b.coordinator}`.toLowerCase().includes(q))
-  }, [rows, query])
+  const columns = useMemo(() => [
+    { key: 'name', header: 'Barangay', className: 'mng-strong', render: (b) => b.name },
+    {
+      key: 'risk',
+      header: 'Flood Status',
+      render: (b) => {
+        const risk = levelFromDepth(b.floodDepth)
+        return <span className={`mng-badge ${risk}`}>{RISK_LABEL[risk]}</span>
+      },
+    },
+    { key: 'captain', header: 'Captain', render: (b) => b.captain || <span className="mng-muted">— Unassigned</span> },
+    { key: 'coordinator', header: 'Coordinator', render: (b) => b.coordinator || <span className="mng-muted">—</span> },
+    { key: 'contact', header: 'Contact', className: 'mng-num', render: (b) => b.contact || <span className="mng-muted">—</span> },
+    { key: 'status', header: 'Status', render: (b) => <span className={`mng-badge ${b.status}`}>{STATUS_LABEL[b.status]}</span> },
+  ], [])
 
   const current = editing ? rows.find((b) => b.name === editing) : null
 
@@ -85,70 +110,19 @@ export default function BarangaysTab({ onToast }) {
         sub="Assign captains, evacuation coordinators and contacts for all 18 barangays"
       />
 
-      <div className="mng-stats">
-        <Stat color="blue" value={stats.total} label="Barangays" />
-        <Stat color="green" value={stats.assigned} label="Captain Assigned" />
-        <Stat color="amber" value={stats.unassigned} label="Unassigned" />
-        <Stat color="red" value={stats.atRisk} label="At-Risk (Flood)" />
-      </div>
-
-      <div className="mng-toolbar">
-        <div className="mng-search">
-          <SearchIcon />
-          <input
-            type="search"
-            placeholder="Search barangay, captain or coordinator…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="mng-card">
-        <table className="mng-table">
-          <thead>
-            <tr>
-              <th>Barangay</th>
-              <th>Flood Status</th>
-              <th>Captain</th>
-              <th>Coordinator</th>
-              <th>Contact</th>
-              <th>Status</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((b) => {
-              const risk = levelFromDepth(b.floodDepth)
-              return (
-                <tr key={b.name}>
-                  <td className="mng-strong">{b.name}</td>
-                  <td><span className={`mng-badge ${risk}`}>{RISK_LABEL[risk]}</span></td>
-                  <td>{b.captain || <span className="mng-muted">— Unassigned</span>}</td>
-                  <td>{b.coordinator || <span className="mng-muted">—</span>}</td>
-                  <td className="mng-num">{b.contact || <span className="mng-muted">—</span>}</td>
-                  <td><span className={`mng-badge ${b.status}`}>{STATUS_LABEL[b.status]}</span></td>
-                  <td>
-                    <div className="mng-row-actions">
-                      <button type="button" className="mng-link" onClick={() => setEditing(b.name)}>
-                        {b.captain ? 'Edit' : 'Assign'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-            {visible.length === 0 && (
-              <tr>
-                <td colSpan={7} className="mng-empty">
-                  <span className="mng-empty-strong">No barangay matches your search</span>
-                  Try a different name.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <RecordList
+        rows={rows}
+        rowKey={(b) => b.name}
+        rowLabel={(b) => b.name}
+        stats={stats}
+        filters={FILTERS}
+        searchKeys={(b) => `${b.name} ${b.captain} ${b.coordinator}`}
+        searchPlaceholder="Search barangay, captain or coordinator…"
+        columns={columns}
+        onEdit={(b) => setEditing(b.name)}
+        editLabel={(b) => (b.captain ? 'Edit' : 'Assign')}
+        empty={{ title: 'No barangay matches this view', sub: 'Try a different filter or clear your search.' }}
+      />
 
       <SettingsNote>
         Flood status follows the live depth from the hazard feed and cannot be edited here. Assignments are shared
@@ -197,16 +171,4 @@ export default function BarangaysTab({ onToast }) {
       )}
     </div>
   )
-}
-
-function Stat({ color, value, label }) {
-  return (
-    <div className={`mng-stat ${color}`}>
-      <div className="mng-stat-val">{value}</div>
-      <div className="mng-stat-lbl">{label}</div>
-    </div>
-  )
-}
-function SearchIcon() {
-  return <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
 }

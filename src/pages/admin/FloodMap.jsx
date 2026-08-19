@@ -14,6 +14,7 @@ import {
   CoordReadout,
 } from '../../components/admin/mapHelpers.jsx'
 import { Link } from 'react-router-dom'
+import { ftToM, formatMeters } from '../../services/depth.js'
 import { useLiveWeather } from '../../services/weather.js'
 import { useFloodRisk, barangayRiskSamples, hazardSummary } from '../../components/admin/floodRisk.js'
 import { BarangayRiskLayer, InundationGrid, FocusController } from '../../components/admin/BarangayRiskLayer.jsx'
@@ -391,7 +392,7 @@ export default function FloodMap() {
                   {r.name && (
                     <Tooltip sticky>
                       <b>{r.name}</b><br />{r.status === 'blocked' ? 'Closed' : 'Flooded'}
-                      {r.depthFt != null && <> · {r.depthFt} ft</>}
+                      {r.depthFt != null && <> · {formatMeters(ftToM(r.depthFt))}</>}
                     </Tooltip>
                   )}
                 </Polyline>

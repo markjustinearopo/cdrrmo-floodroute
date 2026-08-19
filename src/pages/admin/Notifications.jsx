@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { useNotifications } from '../../context/AdminDataContext.jsx'
+import RecordList from '../../components/admin/RecordList.jsx'
 import './Manage.css'
 import './Notifications.css'
 
@@ -17,34 +18,24 @@ const LEVEL_LABEL = { high: 'High', moderate: 'Moderate', info: 'Info' }
 
 const FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'unread', label: 'Unread' },
-  { key: 'high', label: 'High' },
-  { key: 'moderate', label: 'Moderate' },
-  { key: 'info', label: 'Info' },
+  { key: 'unread', label: 'Unread', test: (n) => !n.read },
+  { key: 'high', label: 'High', test: (n) => n.level === 'high' },
+  { key: 'moderate', label: 'Moderate', test: (n) => n.level === 'moderate' },
+  { key: 'info', label: 'Info', test: (n) => n.level === 'info' },
 ]
 
 export default function Notifications() {
   const { notifications, markNotificationsRead } = useNotifications()
-  const [filter, setFilter] = useState('all')
-  const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(null)
 
-  const stats = useMemo(() => ({
-    total: notifications.length,
-    unread: notifications.filter((n) => !n.read).length,
-    high: notifications.filter((n) => n.level === 'high').length,
-    moderate: notifications.filter((n) => n.level === 'moderate').length,
-  }), [notifications])
+  const unread = notifications.filter((n) => !n.read).length
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return notifications.filter((n) => {
-      if (filter === 'unread' && n.read) return false
-      if ((filter === 'high' || filter === 'moderate' || filter === 'info') && n.level !== filter) return false
-      if (q && !(`${n.title} ${n.message}`.toLowerCase().includes(q))) return false
-      return true
-    })
-  }, [notifications, filter, query])
+  const stats = useMemo(() => [
+    { color: 'slate', value: notifications.length, label: 'Total' },
+    { color: 'red', value: notifications.filter((n) => !n.read).length, label: 'Unread' },
+    { color: 'red', value: notifications.filter((n) => n.level === 'high').length, label: 'High' },
+    { color: 'amber', value: notifications.filter((n) => n.level === 'moderate').length, label: 'Moderate' },
+  ], [notifications])
 
   return (
     <AdminLayout>
@@ -66,7 +57,7 @@ export default function Notifications() {
           <button
             type="button"
             className="mng-btn"
-            disabled={stats.unread === 0}
+            disabled={unread === 0}
             onClick={markNotificationsRead}
           >
             Mark all as read
@@ -74,74 +65,36 @@ export default function Notifications() {
         </div>
 
         {/* Stats */}
-        <div className="mng-stats">
-          <Stat color="slate" value={stats.total} label="Total" />
-          <Stat color="red" value={stats.unread} label="Unread" />
-          <Stat color="red" value={stats.high} label="High" />
-          <Stat color="amber" value={stats.moderate} label="Moderate" />
-        </div>
-
-        {/* Toolbar */}
-        <div className="mng-toolbar">
-          <div className="mng-search">
-            <SearchIcon />
-            <input
-              type="search"
-              placeholder="Search notifications…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <div className="mng-filters">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                className={`mng-chip ${filter === f.key ? 'active' : ''}`}
-                onClick={() => setFilter(f.key)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* List */}
-        <div className="mng-card">
-          {visible.length === 0 ? (
-            <div className="notif-page-empty">
-              <span className="mng-empty-strong">
-                {notifications.length === 0 ? 'No notifications yet' : 'No notifications match this filter'}
+        <RecordList
+          rows={notifications}
+          rowLabel={(n) => n.title}
+          stats={stats}
+          filters={FILTERS}
+          searchKeys={(n) => `${n.title} ${n.message}`}
+          searchPlaceholder="Search notifications…"
+          listClassName="notif-page-list"
+          renderItem={(n) => (
+            <button
+              type="button"
+              className={`notif-page-item ${n.read ? '' : 'unread'}`}
+              onClick={() => setSelected(n)}
+            >
+              <div className={`notif-dot ${n.level}`} />
+              <div className="notif-page-body">
+                <div className="notif-page-row">
+                  <span className="notif-page-title">{n.title}</span>
+                  <span className="notif-page-time">{n.time}</span>
+                </div>
+                <div className="notif-page-desc">{n.message}</div>
+              </div>
+              <span className={`mng-badge ${n.level === 'info' ? 'safe' : n.level}`}>
+                {LEVEL_LABEL[n.level] || 'Info'}
               </span>
-              {notifications.length === 0
-                ? 'System alerts and barangay reports will appear here as the command center is operated.'
-                : 'Try a different filter or clear your search.'}
-            </div>
-          ) : (
-            <div className="notif-page-list">
-              {visible.map((n) => (
-                <button
-                  type="button"
-                  className={`notif-page-item ${n.read ? '' : 'unread'}`}
-                  key={n.id}
-                  onClick={() => setSelected(n)}
-                >
-                  <div className={`notif-dot ${n.level}`} />
-                  <div className="notif-page-body">
-                    <div className="notif-page-row">
-                      <span className="notif-page-title">{n.title}</span>
-                      <span className="notif-page-time">{n.time}</span>
-                    </div>
-                    <div className="notif-page-desc">{n.message}</div>
-                  </div>
-                  <span className={`mng-badge ${n.level === 'info' ? 'safe' : n.level}`}>
-                    {LEVEL_LABEL[n.level] || 'Info'}
-                  </span>
-                </button>
-              ))}
-            </div>
+            </button>
           )}
-        </div>
+          emptyAll={{ title: 'No notifications yet', sub: 'System alerts and barangay reports will appear here as the command center is operated.' }}
+          empty={{ title: 'No notifications match this filter', sub: 'Try a different filter or clear your search.' }}
+        />
       </div>
 
       {/* Detail popup */}
@@ -182,17 +135,4 @@ export default function Notifications() {
   )
 }
 
-function Stat({ color, value, label }) {
-  return (
-    <div className={`mng-stat ${color}`}>
-      <div className="mng-stat-val">{value}</div>
-      <div className="mng-stat-lbl">{label}</div>
-    </div>
-  )
-}
 
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-  )
-}

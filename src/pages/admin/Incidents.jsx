@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
-import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import RecordList from '../../components/admin/RecordList.jsx'
 import { BARANGAYS, INCIDENT_TYPES, PRIORITIES, RESPONSE_TEAMS } from '../../data/cabuyao.js'
 import { useIncidents, useSavedRoutes } from '../../context/AdminDataContext.jsx'
 import { CABUYAO_CENTER } from '../../components/admin/mapHelpers.jsx'
@@ -28,10 +28,10 @@ const STATUS_LABEL = {
 
 const FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'open', label: 'Open' },
-  { key: 'unassigned', label: 'Unassigned' },
-  { key: 'critical', label: 'Critical' },
-  { key: 'resolved', label: 'Resolved' },
+  { key: 'open', label: 'Open', test: (i) => i.status !== 'resolved' },
+  { key: 'unassigned', label: 'Unassigned', test: (i) => !i.team },
+  { key: 'critical', label: 'Critical', test: (i) => i.priority === 'critical' },
+  { key: 'resolved', label: 'Resolved', test: (i) => i.status === 'resolved' },
 ]
 
 // Evidence photos are downscaled before storing (localStorage quota).
@@ -72,36 +72,20 @@ export default function Incidents({ embedded = false }) {
   const [trafficMap] = useTrafficStatus()
   const { field } = useFloodRisk()
 
-  const [filter, setFilter] = useState('all')
-  const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [photo, setPhoto] = useState(null) // pending evidence for the report modal
   const [detailId, setDetailId] = useState(null)
   const [selected, setSelected] = useState(() => new Set())
-  const [confirmDelete, setConfirmDelete] = useState(null) // incident pending deletion
   const [toast, setToast] = useState('')
 
-  const stats = useMemo(() => ({
-    open: items.filter((i) => i.status !== 'resolved').length,
-    unassigned: items.filter((i) => !i.team).length,
-    critical: items.filter((i) => i.priority === 'critical' && i.status !== 'resolved').length,
-    resolved: items.filter((i) => i.status === 'resolved').length,
-  }), [items])
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return items.filter((i) => {
-      if (filter === 'open' && i.status === 'resolved') return false
-      if (filter === 'unassigned' && i.team) return false
-      if (filter === 'critical' && i.priority !== 'critical') return false
-      if (filter === 'resolved' && i.status !== 'resolved') return false
-      if (q && !(`${i.type} ${i.barangay} ${i.location} ${i.team}`.toLowerCase().includes(q))) return false
-      return true
-    })
-  }, [items, filter, query])
+  const stats = useMemo(() => [
+    { color: 'red', value: items.filter((i) => i.status !== 'resolved').length, label: 'Open' },
+    { color: 'amber', value: items.filter((i) => !i.team).length, label: 'Unassigned' },
+    { color: 'red', value: items.filter((i) => i.priority === 'critical' && i.status !== 'resolved').length, label: 'Critical' },
+    { color: 'green', value: items.filter((i) => i.status === 'resolved').length, label: 'Resolved' },
+  ], [items])
 
   const detail = detailId ? items.find((i) => i.id === detailId) : null
-  const allVisibleSelected = visible.length > 0 && visible.every((i) => selected.has(i.id))
 
   function flash(msg) {
     setToast(msg)
@@ -158,7 +142,6 @@ export default function Incidents({ embedded = false }) {
       next.delete(incident.id)
       return next
     })
-    setConfirmDelete(null)
     flash('Incident removed.')
   }
 
@@ -204,8 +187,10 @@ export default function Incidents({ embedded = false }) {
       return next
     })
   }
-  function toggleSelectAll() {
-    setSelected(allVisibleSelected ? new Set() : new Set(visible.map((i) => i.id)))
+  // RecordList hands back exactly the rows the filters are showing, so
+  // "select all" can never disagree with what is on screen.
+  function toggleSelectAll(visibleRows, allOn) {
+    setSelected(allOn ? new Set() : new Set(visibleRows.map((i) => i.id)))
   }
   function bulkStatus(status) {
     if (!status) return
@@ -219,6 +204,39 @@ export default function Incidents({ embedded = false }) {
     flash(`${selected.size} incident${selected.size === 1 ? '' : 's'} assigned to ${team}.`)
     setSelected(new Set())
   }
+
+  const columns = useMemo(() => [
+    {
+      key: 'incident', header: 'Incident',
+      render: (i) => (
+        <>
+          <button type="button" className="mng-cell-link" onClick={() => setDetailId(i.id)}>
+            <span className="mng-strong">{i.type}</span>
+            {i.photo && <CameraIcon />}
+          </button>
+          {i.location && <div className="mng-muted" style={{ fontSize: '0.75rem' }}>{i.location}</div>}
+        </>
+      ),
+    },
+    { key: 'barangay', header: 'Barangay', render: (i) => i.barangay },
+    { key: 'priority', header: 'Priority', render: (i) => <span className={`mng-badge ${i.priority}`}>{PRIORITY_LABEL[i.priority]}</span> },
+    { key: 'reported', header: 'Reported', className: 'mng-muted mng-num', render: (i) => i.reported },
+    {
+      key: 'team', header: 'Assigned Team',
+      render: (i) => (
+        <select
+          className={`mng-inline-select ${i.team ? '' : 'unset'}`}
+          value={i.team}
+          onChange={(e) => assignTeam(i.id, e.target.value)}
+          disabled={i.status === 'resolved'}
+        >
+          <option value="">— Assign team —</option>
+          {RESPONSE_TEAMS.map((t) => <option key={t}>{t}</option>)}
+        </select>
+      ),
+    },
+    { key: 'status', header: 'Status', render: (i) => <span className={`mng-badge ${i.status}`}>{STATUS_LABEL[i.status]}</span> },
+  ], [])
 
   return (
     <Shell>
@@ -242,142 +260,44 @@ export default function Incidents({ embedded = false }) {
           </button>
         </div>
 
-        <div className="mng-stats">
-          <Stat color="amber" value={stats.open} label="Open" />
-          <Stat color="slate" value={stats.unassigned} label="Unassigned" />
-          <Stat color="red" value={stats.critical} label="Critical" />
-          <Stat color="green" value={stats.resolved} label="Resolved" />
-        </div>
-
-        <div className="mng-toolbar">
-          <div className="mng-search">
-            <SearchIcon />
-            <input
-              type="search"
-              placeholder="Search by type, barangay, location, team…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <div className="mng-filters">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                className={`mng-chip ${filter === f.key ? 'active' : ''}`}
-                onClick={() => setFilter(f.key)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Bulk action bar — appears once rows are ticked */}
-        {selected.size > 0 && (
-          <div className="mng-bulkbar">
-            <span className="mng-bulkbar-count">{selected.size} selected</span>
-            <select className="mng-inline-select" defaultValue="" onChange={(e) => { bulkStatus(e.target.value); e.target.value = '' }}>
-              <option value="" disabled>Set status…</option>
-              <option value="in-progress">In Progress</option>
-              <option value="resolved">Resolved</option>
-            </select>
-            <select className="mng-inline-select" defaultValue="" onChange={(e) => { bulkTeam(e.target.value); e.target.value = '' }}>
-              <option value="" disabled>Assign team…</option>
-              {RESPONSE_TEAMS.map((t) => <option key={t}>{t}</option>)}
-            </select>
-            <button type="button" className="mng-link subtle" onClick={() => setSelected(new Set())}>Clear selection</button>
-          </div>
-        )}
-
-        <div className="mng-card">
-          <table className="mng-table">
-            <thead>
-              <tr>
-                <th style={{ width: 28 }}>
-                  <input
-                    type="checkbox"
-                    className="mng-rowcheck"
-                    checked={allVisibleSelected}
-                    onChange={toggleSelectAll}
-                    aria-label="Select all visible incidents"
-                  />
-                </th>
-                <th>Incident</th>
-                <th>Barangay</th>
-                <th>Priority</th>
-                <th>Reported</th>
-                <th>Assigned Team</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="mng-empty">
-                    <span className="mng-empty-strong">
-                      {items.length === 0 ? 'No incidents logged' : 'No incidents match this filter'}
-                    </span>
-                    {items.length === 0
-                      ? 'Use “Report Incident” to log a field report and dispatch a team.'
-                      : 'Try a different filter or clear your search.'}
-                  </td>
-                </tr>
-              ) : (
-                visible.map((i) => (
-                  <tr key={i.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        className="mng-rowcheck"
-                        checked={selected.has(i.id)}
-                        onChange={() => toggleSelect(i.id)}
-                        aria-label={`Select ${i.type} in ${i.barangay}`}
-                      />
-                    </td>
-                    <td>
-                      <button type="button" className="mng-cell-link" onClick={() => setDetailId(i.id)}>
-                        <span className="mng-strong">{i.type}</span>
-                        {i.photo && <CameraIcon />}
-                      </button>
-                      {i.location && <div className="mng-muted" style={{ fontSize: '0.75rem' }}>{i.location}</div>}
-                    </td>
-                    <td>{i.barangay}</td>
-                    <td><span className={`mng-badge ${i.priority}`}>{PRIORITY_LABEL[i.priority]}</span></td>
-                    <td className="mng-muted mng-num" style={{ fontSize: '0.75rem' }}>{i.reported}</td>
-                    <td>
-                      <select
-                        className={`mng-inline-select ${i.team ? '' : 'unset'}`}
-                        value={i.team}
-                        onChange={(e) => assignTeam(i.id, e.target.value)}
-                        disabled={i.status === 'resolved'}
-                      >
-                        <option value="">— Assign team —</option>
-                        {RESPONSE_TEAMS.map((t) => <option key={t}>{t}</option>)}
-                      </select>
-                    </td>
-                    <td><span className={`mng-badge ${i.status}`}>{STATUS_LABEL[i.status]}</span></td>
-                    <td>
-                      <div className="mng-row-actions">
-                        {i.status === 'assigned' && (
-                          <button type="button" className="mng-link" onClick={() => setStatus(i.id, 'in-progress')}>Start</button>
-                        )}
-                        {(i.status === 'in-progress' || i.status === 'assigned') && (
-                          <button type="button" className="mng-link" onClick={() => setStatus(i.id, 'resolved')}>Resolve</button>
-                        )}
-                        {i.status === 'resolved' && (
-                          <button type="button" className="mng-link subtle" onClick={() => setStatus(i.id, i.team ? 'assigned' : 'new')}>Reopen</button>
-                        )}
-                        <button type="button" className="mng-link subtle" onClick={() => setConfirmDelete(i)}>Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <RecordList
+          rows={items}
+          rowLabel={(i) => i.type}
+          stats={stats}
+          filters={FILTERS}
+          searchKeys={(i) => `${i.type} ${i.barangay} ${i.location} ${i.team}`}
+          searchPlaceholder="Search incident, barangay, location or team…"
+          columns={columns}
+          selection={{ selected, onToggle: (i) => toggleSelect(i.id), onToggleAll: toggleSelectAll }}
+          bulkBar={(
+            <div className="mng-bulkbar">
+              <span className="mng-bulkbar-count">{selected.size} selected</span>
+              <select className="mng-inline-select" defaultValue="" onChange={(e) => { bulkStatus(e.target.value); e.target.value = '' }}>
+                <option value="" disabled>Set status…</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+              <select className="mng-inline-select" defaultValue="" onChange={(e) => { bulkTeam(e.target.value); e.target.value = '' }}>
+                <option value="" disabled>Assign team…</option>
+                {RESPONSE_TEAMS.map((t) => <option key={t}>{t}</option>)}
+              </select>
+              <button type="button" className="mng-link subtle" onClick={() => setSelected(new Set())}>Clear selection</button>
+            </div>
+          )}
+          rowActions={(i) => [
+            ...(i.status === 'assigned' ? [{ label: 'Start', onClick: () => setStatus(i.id, 'in-progress') }] : []),
+            ...((i.status === 'in-progress' || i.status === 'assigned') ? [{ label: 'Resolve', onClick: () => setStatus(i.id, 'resolved') }] : []),
+            ...(i.status === 'resolved' ? [{ label: 'Reopen', onClick: () => setStatus(i.id, i.team ? 'assigned' : 'new'), subtle: true }] : []),
+          ]}
+          onDelete={remove}
+          deleteConfirm={(i) => ({
+            title: 'Delete this incident?',
+            message: `Delete the ${i.type} incident in Brgy. ${i.barangay}${i.location ? ` (${i.location})` : ''}? It will be removed from the log on every portal. This cannot be undone.`,
+            confirmLabel: 'Delete incident',
+          })}
+          emptyAll={{ title: 'No incidents logged', sub: 'Use “Report Incident” to log a field report and dispatch a team.' }}
+          empty={{ title: 'No incidents match this filter', sub: 'Try a different filter or clear your search.' }}
+        />
 
         <div className="mng-note">
           <SparkIcon />
@@ -519,38 +439,15 @@ export default function Incidents({ embedded = false }) {
         </div>
       )}
 
-      {confirmDelete && (
-        <ConfirmDialog
-          title="Delete this incident?"
-          message={`Delete the ${confirmDelete.type} incident in Brgy. ${confirmDelete.barangay}${confirmDelete.location ? ` (${confirmDelete.location})` : ''}? It will be removed from the log on every portal. This cannot be undone.`}
-          confirmLabel="Delete incident"
-          tone="danger"
-          onConfirm={() => remove(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </Shell>
   )
 }
 
-function Stat({ color, value, label }) {
-  return (
-    <div className={`mng-stat ${color}`}>
-      <div className="mng-stat-val">{value}</div>
-      <div className="mng-stat-lbl">{label}</div>
-    </div>
-  )
-}
 function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-  )
-}
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
   )
 }
 function SparkIcon() {

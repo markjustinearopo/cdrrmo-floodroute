@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker } from 'react-leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import RecordList from '../../components/admin/RecordList.jsx'
 import { CABUYAO_CENTER } from '../../components/admin/mapHelpers.jsx'
 import { useFloodReports, useRoadReports } from '../../context/AdminDataContext.jsx'
 import {
@@ -30,10 +31,10 @@ import '../admin/Manage.css'
  */
 
 const FILTERS = [
-  { key: 'pending', label: 'Pending' },
-  { key: 'approved', label: 'Approved' },
-  { key: 'rejected', label: 'Rejected' },
-  { key: 'severe', label: 'Severe / Impassable' },
+  { key: 'pending', label: 'Pending', test: (r) => r.status === 'pending' },
+  { key: 'approved', label: 'Approved', test: (r) => r.status === 'approved' },
+  { key: 'rejected', label: 'Rejected', test: (r) => r.status === 'rejected' },
+  { key: 'severe', label: 'Severe / Impassable', test: (r) => r.level === 'severe' || r.level === 'impassable' },
   { key: 'all', label: 'All' },
 ]
 
@@ -59,8 +60,6 @@ export default function FloodReports() {
   const { floodReports, verifyFloodReport, updateFloodReport, removeFloodReport } = useFloodReports()
   const { reportRoad } = useRoadReports()
 
-  const [filter, setFilter] = useState('pending')
-  const [query, setQuery] = useState('')
   const [detailId, setDetailId] = useState(null)
   const [notesDraft, setNotesDraft] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null) // report pending deletion
@@ -68,24 +67,12 @@ export default function FloodReports() {
 
   const official = api.getUser?.()?.fullName || api.getUser?.()?.username || 'CDRRMO'
 
-  const stats = useMemo(() => ({
-    pending: floodReports.filter((r) => r.status === 'pending').length,
-    approved: floodReports.filter((r) => r.status === 'approved').length,
-    rejected: floodReports.filter((r) => r.status === 'rejected').length,
-    severe: floodReports.filter((r) => (r.level === 'severe' || r.level === 'impassable') && r.status !== 'rejected').length,
-  }), [floodReports])
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return floodReports.filter((r) => {
-      if (filter === 'pending' && r.status !== 'pending') return false
-      if (filter === 'approved' && r.status !== 'approved') return false
-      if (filter === 'rejected' && r.status !== 'rejected') return false
-      if (filter === 'severe' && !(r.level === 'severe' || r.level === 'impassable')) return false
-      if (q && !(`${FLOOD_LEVEL_META[r.level]?.label} ${r.barangay} ${r.reporter} ${r.description}`.toLowerCase().includes(q))) return false
-      return true
-    })
-  }, [floodReports, filter, query])
+  const stats = useMemo(() => [
+    { color: 'amber', value: floodReports.filter((r) => r.status === 'pending').length, label: 'Pending' },
+    { color: 'green', value: floodReports.filter((r) => r.status === 'approved').length, label: 'Approved' },
+    { color: 'slate', value: floodReports.filter((r) => r.status === 'rejected').length, label: 'Rejected' },
+    { color: 'red', value: floodReports.filter((r) => (r.level === 'severe' || r.level === 'impassable') && r.status !== 'rejected').length, label: 'Severe' },
+  ], [floodReports])
 
   const detail = detailId ? floodReports.find((r) => r.id === detailId) : null
 
@@ -155,6 +142,35 @@ export default function FloodReports() {
     flash('Report deleted.')
   }
 
+  const columns = useMemo(() => [
+    {
+      key: 'level', header: 'Flood Level',
+      render: (r) => {
+        const level = floodLevelMeta(r.level)
+        return (
+          <button type="button" className="mng-cell-link" onClick={() => openDetail(r)}>
+            <span className="mng-strong" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: level.color, display: 'inline-block' }} />
+              {level.label}
+            </span>
+            {r.photo && <CameraIcon />}
+          </button>
+        )
+      },
+    },
+    { key: 'barangay', header: 'Barangay', render: (r) => r.barangay || '—' },
+    { key: 'reporter', header: 'Reported By', className: 'mng-muted', render: (r) => r.reporter || 'Resident' },
+    { key: 'reported', header: 'Reported', className: 'mng-muted mng-num', render: (r) => r.reported },
+    { key: 'depth', header: 'Depth', className: 'mng-muted mng-num', render: (r) => formatReportDepth(r.depthFt) || '—' },
+    {
+      key: 'status', header: 'Status',
+      render: (r) => {
+        const status = verifyStatusMeta(r.status)
+        return <span className="mng-badge" style={{ color: status.color, background: `${status.color}18` }}>{status.label}</span>
+      },
+    },
+  ], [])
+
   return (
     <AdminLayout>
       <div className="mng">
@@ -172,105 +188,22 @@ export default function FloodReports() {
           </div>
         </div>
 
-        <div className="mng-stats">
-          <Stat color="amber" value={stats.pending} label="Pending Verification" />
-          <Stat color="green" value={stats.approved} label="Approved" />
-          <Stat color="red" value={stats.rejected} label="Rejected" />
-          <Stat color="slate" value={stats.severe} label="Severe / Impassable" />
-        </div>
-
-        <div className="mng-toolbar">
-          <div className="mng-search">
-            <SearchIcon />
-            <input
-              type="search"
-              placeholder="Search by level, barangay, reporter, description…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <div className="mng-filters">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                className={`mng-chip ${filter === f.key ? 'active' : ''}`}
-                onClick={() => setFilter(f.key)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mng-card">
-          <table className="mng-table">
-            <thead>
-              <tr>
-                <th>Flood Level</th>
-                <th>Barangay</th>
-                <th>Reported By</th>
-                <th>Reported</th>
-                <th>Depth</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="mng-empty">
-                    <span className="mng-empty-strong">
-                      {floodReports.length === 0 ? 'No flood reports yet' : 'No reports match this filter'}
-                    </span>
-                    {floodReports.length === 0
-                      ? 'Resident submissions from the “Report Flood Status” flow will appear here for verification.'
-                      : 'Try a different filter or clear your search.'}
-                  </td>
-                </tr>
-              ) : (
-                visible.map((r) => {
-                  const level = floodLevelMeta(r.level)
-                  const status = verifyStatusMeta(r.status)
-                  const depth = formatReportDepth(r.depthFt)
-                  return (
-                    <tr key={r.id}>
-                      <td>
-                        <button type="button" className="mng-cell-link" onClick={() => openDetail(r)}>
-                          <span className="mng-strong" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                            <span style={{ width: 10, height: 10, borderRadius: '50%', background: level.color, display: 'inline-block' }} />
-                            {level.label}
-                          </span>
-                          {r.photo && <CameraIcon />}
-                        </button>
-                      </td>
-                      <td>{r.barangay || '—'}</td>
-                      <td className="mng-muted">{r.reporter || 'Resident'}</td>
-                      <td className="mng-muted mng-num" style={{ fontSize: '0.75rem' }}>{r.reported}</td>
-                      <td className="mng-muted mng-num">{depth || '—'}</td>
-                      <td>
-                        <span className="mng-badge" style={{ color: status.color, background: `${status.color}18` }}>
-                          {status.label}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="mng-row-actions">
-                          <button type="button" className="mng-link" onClick={() => openDetail(r)}>Review</button>
-                          {r.status !== 'approved' && (
-                            <button type="button" className="mng-link" onClick={() => approve(r)}>Approve</button>
-                          )}
-                          {r.status !== 'rejected' && (
-                            <button type="button" className="mng-link subtle" onClick={() => reject(r)}>Reject</button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+        <RecordList
+          rows={floodReports}
+          rowLabel={(r) => `${floodLevelMeta(r.level).label} report`}
+          stats={stats}
+          filters={FILTERS}
+          searchKeys={(r) => `${FLOOD_LEVEL_META[r.level]?.label} ${r.barangay} ${r.reporter} ${r.description}`}
+          searchPlaceholder="Search level, barangay, reporter or description…"
+          columns={columns}
+          rowActions={(r) => [
+            { label: 'Review', onClick: () => openDetail(r) },
+            ...(r.status !== 'approved' ? [{ label: 'Approve', onClick: () => approve(r) }] : []),
+            ...(r.status !== 'rejected' ? [{ label: 'Reject', onClick: () => reject(r), subtle: true }] : []),
+          ]}
+          emptyAll={{ title: 'No flood reports yet', sub: 'Resident submissions from the “Report Flood Status” flow will appear here for verification.' }}
+          empty={{ title: 'No reports match this filter', sub: 'Try a different filter or clear your search.' }}
+        />
 
         <div className="mng-note">
           <SparkIcon />
@@ -409,19 +342,6 @@ export default function FloodReports() {
   )
 }
 
-function Stat({ color, value, label }) {
-  return (
-    <div className={`mng-stat ${color}`}>
-      <div className="mng-stat-val">{value}</div>
-      <div className="mng-stat-lbl">{label}</div>
-    </div>
-  )
-}
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-  )
-}
 function SparkIcon() {
   return (
     <svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /></svg>

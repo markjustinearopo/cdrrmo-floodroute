@@ -70,3 +70,7 @@
 @media (max-width: 520px) {
   .notif-page-row { flex-direction: column; gap: 2px; }
 }
+
+/* RecordList wraps each custom-body row in .rl-item; the notification rows are
+   full-width buttons, so the wrapper must not introduce its own box. */
+.notif-page-list .rl-item { display: contents; }
