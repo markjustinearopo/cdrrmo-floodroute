@@ -1,23 +1,25 @@
 /* ============================================================
-   Time scrubber — the clock the map is being read at.
+   Time scrubber.
 
-   Two visual states, and the difference between them has to be
-   unmissable: LIVE is the ordinary chrome of the app; FORECAST
-   goes amber and stays amber, because the whole risk of this
-   feature is someone reading a projection as the present.
+   Two states, and the difference has to be unmissable: LIVE is
+   the ordinary chrome of the app, FORECAST goes amber and stays
+   amber, because the whole risk of the feature is someone
+   reading a projection as the present.
+
+   The strip is the centrepiece — tall coloured bars you can
+   click, a playhead you can drag, and a play button that walks
+   the forecast on its own.
    ============================================================ */
 
 .ts {
   flex-shrink: 0;
   background: #fff;
   border-top: 1px solid #e5e2dd;
-  padding: 9px 16px 10px;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  padding: 12px 18px 10px;
+  transition: background 0.25s ease, border-color 0.25s ease;
 }
-
-/* Forecast mode: amber wash + a top rule that reads as a warning strip. */
 .ts--forecast {
-  background: #fffbeb;
+  background: linear-gradient(180deg, #fffbeb 0%, #fff 70%);
   border-top: 2px solid #f59e0b;
 }
 
@@ -27,7 +29,7 @@
   gap: 8px;
   font-size: 0.75rem;
   color: #9a9a9a;
-  padding: 12px 16px;
+  padding: 14px 18px;
 }
 
 .ts-icon {
@@ -41,202 +43,287 @@
   flex-shrink: 0;
 }
 
-/* ── Header row ── */
-.ts-head {
+/* ── Top row ── */
+.ts-main {
   display: flex;
   align-items: center;
   gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 7px;
+  margin-bottom: 10px;
 }
 
-.ts-when {
+.ts-play {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: none;
+  background: #c0181b;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(192, 24, 27, 0.32);
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.ts-play .ts-icon { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+.ts-play:hover:not(:disabled) { transform: scale(1.06); }
+.ts-play:active:not(:disabled) { transform: scale(0.96); }
+.ts-play:disabled { background: #d8d4cd; box-shadow: none; cursor: default; }
+.ts--forecast .ts-play { background: #b45309; box-shadow: 0 2px 10px rgba(180, 83, 9, 0.32); }
+.ts-play.on { background: #78350f; }
+
+.ts-when { min-width: 132px; }
+.ts-when-top {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #6b7280;
+  gap: 7px;
+  margin-bottom: 2px;
 }
-.ts--forecast .ts-when { color: #92400e; }
-
-.ts-chip {
+.ts-pill {
   font-size: 0.5625rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  padding: 3px 7px;
-  border-radius: 4px;
+  letter-spacing: 0.07em;
+  padding: 3px 8px;
+  border-radius: 999px;
   background: #f59e0b;
   color: #fff;
+  white-space: nowrap;
 }
-.ts-chip--live {
-  background: #16a34a;
-}
+.ts-pill--live { background: #16a34a; }
+.ts-working { font-size: 0.625rem; color: #9a9a9a; font-style: italic; }
 
-.ts-time {
-  font-family: var(--font-display);
-  font-size: 0.875rem;
-  font-weight: 800;
-  color: #1a1a1a;
-}
-.ts--forecast .ts-time { color: #78350f; }
-
-.ts-delta {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #b45309;
-  font-variant-numeric: tabular-nums;
-}
-
-.ts-working {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
-  font-style: italic;
-}
-
-.ts-readout {
+.ts-clock {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin-left: auto;
+  gap: 7px;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #1a1a1a;
+  letter-spacing: -0.01em;
+}
+.ts--forecast .ts-clock { color: #78350f; }
+.ts-day {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9a9a9a;
+}
+
+.ts-rainbox {
+  padding-left: 14px;
+  border-left: 1px solid #ece9e3;
+  min-width: 96px;
 }
 .ts-rain {
   font-family: var(--font-display);
-  font-size: 0.9375rem;
+  font-size: 1.375rem;
   font-weight: 800;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
   color: #1a1a1a;
+  letter-spacing: -0.01em;
 }
-.ts-rain--dry, .ts-rain--none { color: #9a9a9a; }
-.ts-rain--light { color: #0284c7; }
+.ts-unit {
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9a9a9a;
+  margin-left: 4px;
+}
+.ts-rain--dry, .ts-rain--none { color: #94a3b8; }
+.ts-rain--light { color: #38bdf8; }
 .ts-rain--heavy { color: #2563eb; }
 .ts-rain--intense { color: #f97316; }
 .ts-rain--torrential { color: #c0181b; }
-
 .ts-rain-lbl {
   font-size: 0.6875rem;
   font-weight: 600;
   color: #6b7280;
-}
-.ts-pop {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
-  font-variant-numeric: tabular-nums;
+  margin-top: 1px;
 }
 
-.ts-actions {
-  display: flex;
+.ts-spacer { flex: 1 1 auto; }
+
+.ts-jump, .ts-now {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-}
-.ts-btn {
-  appearance: none;
   border: 1px solid #e5e2dd;
   background: #fff;
-  border-radius: 7px;
-  padding: 5px 10px;
+  border-radius: 999px;
+  padding: 7px 13px;
   font: inherit;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #3a3a3a;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-.ts-btn:hover:not(:disabled) { border-color: #cbb26b; }
-.ts-btn:disabled { opacity: 0.45; cursor: default; }
-.ts-btn--now {
-  border-color: #16a34a;
-  color: #15803d;
-}
-.ts-btn--now:disabled { border-color: #e5e2dd; color: #9a9a9a; }
+.ts-jump b { color: #c0181b; font-variant-numeric: tabular-nums; }
+.ts-jump:hover { border-color: #f97316; background: #fff7ed; }
+.ts-now { border-color: #16a34a; color: #15803d; }
+.ts-now:hover:not(:disabled) { background: #f0fdf4; }
+.ts-now:disabled { border-color: #ece9e3; color: #b8b3aa; cursor: default; }
 
-/* ── Track: rainfall bars behind a range input ── */
-.ts-track {
+/* ── The strip ── */
+.ts-strip {
   position: relative;
-  padding-top: 26px;
-}
-
-.ts-bars {
-  position: absolute;
-  inset: 0 0 14px 0;
   display: flex;
   align-items: flex-end;
-  gap: 1px;
-  pointer-events: none;
+  gap: 2px;
+  height: 52px;
+  padding: 0 0 2px;
 }
+
 .ts-bar {
+  position: relative;
   flex: 1 1 0;
   min-width: 0;
-  background: #dbeafe;
-  border-radius: 1px 1px 0 0;
-  transition: background 0.15s ease;
-}
-.ts--forecast .ts-bar { background: #fde68a; }
-.ts-bar.on {
-  background: #c0181b;
-}
-
-.ts-range {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  margin: 0;
-  appearance: none;
-  background: transparent;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
   cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 3px;
+  transition: background 0.12s ease;
 }
-.ts-range::-webkit-slider-runnable-track {
-  height: 3px;
+.ts-bar:hover { background: rgba(0, 0, 0, 0.04); }
+/* A hairline where the calendar day changes, so "+30h" reads as a real time. */
+.ts-bar.newday::before {
+  content: '';
+  position: absolute;
+  left: -1.5px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
   background: #d8d4cd;
-  border-radius: 999px;
 }
-.ts-range::-moz-range-track {
-  height: 3px;
-  background: #d8d4cd;
-  border-radius: 999px;
-}
-.ts-range::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  margin-top: -6.5px;
-  border-radius: 50%;
-  background: #c0181b;
-  border: 2.5px solid #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-}
-.ts-range::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #c0181b;
-  border: 2.5px solid #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-}
-.ts--forecast .ts-range::-webkit-slider-thumb { background: #b45309; }
-.ts--forecast .ts-range::-moz-range-thumb { background: #b45309; }
-.ts-range:focus-visible { outline: 2px solid #c0181b; outline-offset: 4px; border-radius: 999px; }
 
-.ts-ticks {
+.ts-bar-fill {
+  display: block;
+  width: 100%;
+  height: var(--h);
+  border-radius: 3px 3px 0 0;
+  background: #cbd5e1;
+  transition: height 0.2s ease, background 0.15s ease, transform 0.15s ease;
+  transform-origin: bottom;
+}
+.ts-bar--dry .ts-bar-fill, .ts-bar--none .ts-bar-fill { background: #dbe3ec; }
+.ts-bar--light .ts-bar-fill { background: #7dd3fc; }
+.ts-bar--heavy .ts-bar-fill { background: #3b82f6; }
+.ts-bar--intense .ts-bar-fill { background: #fb923c; }
+.ts-bar--torrential .ts-bar-fill { background: #dc2626; }
+.ts-bar:hover .ts-bar-fill { transform: scaleY(1.06); }
+.ts-bar.on .ts-bar-fill {
+  background: #c0181b;
+  box-shadow: 0 0 0 1.5px rgba(192, 24, 27, 0.28);
+}
+.ts--forecast .ts-bar.on .ts-bar-fill {
+  background: #b45309;
+  box-shadow: 0 0 0 1.5px rgba(180, 83, 9, 0.3);
+}
+
+/* Playhead */
+.ts-head {
+  position: absolute;
+  top: -4px;
+  bottom: -2px;
+  width: 0;
+  pointer-events: none;
+  border-left: 2px solid #c0181b;
+  transform: translateX(-1px);
+  transition: left 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ts--forecast .ts-head { border-left-color: #b45309; }
+.ts-head-knob {
+  position: absolute;
+  top: -5px;
+  left: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #c0181b;
+  border: 2.5px solid #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.32);
+}
+.ts--forecast .ts-head-knob { background: #b45309; }
+
+/* The real input sits over the strip for drag + keyboard, invisible. */
+.ts-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: grab;
+  appearance: none;
+}
+.ts-range:active { cursor: grabbing; }
+.ts-range:focus-visible {
+  opacity: 1;
+  outline: 2px solid #c0181b;
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.ts-axis {
   display: flex;
   justify-content: space-between;
   font-size: 0.625rem;
-  color: #9a9a9a;
-  margin-top: 3px;
+  font-weight: 600;
+  color: #b8b3aa;
+  margin-top: 5px;
   font-variant-numeric: tabular-nums;
 }
 
-.ts-note {
-  margin-top: 6px;
-  font-size: 0.625rem;
-  line-height: 1.5;
+/* ── Footer: source always visible, caveats on demand ── */
+.ts-foot { margin-top: 7px; }
+.ts-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: #9a9a9a;
+  cursor: pointer;
 }
-.ts--forecast .ts-note { color: #92400e; }
+.ts-info:hover { color: #6b7280; }
+.ts--forecast .ts-info { color: #b45309; }
+.ts-info .ts-icon { width: 13px; height: 13px; }
+.ts-chev { transition: transform 0.18s ease; }
+.ts-chev.open { transform: rotate(180deg); }
+
+.ts-detail {
+  margin: 6px 0 0;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: #faf9f7;
+  border: 1px solid #ece9e3;
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  color: #6b7280;
+  max-width: 78ch;
+}
+.ts--forecast .ts-detail {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
 
 /* ── The map's own forecast treatment ──────────────────────────────────────
    Applied by the screens that host a scrubber, so the tint follows the map
    itself and not just the control strip. */
-.forecast-frame {
-  position: relative;
-}
+.forecast-frame { position: relative; }
 .forecast-frame::after {
   content: '';
   position: absolute;
@@ -244,7 +331,7 @@
   pointer-events: none;
   z-index: 500; /* above Leaflet panes, below its controls */
   border: 3px solid #f59e0b;
-  box-shadow: inset 0 0 32px rgba(245, 158, 11, 0.18);
+  box-shadow: inset 0 0 34px rgba(245, 158, 11, 0.16);
 }
 
 .forecast-badge {
@@ -255,29 +342,30 @@
   z-index: 600;
   display: flex;
   align-items: center;
-  gap: 7px;
-  background: #f59e0b;
+  gap: 8px;
+  background: rgba(180, 83, 9, 0.96);
   color: #fff;
   border-radius: 999px;
-  padding: 5px 13px;
+  padding: 6px 15px;
   font-size: 0.6875rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
-  box-shadow: 0 3px 12px rgba(180, 83, 9, 0.35);
+  letter-spacing: 0.03em;
+  box-shadow: 0 4px 16px rgba(120, 53, 15, 0.4);
   pointer-events: none;
   white-space: nowrap;
+  backdrop-filter: blur(4px);
 }
-.forecast-badge svg {
-  width: 13px;
-  height: 13px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.forecast-badge em {
+  font-style: normal;
+  font-weight: 600;
+  opacity: 0.82;
+  border-left: 1px solid rgba(255, 255, 255, 0.4);
+  padding-left: 8px;
 }
+.forecast-badge .ts-icon { width: 13px; height: 13px; }
 
-@media (max-width: 700px) {
-  .ts-readout { margin-left: 0; width: 100%; }
-  .ts-note { font-size: 0.5625rem; }
+@media (max-width: 860px) {
+  .ts-main { flex-wrap: wrap; gap: 10px; }
+  .ts-spacer { display: none; }
+  .ts-rainbox { border-left: none; padding-left: 0; }
 }
