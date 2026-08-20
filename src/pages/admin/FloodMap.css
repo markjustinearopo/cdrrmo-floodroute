@@ -769,7 +769,152 @@
 
 /* The map area now stacks map + scrubber, so the Leaflet canvas takes the
    remaining height instead of the scrubber overflowing it. */
-.map-area { display: flex; flex-direction: column; }
-.map-area > .leaflet-container,
-.map-area > .map3d { flex: 1 1 auto; min-height: 0; }
 .legend-live--forecast { color: #b45309; font-weight: 700; }
+
+/* ── Map column: canvas + scrubber ──────────────────────────────────────────
+   The scrubber is a sibling of the canvas, not a child. Everything that floats
+   on the map anchors to .map-canvas, so no overlay can land on the scrubber. */
+.floodmap .map-area {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.floodmap .map-canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.floodmap .map-canvas > .leaflet-container,
+.floodmap .map-canvas > .map3d { width: 100%; height: 100%; }
+
+.legend-live--forecast { color: #b45309; font-weight: 700; }
+
+
+
+/* The coordinate readout lives bottom-RIGHT. Bottom-left belongs to the
+   cut-off card and bottom-centre to the legend; three things competing for the
+   same corner is what made this area read as clutter. */
+
+/* Coordinate readout sits bottom-right; bottom-centre belongs to the legend. */
+.floodmap .map-coords { left: auto; right: 12px; }
+
+/* Cut-off headline on the map — just the number, with the control in the
+   Hazard panel. Clicking it opens that panel. */
+.floodmap .cutoff-chip {
+  position: absolute;
+  left: 16px;
+  bottom: 12px;
+  z-index: 620;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  max-width: 172px;
+  border: none;
+  border-left: 3px solid #dc2626;
+  border-radius: 9px;
+  background: rgba(127, 29, 29, 0.94);
+  color: #fff;
+  padding: 7px 11px;
+  font: inherit;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(5px);
+}
+.floodmap .cutoff-chip:hover { background: rgba(153, 27, 27, 0.97); }
+.floodmap .cutoff-chip b {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.floodmap .cutoff-chip em {
+  font-style: normal;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* ── Cut-off scenario in the Hazard panel ── */
+.fm-cut { border-bottom: 1px solid #ece9e3; }
+.fm-cut-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+.fm-cut-sw {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fm-cut-sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+.fm-cut-sw span {
+  position: relative;
+  width: 28px; height: 16px;
+  border-radius: 999px;
+  background: #d8d4cd;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.fm-cut-sw span::before {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+.fm-cut-sw input:checked + span { background: #dc2626; }
+.fm-cut-sw input:checked + span::before { transform: translateX(12px); }
+
+.fm-cut-fig {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+.fm-cut-fig b {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #dc2626;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.fm-cut-fig b i { font-style: normal; font-size: 1rem; margin-left: 1px; }
+.fm-cut-fig span { font-size: 0.6875rem; line-height: 1.4; color: #6b7280; }
+
+.fm-cut-lbl { font-size: 0.75rem; color: #6b7280; margin-bottom: 6px; }
+.fm-cut-lbl b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+.fm-cut-ctl input[type='range'] { width: 100%; margin: 0; accent-color: #dc2626; cursor: pointer; }
+.fm-cut-ticks { display: flex; justify-content: space-between; margin-top: 2px; }
+.fm-cut-ticks i { font-style: normal; font-size: 0.5625rem; font-weight: 600; color: #b8b3aa; }
+
+/* The Map Layers rail owns the left 200px of the canvas, so the search bar
+   centres in what is LEFT of the canvas rather than on the canvas — otherwise
+   it sits on top of the rail at narrow widths. */
+.floodmap .map-canvas .msb {
+  left: calc(50% + 106px);
+  width: min(420px, calc(100% - 460px));
+}

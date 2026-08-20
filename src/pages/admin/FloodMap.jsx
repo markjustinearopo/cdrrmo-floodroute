@@ -331,7 +331,13 @@ export default function FloodMap() {
           {/* Map. The forecast frame tints the map itself, not just the
               scrubber, so a projected hour can never be screenshotted or
               glanced at as though it were current conditions. */}
-          <div className={`map-area ${isForecast ? 'forecast-frame' : ''}`}>
+          <div className="map-area">
+          {/* The map and everything that floats ON it live in here. The scrubber
+              is a SIBLING of this box, not a child — when it was inside, every
+              absolutely-positioned overlay anchored to a container that included
+              the scrubber's height, so the legend and the coordinate readout
+              landed on top of it. */}
+          <div className={`map-canvas ${isForecast ? 'forecast-frame' : ''}`}>
             {isForecast && <ForecastBadge hour={hourlyAt(weather, hourOffset)} offset={hourOffset} />}
             {use3D ? (
               <FloodMap3DView
@@ -551,30 +557,26 @@ export default function FloodMap() {
               <BarangayDetailCard sample={selectedSample} onClose={() => setSelected(null)} />
             )}
 
-            {/* What the cut-off shading is claiming, in words, plus the control
-                for the scenario it is answering. */}
-            {overlays.blindSpots && (
-              <div className="map-blind-note">
+            {/* On the map itself the scenario needs only its headline — a
+                compact chip. The control lives in the Hazard panel, which has
+                the room for a slider and the caveat, and where hazard analysis
+                already belongs. Three floating cards on a 772px canvas was the
+                clutter. */}
+            {overlays.blindSpots && blindSummary && (
+              <button
+                type="button"
+                className="cutoff-chip"
+                onClick={() => setPanelTab('Hazard')}
+                title="Adjust the cut-off scenario in the Hazard panel"
+              >
                 <b>
-                  {!blindSummary || blindSummary.count === 0
-                    ? 'No area cut off'
-                    : `${Math.round((blindSummary.count / blindSummary.total) * 100)}% of roads cut off`}
+                  {blindSummary.count === 0
+                    ? '0'
+                    : Math.round((blindSummary.count / blindSummary.total) * 100)}%
                 </b>
-                <span>
-                  if the water rose <b>{waterLevelM.toFixed(2)} m</b> — no surviving route to an open centre.
-                </span>
-                <input
-                  type="range"
-                  className="map-blind-range"
-                  min={0}
-                  max={1.5}
-                  step={0.05}
-                  value={waterLevelM}
-                  onChange={(e) => setWaterLevelM(Number(e.target.value))}
-                  aria-label="Hypothetical water level, metres"
-                />
-                <em>Hypothetical scenario · modelled from terrain, not surveyed</em>
-              </div>
+                cut off at {waterLevelM.toFixed(2)} m
+                <em>hypothetical</em>
+              </button>
             )}
 
             {/* Legend (timestamp + risk ramp) */}
@@ -598,8 +600,10 @@ export default function FloodMap() {
                 ? `${coords.lat.toFixed(4)} N, ${coords.lng.toFixed(4)} E | Zoom: ${coords.zoom}`
                 : 'No map data'}
             </div>
+          </div>
 
-            {/* The clock this whole screen is being read at. */}
+            {/* The clock this whole screen is being read at. Outside the canvas
+                so it can never be overlapped by a map overlay. */}
             <TimeScrubber
               weather={weather}
               projecting={projecting}
@@ -639,6 +643,13 @@ export default function FloodMap() {
                   discharge={weather.discharge}
                   loading={fieldLoading}
                   onRefresh={refreshField}
+                  cutoff={{
+                    on: overlays.blindSpots,
+                    onToggle: () => toggleOverlay('blindSpots'),
+                    level: waterLevelM,
+                    onLevel: setWaterLevelM,
+                    summary: blindSummary,
+                  }}
                 />
               )}
 
@@ -971,10 +982,54 @@ function StatCard({ color, icon, value, label }) {
  * river-discharge feed. These three blocks were the whole reason the separate
  * Hazard Layer screen existed; its map was this map, with the same layers.
  */
-function HazardTab({ summary, discharge, loading, onRefresh }) {
+function HazardTab({ summary, discharge, loading, onRefresh, cutoff }) {
   const dischargeText = discharge?.value != null ? `${discharge.value.toFixed(1)} m³/s` : '--'
+  const pct = cutoff?.summary
+    ? Math.round((cutoff.summary.count / cutoff.summary.total) * 100)
+    : 0
   return (
     <div className="fm-hazard">
+      {/* Cut-off scenario — a what-if, so it says so and carries its own
+          control. It lives here rather than floating on the map because the
+          map had no room left and this is hazard analysis. */}
+      {cutoff && (
+        <section className="fm-hazard-sec fm-cut">
+          <div className="fm-cut-hd">
+            <h3 className="fm-hazard-title">Cut-Off Scenario</h3>
+            <label className="fm-cut-sw">
+              <input type="checkbox" checked={cutoff.on} onChange={cutoff.onToggle} />
+              <span />Show on map
+            </label>
+          </div>
+
+          <div className="fm-cut-fig">
+            <b>{pct}<i>%</i></b>
+            <span>of the road network would have<br />no surviving route to an open centre</span>
+          </div>
+
+          <div className="fm-cut-ctl">
+            <div className="fm-cut-lbl">
+              If the water rose <b>{cutoff.level.toFixed(2)} m</b>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1.5}
+              step={0.05}
+              value={cutoff.level}
+              onChange={(e) => cutoff.onLevel(Number(e.target.value))}
+              aria-label="Hypothetical water level, metres"
+            />
+            <div className="fm-cut-ticks"><i>0</i><i>0.75 m</i><i>1.5 m</i></div>
+          </div>
+
+          <p className="fm-hazard-note">
+            A hypothetical rise, not a forecast. Spread over the city by terrain and tested
+            against the real road graph and the 29 open centres. Modelled, not surveyed.
+          </p>
+        </section>
+      )}
+
       <section className="fm-hazard-sec">
         <h3 className="fm-hazard-title">Hazard Summary</h3>
         <div className="fm-hazard-stats">
