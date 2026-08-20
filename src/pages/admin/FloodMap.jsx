@@ -18,6 +18,8 @@ import { ftToM, formatMeters } from '../../services/depth.js'
 import { useLiveWeather } from '../../services/weather.js'
 import { useFloodRiskAtScrub, barangayRiskSamples, hazardSummary } from '../../components/admin/floodRisk.js'
 import TimeScrubber, { ForecastBadge } from '../../components/admin/TimeScrubber.jsx'
+import BlindSpotLayer from '../../components/admin/BlindSpotLayer.jsx'
+
 import { hourlyAt } from '../../services/weather.js'
 import { BarangayRiskLayer, InundationGrid, FocusController } from '../../components/admin/BarangayRiskLayer.jsx'
 import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.jsx'
@@ -166,7 +168,15 @@ export default function FloodMap() {
   // to keep the toggle panel readable.)
   // v3 adds floodAreas — CDRRMO operators were the only portal that could not
   // see the flood-prone-area pins residents and barangay officials already get.
-  const [overlays, setOverlays] = usePersistedState('cdrrmo-layers-admin-floodmap-overlays-v3', { incidents: false, roads: false, evac: false, floodAreas: true })
+  const [overlays, setOverlays] = usePersistedState('cdrrmo-layers-admin-floodmap-overlays-v4', { incidents: false, roads: false, evac: false, floodAreas: true, blindSpots: false })
+  const [blindSummary, setBlindSummary] = useState(null)
+  /* The cut-off layer answers a HYPOTHETICAL — "if the water rose this far,
+     who would have no way out?" — so the operator sets the level directly
+     rather than having it inferred from the hazard model. Deriving it from the
+     model instead made the layer claim most of the city was already cut off on
+     a dry day, which is not a warning, it is noise. An explicit slider is also
+     the better demo: drag it and watch the city go dark. */
+  const [waterLevelM, setWaterLevelM] = useState(0.4)
   const toggleOverlay = (k) => setOverlays((v) => ({ ...v, [k]: !v[k] }))
 
   // Layer visibility + intensity (the on-map toggle control). Default: the
@@ -387,6 +397,18 @@ export default function FloodMap() {
                 <FloodAreaMarkers areas={floodAreas} onSelect={(a) => setEditingArea(a)} />
               )}
 
+              {/* Everywhere with no surviving route to an open evacuation
+                  centre at the current water level. Grows with the scrubber. */}
+              {overlays.blindSpots && (
+                <BlindSpotLayer
+                  roads={roadNetwork}
+                  centres={evacuationCenters}
+                  statusMap={roadStatus}
+                  level={waterLevelM}
+                  onSummary={setBlindSummary}
+                />
+              )}
+
               {/* Flagged road segments: closed = solid red, flooded = dashed orange */}
               {overlays.roads && flaggedRoadLines.map((r) => (
                 <Polyline
@@ -520,12 +542,39 @@ export default function FloodMap() {
                 { key: 'roads', label: 'Flagged Roads', color: '#f97316', on: overlays.roads, onToggle: () => toggleOverlay('roads') },
                 { key: 'evac', label: 'Evacuation Centers', color: '#16a34a', on: overlays.evac, onToggle: () => toggleOverlay('evac') },
                 { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#0284c7', on: overlays.floodAreas, onToggle: () => toggleOverlay('floodAreas') },
+                { key: 'blindSpots', label: 'Cut-Off Areas', color: '#dc2626', on: overlays.blindSpots, onToggle: () => toggleOverlay('blindSpots') },
               ]}
             />
 
             {/* Focused barangay detail card */}
             {selectedSample && (
               <BarangayDetailCard sample={selectedSample} onClose={() => setSelected(null)} />
+            )}
+
+            {/* What the cut-off shading is claiming, in words, plus the control
+                for the scenario it is answering. */}
+            {overlays.blindSpots && (
+              <div className="map-blind-note">
+                <b>
+                  {!blindSummary || blindSummary.count === 0
+                    ? 'No area cut off'
+                    : `${Math.round((blindSummary.count / blindSummary.total) * 100)}% of roads cut off`}
+                </b>
+                <span>
+                  if the water rose <b>{waterLevelM.toFixed(2)} m</b> — no surviving route to an open centre.
+                </span>
+                <input
+                  type="range"
+                  className="map-blind-range"
+                  min={0}
+                  max={1.5}
+                  step={0.05}
+                  value={waterLevelM}
+                  onChange={(e) => setWaterLevelM(Number(e.target.value))}
+                  aria-label="Hypothetical water level, metres"
+                />
+                <em>Hypothetical scenario · modelled from terrain, not surveyed</em>
+              </div>
             )}
 
             {/* Legend (timestamp + risk ramp) */}

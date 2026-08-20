@@ -1,0 +1,163 @@
+/* ============================================================
+   Cutoff analysis panel — the ranked "who loses their way out
+   first" list on the Dashboard.
+   ============================================================ */
+
+.cut-card { display: flex; flex-direction: column; gap: 12px; }
+
+.cut-hdr {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cut-hdr-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+.cut-hdr-title svg, .cut-hdr svg {
+  width: 16px; height: 16px;
+  stroke: #c0181b; fill: none; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.cut-hdr-sub { font-size: 0.6875rem; color: #9a9a9a; }
+
+.cut-empty { font-size: 0.75rem; color: #9a9a9a; padding: 18px 0; }
+
+/* The one-road-isolates-many callout. */
+.cut-choke {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: #7f1d1d;
+}
+.cut-choke svg { width: 16px; height: 16px; stroke: #dc2626; fill: none; stroke-width: 2; flex-shrink: 0; margin-top: 1px; }
+.cut-choke b { color: #991b1b; }
+
+.cut-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.cut-row {
+  --band: #94a3b8;
+  padding: 9px 11px;
+  border: 1px solid #ece9e3;
+  border-left: 3px solid var(--band);
+  border-radius: 9px;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.cut-row:hover { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06); }
+.cut-row--high { --band: #dc2626; }
+.cut-row--mod  { --band: #f97316; }
+.cut-row--low  { --band: #eab308; }
+.cut-row--safe { --band: #16a34a; }
+
+.cut-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.cut-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  min-width: 108px;
+  flex-shrink: 0;
+}
+.cut-main:hover .cut-name { color: #c0181b; }
+
+.cut-bar {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: #f0eee9;
+  overflow: hidden;
+  min-width: 40px;
+}
+.cut-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--band);
+  transition: width 0.3s ease;
+}
+
+.cut-depth {
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: var(--band);
+  font-variant-numeric: tabular-nums;
+  min-width: 62px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.cut-depth em { font-style: normal; font-size: 0.6875rem; font-weight: 600; color: #16a34a; }
+
+.cut-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 5px;
+  padding-left: 118px;
+  font-size: 0.6875rem;
+  flex-wrap: wrap;
+}
+.cut-road { color: #6b7280; }
+.cut-road b { color: #2a2a2a; }
+.cut-muted { color: #b8b3aa; }
+.cut-head {
+  margin-left: auto;
+  font-weight: 700;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+.cut-head.tight { color: #dc2626; }
+
+.cut-foot { display: flex; gap: 14px; align-items: center; }
+.cut-more, .cut-method {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #c0181b;
+  cursor: pointer;
+}
+.cut-method { color: #9a9a9a; font-weight: 600; margin-left: auto; }
+.cut-more:hover { text-decoration: underline; }
+.cut-method:hover { color: #6b7280; }
+
+.cut-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #faf9f7;
+  border: 1px solid #ece9e3;
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  color: #6b7280;
+}
+.cut-note b { color: #3a3a3a; }
+
+@media (max-width: 640px) {
+  .cut-meta { padding-left: 0; }
+  .cut-name { min-width: 0; }
+}

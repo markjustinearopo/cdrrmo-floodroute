@@ -6,7 +6,11 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import RoadConditionModal from '../../components/admin/RoadConditionModal.jsx'
 import { BarangayDetailCard } from '../../components/admin/BarangayDetailCard.jsx'
 import { useLiveWeather, formatRain } from '../../services/weather.js'
-import { useFloodRisk, barangayRiskSamples, estDepthFromRisk } from '../../components/admin/floodRisk.js'
+import {
+  useFloodRisk, barangayRiskSamples, estDepthFromRisk, susceptibilityAt,
+} from '../../components/admin/floodRisk.js'
+import { BARANGAY_CENTROIDS } from '../../data/cabuyaoBarangays.js'
+import { ftToM } from '../../services/depth.js'
 import {
   useCabuyaoRoads,
   useRoadStatus,
@@ -14,7 +18,8 @@ import {
   ROAD_STATUS,
 } from '../../components/admin/routingHelpers.jsx'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock } from '../../components/admin/mapHelpers.jsx'
-import { useAlerts, useIncidents, useRoadReports } from '../../context/AdminDataContext.jsx'
+import { useAlerts, useIncidents, useRoadReports, useEvacCenters } from '../../context/AdminDataContext.jsx'
+import CutoffPanel from '../../components/admin/CutoffPanel.jsx'
 import { levelFromDepth } from '../../services/systemConfig.js'
 import { useT } from '../../services/i18n.js'
 import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
@@ -66,6 +71,8 @@ export default function Dashboard() {
   // ── Live feeds ──
   const { weather } = useLiveWeather()
   const { field } = useFloodRisk()
+  const { evacuationCenters } = useEvacCenters()
+
   const { roads: roadNetwork } = useCabuyaoRoads()
   const [roadStatus, { setStatus }] = useRoadStatus()
 
@@ -73,6 +80,27 @@ export default function Dashboard() {
   const { alerts, addAlert, resolveAlert } = useAlerts()
   const { incidents } = useIncidents()
   const { roadReports, reportRoad, removeRoadReport } = useRoadReports()
+
+  /* How high the water actually is, for the cutoff panel's headroom column.
+
+     Deliberately built from MEASURED depths only — the ones an operator
+     recorded against a road on Road Status — and not from the hazard model.
+     The model is a susceptibility proxy that sits close to the depth
+     thresholds even on a dry day, so inverting it into a "current level"
+     reported every barangay as already cut off, which is both false and the
+     fastest way to teach people to ignore this panel. With no measurements in,
+     headroom simply isn't claimed. */
+  const currentWaterM = useMemo(() => {
+    let worst = 0
+    for (const r of roadReports) {
+      const m = ftToM(r.depthFt)
+      if (!m) continue
+      const c = BARANGAY_CENTROIDS.find((b) => b.name === r.barangay)?.coords
+      const s = c ? susceptibilityAt(c[0], c[1]) : 1
+      worst = Math.max(worst, s > 0 ? m / s : m)
+    }
+    return +worst.toFixed(2)
+  }, [roadReports])
 
   // Each barangay's flood depth is derived live from the Open-Meteo flood ×
   // forecast risk field sampled at its location (model estimate, not a sensor reading).
@@ -314,6 +342,15 @@ export default function Dashboard() {
 
       {/* ── Live insight strip: rainfall trend · risk gauge · 3D skyline ──
           One dense row so the top of the dashboard reads at a glance. */}
+      {/* Which barangay loses its last road out first — pure computation over
+          the road graph, the terrain and the real evacuation centres. */}
+      <CutoffPanel
+        roads={roadNetwork}
+        centres={evacuationCenters}
+        statusMap={roadStatus}
+        currentLevelM={currentWaterM}
+      />
+
       <div className="viz-strip">
         <div className="section-card viz-card viz-rain">
           <div className="viz-hdr">
