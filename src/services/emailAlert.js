@@ -16,6 +16,7 @@
 
 import supabase from './supabase.js'
 import { loadAlertSettings } from '../context/AdminDataContext.jsx'
+import { isDrillActive } from './drillMode.js'
 
 /** True when the email channel is enabled in AlertSettings. */
 export function isEmailEnabled() {
@@ -29,6 +30,16 @@ export function isEmailEnabled() {
  * @param {{ level: string, title: string, message: string, barangay?: string }} alert
  */
 export async function sendAlertEmail({ level, title, message, barangay } = {}) {
+  /* Drill mode blocks outbound mail HERE, at the send itself, rather than
+     asking each caller to remember. A drill exists precisely to make the
+     system act on its own — the auto-alert watcher issuing a real alert is the
+     whole point of it — so the guard has to sit where the message would
+     actually leave the building, past every caller that might not know a drill
+     is running. */
+  if (isDrillActive()) {
+    console.info('[drill] outbound email blocked:', title)
+    return { skipped: true, blockedByDrill: true }
+  }
   if (!isEmailEnabled()) return { skipped: true }
   const { data, error } = await supabase.functions.invoke('send-alert-email', {
     body: { level, title, message, barangay },

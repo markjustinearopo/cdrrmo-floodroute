@@ -11,6 +11,7 @@ import { useRealTimeSync } from '../../hooks/useRealTimeSync.js'
 import { useSystemConfig, loadSystemConfigRemote } from '../../services/systemConfig.js'
 import { useT } from '../../services/i18n.js'
 import AutoAlertWatcher from './AutoAlertWatcher.jsx'
+import DrillMode from './DrillMode.jsx'
 import './AdminLayout.css'
 
 /**
@@ -167,6 +168,11 @@ export default function AdminLayout({ children, mainClassName = '' }) {
     <>
       {/* Automatic-alert engine (opt-in on Alert Settings) — no UI of its own. */}
       <AutoAlertWatcher field={field} />
+
+      {/* Drill banner + runner. Above everything, and unmissable while active:
+          the one thing that must never happen is a simulated event being read
+          as a real one. */}
+      <DrillMode />
 
       {/* ── Maintenance banner (System Configuration → Maintenance mode) ── */}
       {config.maintenance && (

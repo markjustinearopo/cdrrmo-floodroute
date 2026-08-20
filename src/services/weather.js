@@ -315,7 +315,41 @@ export async function fetchBarangayRainHistory(lat, lng) {
 let cache = null
 let promise = null
 
+/* ── Drill override ───────────────────────────────────────────────────────
+   Drill mode replaces the live snapshot so that EVERY consumer — the topbar
+   chips, the hazard field, the auto-alert watcher — reacts exactly as it would
+   in real weather. Nothing downstream knows a drill is running, which is the
+   whole point: a parallel simulation would only prove the simulation works.
+
+   Only this module knows the difference, and drillMode.js is the only caller. */
+let override = null
+const weatherListeners = new Set()
+
+export function setWeatherOverride(next) {
+  override = next
+  for (const fn of weatherListeners) fn()
+}
+export function getWeatherOverride() {
+  return override
+}
+export function subscribeWeather(fn) {
+  weatherListeners.add(fn)
+  return () => weatherListeners.delete(fn)
+}
+
+/** The real snapshot with the drill's values laid over it, when one is set. */
+function applyOverride(w) {
+  if (!override) return w
+  return {
+    ...w,
+    ...override,
+    current: { ...w.current, ...(override.current || {}) },
+    drill: true,
+  }
+}
+
 export function fetchWeather() {
+  if (override) return Promise.resolve(applyOverride(cache || EMPTY))
   if (cache) return Promise.resolve(cache)
   if (promise) return promise
   promise = loadWeather()
@@ -346,6 +380,11 @@ export function useLiveWeather() {
   const [weather, setWeather] = useState(cache)
   const [loading, setLoading] = useState(!cache)
   const [error, setError] = useState(false)
+
+  // A drill starting or stopping has to reach every mounted screen at once.
+  useEffect(() => subscribeWeather(() => {
+    fetchWeather().then(setWeather).catch(() => {})
+  }), [])
 
   useEffect(() => {
     let active = true

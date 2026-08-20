@@ -1,0 +1,163 @@
+/* ============================================================
+   Drill mode — the banner has one job: nobody in the room, on
+   either side of the screen, should be able to mistake a drill
+   for a real event. It is loud on purpose and it does not go
+   away while the drill runs.
+   ============================================================ */
+
+.drill-icon {
+  width: 15px; height: 15px;
+  stroke: currentColor; fill: none; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* ── The launcher in the topbar ── */
+.drill-launch {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 850;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.16);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e5e2dd;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b7280;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.drill-launch:hover { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
+
+/* ── The active banner ── */
+.drill-bar {
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  background: repeating-linear-gradient(
+    135deg,
+    #7f1d1d 0 18px,
+    #991b1b 18px 36px
+  );
+  color: #fff;
+  box-shadow: 0 3px 16px rgba(127, 29, 29, 0.4);
+  animation: drill-in 0.3s ease;
+}
+@keyframes drill-in {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+.drill-bar-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 18px;
+  flex-wrap: wrap;
+}
+
+.drill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #fff;
+  color: #991b1b;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  animation: drill-pulse 1.6s ease-in-out infinite;
+}
+@keyframes drill-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6); }
+  60% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }
+}
+
+.drill-headline {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  opacity: 0.95;
+}
+.drill-headline b { font-weight: 800; }
+
+.drill-clock {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.drill-clock em { font-style: normal; font-size: 0.6875rem; font-weight: 600; opacity: 0.7; }
+
+.drill-btn {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: #fff;
+  color: #991b1b;
+  border-radius: 7px;
+  padding: 6px 13px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.drill-btn:hover { transform: translateY(-1px); }
+.drill-btn--ghost {
+  background: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+.drill-btn--ghost:hover { background: rgba(255, 255, 255, 0.12); }
+
+.drill-progress {
+  height: 3px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.drill-progress-fill {
+  display: block;
+  height: 100%;
+  background: #fbbf24;
+  transition: width 1s linear;
+}
+
+.drill-log {
+  padding: 9px 18px 11px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.drill-latest {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.drill-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.6875rem;
+  opacity: 0.8;
+}
+.drill-steps li { display: flex; gap: 8px; }
+.drill-t {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  opacity: 0.75;
+  min-width: 34px;
+}
+
+.drill-bar.is-collapsed .drill-log { display: none; }
+
+@media (max-width: 700px) {
+  .drill-bar-main { gap: 8px; padding: 8px 12px; }
+  .drill-clock { margin-left: 0; }
+  .drill-headline { width: 100%; font-size: 0.75rem; }
+}

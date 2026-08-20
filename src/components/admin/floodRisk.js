@@ -393,6 +393,19 @@ export async function fetchFloodFieldForHour(offset = 0) {
   return p
 }
 
+/* Anything that changes the weather underneath the field — a feed refresh, or
+   a drill stepping the rainfall — calls this. Every mounted useFloodRisk
+   rebuilds, which is what makes the hazard map, the barangay badges and the
+   auto-alert watcher all move together. */
+const fieldListeners = new Set()
+
+export function invalidateFloodField() {
+  fieldCache = null
+  fieldPromise = null
+  clearHourFields()
+  for (const fn of fieldListeners) fn()
+}
+
 export function fetchFloodField() {
   if (fieldCache) return Promise.resolve(fieldCache)
   if (fieldPromise) return fieldPromise
@@ -438,6 +451,13 @@ export function useFloodRisk() {
       active = false
     }
   }, [nonce])
+
+  // External invalidation (feed refresh, drill step).
+  useEffect(() => {
+    const fn = () => setNonce((n) => n + 1)
+    fieldListeners.add(fn)
+    return () => fieldListeners.delete(fn)
+  }, [])
 
   // Periodic auto-refresh: clear both caches and re-pull on the same cadence
   // as the weather feed so the hazard surface stays live as rainfall changes.
