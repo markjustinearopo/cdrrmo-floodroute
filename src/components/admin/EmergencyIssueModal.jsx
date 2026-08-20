@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BARANGAYS } from '../../data/cabuyao.js'
+import { BARANGAYS, CITY_WIDE } from '../../data/cabuyao.js'
 import './EmergencyIssueModal.css'
 
 /**
@@ -33,7 +33,7 @@ export default function EmergencyIssueModal({ onClose, onIssue }) {
     if (!armed) return
     onIssue({
       level: 'emergency',
-      barangay: barangay || 'All Barangays',
+      barangay: barangay || CITY_WIDE,
       title: title.trim(),
       message: message.trim(),
     })

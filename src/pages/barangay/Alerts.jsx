@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
-import { ALERT_LEVELS } from '../../data/cabuyao.js'
+import { ALERT_LEVELS, alertAppliesTo } from '../../data/cabuyao.js'
 import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
 import { useAlerts } from '../../context/AdminDataContext.jsx'
 import '../admin/Manage.css'
@@ -38,7 +38,7 @@ export default function Alerts() {
 
   // Strict isolation: only this barangay's alerts from the shared store.
   const alerts = useMemo(
-    () => allAlerts.filter((a) => a.barangay === myBrgy),
+    () => allAlerts.filter((a) => alertAppliesTo(a, myBrgy)),
     [allAlerts, myBrgy],
   )
 

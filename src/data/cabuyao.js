@@ -41,6 +41,24 @@ export const ALERT_LEVELS = [
 
 export const EMERGENCY_LEVEL = 'emergency'
 
+/* ── City-wide alerts ──────────────────────────────────────────────────────
+   An alert targets one barangay by name, or the whole city with this marker.
+
+   Every portal used to filter alerts with `a.barangay === myBrgy`, which meant
+   a city-wide alert reached NOBODY: no resident's barangay is literally "All
+   Barangays", so the row existed, looked issued on the admin's screen, and was
+   invisible to every person it was for. That is the worst way for a warning
+   channel to fail — silently, while appearing to work.
+
+   One rule, used by every portal, so the question "does this alert apply to
+   me" has exactly one answer in the codebase. */
+export const CITY_WIDE = 'All Barangays'
+
+export function alertAppliesTo(alert, barangay) {
+  if (!alert) return false
+  return alert.barangay === CITY_WIDE || alert.barangay === barangay
+}
+
 /* ── Barangay safeness ─────────────────────────────────────
    Graded from the modeled flood depth (m) per barangay using the
    OPERATOR-configurable thresholds on System Configuration (read live
