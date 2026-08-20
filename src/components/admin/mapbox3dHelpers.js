@@ -27,7 +27,7 @@ import {
   barangayOuterRings,
   barangayAt,
 } from '../../data/cabuyaoBarangays.js'
-import { buildFloodHexes, BAND_FILL } from './floodRisk.js'
+import { buildFloodHexes, estDepthFromRisk } from './floodRisk.js'
 import { RISK_META, loadCabuyaoRings } from './mapHelpers.jsx'
 import { ROAD_STATUS } from './routingHelpers.jsx'
 import { CABUYAO_3D_VIEW } from './Map3D.jsx'
@@ -56,42 +56,125 @@ const bandColorExpr = [
   RISK_META.safe.color,
 ]
 
-// Per-band fill strength × the page's opacity slider (data-driven, so one
-// paint property drives the whole surface).
-const inundationOpacityExpr = (base) => [
-  '*',
-  base,
-  [
-    'match',
-    ['get', 'band'],
-    'high', BAND_FILL.high,
-    'moderate', BAND_FILL.moderate,
-    'low', BAND_FILL.low,
-    BAND_FILL.safe,
-  ],
-]
 
 // The SAME honeycomb the Leaflet InundationGrid draws (buildFloodHexes —
 // land-clipped ~100 m hexes banded by depth class), as GeoJSON polygons —
 // the 2D and 3D surfaces can never disagree. When `only` is a barangay name the
 // surface is clipped to that barangay (jurisdiction view).
-function inundationFC(field, only = null) {
+/* ── Water volume ──────────────────────────────────────────────────────────
+   The surface is extruded by MODELLED DEPTH, not by risk score. That is the
+   distinction that makes a 3D column defensible here: a tower whose height is
+   an abstract index invites the viewer to read a quantity that does not exist,
+   whereas depth is a real modelled metre value the rest of the product already
+   uses (estDepthFromRisk, the same number the barangay badges grade).
+
+   City-scale depths are tenths of a metre against kilometres of ground, so an
+   un-exaggerated column is invisible. 20x makes 0.5 m read as a 10 m wall —
+   legible without being absurd — and the legend states the factor, because an
+   unlabelled exaggeration silently claims surveyed depth. */
+export const WATER_EXAGGERATION = 20
+const TWEEN_MS = 620
+const IDLE_AMPLITUDE = 0.03
+const IDLE_PERIOD_MS = 4200
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+}
+
+// The SAME honeycomb the Leaflet InundationGrid draws (buildFloodHexes —
+// land-clipped ~100 m hexes banded by depth class), as GeoJSON polygons —
+// the 2D and 3D surfaces can never disagree. When `only` is a barangay name the
+// surface is clipped to that barangay (jurisdiction view).
+//
+// Each feature carries BOTH the depth it is animating from (`d0`) and the one
+// it is animating to (`d1`), so a scrub through the forecast can be tweened by
+// moving a single number in the paint expression rather than re-uploading the
+// geometry sixty times a second.
+function inundationFC(field, only = null, previous = null) {
   const hexes = only
     ? buildFloodHexes(field).filter((h) => barangayAt(h.center[0], h.center[1]) === only)
     : buildFloodHexes(field)
   return {
     type: 'FeatureCollection',
-    features: hexes.map((hex) => ({
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [
-          [...hex.ring.map(([lat, lng]) => [lng, lat]), [hex.ring[0][1], hex.ring[0][0]]],
-        ],
-      },
-      properties: { band: hex.band },
-    })),
+    features: hexes.map((hex) => {
+      const d1 = estDepthFromRisk(hex.risk) * WATER_EXAGGERATION
+      const d0 = previous?.get(hex.key) ?? d1
+      return {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [...hex.ring.map(([lat, lng]) => [lng, lat]), [hex.ring[0][1], hex.ring[0][0]]],
+          ],
+        },
+        properties: { band: hex.band, d0, d1 },
+      }
+    }),
   }
+}
+
+/** Depth-by-hex for the next tween's starting point. */
+function depthMap(field, only = null) {
+  const hexes = only
+    ? buildFloodHexes(field).filter((h) => barangayAt(h.center[0], h.center[1]) === only)
+    : buildFloodHexes(field)
+  const m = new Map()
+  for (const hex of hexes) m.set(hex.key, estDepthFromRisk(hex.risk) * WATER_EXAGGERATION)
+  return m
+}
+
+/* Height = the d0→d1 mix at `t`, scaled by `bob`. Both are plain numbers baked
+   into the expression, so animating means one setPaintProperty per frame —
+   no geometry upload, no source churn. */
+function heightExpr(t, bob) {
+  return [
+    '*',
+    ['+', ['*', ['get', 'd0'], 1 - t], ['*', ['get', 'd1'], t]],
+    bob,
+  ]
+}
+
+/* Per-map animation state: the running frame loop and the depths currently on
+   screen (the next tween starts from these). */
+const waterAnim = new WeakMap()
+
+function animateWater(map, { tweenFrom = 1 } = {}) {
+  const state = waterAnim.get(map) || {}
+  if (state.raf) cancelAnimationFrame(state.raf)
+
+  const reduced = prefersReducedMotion()
+  const start = performance.now()
+
+  const frame = (now) => {
+    // Self-terminating: the map may be removed out from under this loop when
+    // the view switches or the page unmounts. Checking here rather than asking
+    // Map3D to call a stop function avoids an import cycle — mapbox3dHelpers
+    // already imports from Map3D — and is robust whoever tears the map down.
+    if (map._removed || !map.getLayer?.('inundation-fill')) {
+      waterAnim.delete(map)
+      return
+    }
+    const elapsed = now - start
+    const t = tweenFrom >= 1 ? 1 : Math.min(1, elapsed / TWEEN_MS)
+    // Ease-out so the water settles rather than snapping.
+    const eased = 1 - (1 - t) ** 3
+    // Still water still moves. Cosmetic only, and off under reduced motion.
+    const bob = reduced ? 1 : 1 + IDLE_AMPLITUDE * Math.sin((now / IDLE_PERIOD_MS) * Math.PI * 2)
+    map.setPaintProperty('inundation-fill', 'fill-extrusion-height', heightExpr(eased, bob))
+
+    if (reduced && t >= 1) { waterAnim.set(map, { raf: null }); return }
+    waterAnim.set(map, { raf: requestAnimationFrame(frame) })
+  }
+
+  waterAnim.set(map, { raf: requestAnimationFrame(frame) })
+}
+
+/** Stops the water loop — call when the map is torn down. */
+export function stopWaterAnimation(map) {
+  const state = waterAnim.get(map)
+  if (state?.raf) cancelAnimationFrame(state.raf)
+  waterAnim.delete(map)
 }
 
 /**
@@ -103,27 +186,45 @@ export function addInundationLayer(map, field, baseOpacity = 0.85, visible = tru
   map.addLayer(
     {
       id: 'inundation-fill',
-      type: 'fill',
+      type: 'fill-extrusion',
       source: 'inundation',
       layout: { visibility: visible ? 'visible' : 'none' },
       paint: {
-        'fill-color': bandColorExpr,
-        'fill-opacity': inundationOpacityExpr(baseOpacity),
+        'fill-extrusion-color': bandColorExpr,
+        'fill-extrusion-height': heightExpr(1, 1),
+        'fill-extrusion-base': 0,
+        // Translucent, so terrain and roads still read underneath the water.
+        'fill-extrusion-opacity': 0.72,
+        'fill-extrusion-vertical-gradient': true,
       },
     },
     firstSymbolLayerId(map),
   )
+  map.__inundationDepths = depthMap(field, only)
+  animateWater(map)
 }
 
-/** Re-feeds the surface when a fresh risk field lands. */
+/**
+ * Re-feeds the surface when a fresh risk field lands — a feed refresh, or the
+ * time scrubber landing on a new forecast hour. The columns TWEEN from their
+ * current heights to the new ones, so dragging the scrubber makes the water
+ * visibly rise instead of snapping between two stills.
+ */
 export function updateInundationData(map, field, only = null) {
-  map.getSource('inundation')?.setData(inundationFC(field, only))
+  const src = map.getSource('inundation')
+  if (!src) return
+  const previous = map.__inundationDepths || null
+  src.setData(inundationFC(field, only, previous))
+  map.__inundationDepths = depthMap(field, only)
+  animateWater(map, { tweenFrom: 0 })
 }
 
 /** Applies the page's opacity slider to the surface. */
 export function applyInundationOpacity(map, baseOpacity) {
   if (!map.getLayer('inundation-fill')) return
-  map.setPaintProperty('inundation-fill', 'fill-opacity', inundationOpacityExpr(baseOpacity))
+  // One scalar for the whole surface: fill-extrusion-opacity is not
+  // data-driven, so the per-band strengths ride on the colour ramp instead.
+  map.setPaintProperty('inundation-fill', 'fill-extrusion-opacity', Math.min(0.92, baseOpacity * 0.85))
 }
 
 /* ── Barangay GeoJSON with live risk properties ──────────────────────────── */

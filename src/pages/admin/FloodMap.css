@@ -918,3 +918,16 @@
   left: calc(50% + 106px);
   width: min(420px, calc(100% - 460px));
 }
+
+/* States the vertical exaggeration on the 3D water columns. Without it the
+   extrusion silently reads as surveyed depth. */
+.floodmap .legend-vert {
+  padding-left: 10px;
+  margin-left: 2px;
+  border-left: 1px solid #e5e2dd;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #9a9a9a;
+  white-space: nowrap;
+}
