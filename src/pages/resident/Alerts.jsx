@@ -3,6 +3,7 @@ import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import { useAlerts } from '../../context/AdminDataContext.jsx'
 import './Resident.css'
+import { alertAppliesTo } from '../../data/cabuyao.js'
 
 /**
  * CDRRMO Resident — Alerts (notifications feed).
@@ -56,7 +57,7 @@ export default function Alerts() {
   // Shared alerts for this barangay, mapped into the notification-card shape.
   const notifs = useMemo(
     () => alerts
-      .filter((a) => a.barangay === myBrgy)
+      .filter((a) => alertAppliesTo(a, myBrgy))
       .map((a) => ({
         id: a.id,
         title: a.title,

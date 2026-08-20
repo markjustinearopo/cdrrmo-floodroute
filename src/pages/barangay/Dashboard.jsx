@@ -19,6 +19,7 @@ import {
   useAlerts, useEvacCenters, useIncidents, useRoadRequests, useBarangayAssignments,
 } from '../../context/AdminDataContext.jsx'
 import './Barangay.css'
+import { alertAppliesTo } from '../../data/cabuyao.js'
 
 /**
  * CDRRMO Barangay — Dashboard (Monitor landing).
@@ -57,7 +58,7 @@ export default function Dashboard() {
     [field, myBrgy],
   )
   const alerts = useMemo(
-    () => allAlerts.filter((a) => a.barangay === myBrgy && a.status === 'active'),
+    () => allAlerts.filter((a) => alertAppliesTo(a, myBrgy) && a.status === 'active'),
     [allAlerts, myBrgy],
   )
   const openShelters = useMemo(

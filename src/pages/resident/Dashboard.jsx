@@ -18,6 +18,7 @@ import { usePersistedState } from '../../utils/usePersistedState.js'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import { useAlerts, useEvacCenters, useBarangayAssignments } from '../../context/AdminDataContext.jsx'
 import './Resident.css'
+import { alertAppliesTo } from '../../data/cabuyao.js'
 
 /**
  * CDRRMO Resident — Dashboard ("My Safety Info").
@@ -92,7 +93,7 @@ export default function Dashboard() {
     [field, myBrgy],
   )
   const alerts = useMemo(
-    () => allAlerts.filter((a) => a.barangay === myBrgy && a.status === 'active'),
+    () => allAlerts.filter((a) => alertAppliesTo(a, myBrgy) && a.status === 'active'),
     [allAlerts, myBrgy],
   )
   // Prefer an open centre in the resident's own barangay, else the first open one.

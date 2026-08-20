@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import RecordList from '../../components/admin/RecordList.jsx'
-import { BARANGAYS, ALERT_LEVELS } from '../../data/cabuyao.js'
+import { BARANGAYS, ALERT_LEVELS , CITY_WIDE } from '../../data/cabuyao.js'
 import { useAlerts, nowLabel, fillAlertTemplate } from '../../context/AdminDataContext.jsx'
 import { sendAlertEmail } from '../../services/emailAlert.js'
 import './Manage.css'
@@ -236,7 +236,10 @@ export default function Alerts() {
                     value={form.barangay}
                     onChange={(e) => setField('barangay', e.target.value)}
                   >
-                    <option value="" disabled>Select Barangay</option>
+                    <option value="" disabled>Select target</option>
+                    {/* City-wide was not offered at all, so an alert meant for
+                        the whole city could not be issued. */}
+                    <option value={CITY_WIDE}>Whole city — all 18 barangays</option>
                     {BARANGAYS.map((b) => <option key={b}>{b}</option>)}
                   </select>
                 </label>

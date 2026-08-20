@@ -7,6 +7,7 @@ import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.
 import { useBarangayAssignments, useAlerts, useEvacCenters } from '../../context/AdminDataContext.jsx'
 import './Barangay.css'
 import '../admin/Manage.css'
+import { alertAppliesTo } from '../../data/cabuyao.js'
 
 /**
  * CDRRMO Barangay — Barangay Operations (Manage).
@@ -62,7 +63,7 @@ export default function Operations() {
     [field, myBrgy],
   )
   const activeAlerts = useMemo(
-    () => alerts.filter((a) => a.barangay === myBrgy && a.status === 'active').length,
+    () => alerts.filter((a) => alertAppliesTo(a, myBrgy) && a.status === 'active').length,
     [alerts, myBrgy],
   )
   const openShelters = useMemo(
