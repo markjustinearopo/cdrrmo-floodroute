@@ -85,11 +85,15 @@ export default function BarangaysTab({ onToast }) {
   function handleSave(e) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
+    const pop = f.get('population')
     assignBarangay(editing, {
       captain: f.get('captain').trim(),
       contact: f.get('contact').trim(),
       coordinator: f.get('coordinator').trim(),
       status: f.get('status'),
+      // Feeds the evacuation plan's capacity matching. Left blank rather than
+      // guessed: the plan says "not set" instead of inventing a figure.
+      population: pop === '' ? null : Math.max(0, Number(pop) || 0),
     })
     onToast(`${editing} assignment saved.`)
     setEditing(null)
@@ -155,6 +159,21 @@ export default function BarangaysTab({ onToast }) {
                   <input name="contact" type="tel" defaultValue={current.contact} placeholder="0917 000 0000" />
                 </label>
               </div>
+              <label>
+                Population
+                <input
+                  name="population"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue={current.population ?? ''}
+                  placeholder="e.g. 24500 — from the PSA census"
+                />
+                <span className="mng-field-hint">
+                  Used by the evacuation plan to match barangays to centres and work out
+                  overflow. Leave blank if you do not have the figure — nothing is estimated.
+                </span>
+              </label>
               <label>
                 Operational Status
                 <select name="status" defaultValue={current.status}>

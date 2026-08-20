@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import RecordList from '../../components/admin/RecordList.jsx'
 import { BARANGAYS, EVAC_STATUSES } from '../../data/cabuyao.js'
-import { useEvacCenters } from '../../context/AdminDataContext.jsx'
+import { useEvacCenters, useBarangayAssignments } from '../../context/AdminDataContext.jsx'
+import { useCabuyaoRoads, useRoadStatus } from '../../components/admin/routingHelpers.jsx'
+import { useFloodRisk } from '../../components/admin/floodRisk.js'
+import EvacuationPlanPanel from '../../components/admin/EvacuationPlanPanel.jsx'
 import EvacLocationPicker from '../../components/admin/EvacLocationPicker.jsx'
 import './Manage.css'
 
@@ -38,6 +41,10 @@ function occClass(occupancy, capacity, status) {
 
 export default function Evacuation() {
   const { evacuationCenters: centers, addEvacCenter, updateEvacCenter, removeEvacCenter } = useEvacCenters()
+  const { barangayAssignments } = useBarangayAssignments()
+  const { roads } = useCabuyaoRoads()
+  const [roadStatus] = useRoadStatus()
+  const { field } = useFloodRisk()
   const [editing, setEditing] = useState(null) // center object, 'new', or null
   const [toast, setToast] = useState('')
 
@@ -129,6 +136,16 @@ export default function Evacuation() {
           <SparkIcon />
           <span>Centres are city-wide — any resident may shelter at any centre, regardless of barangay. They appear as markers on the Flood Map and as Auto Route destinations, and changes persist across refreshes.</span>
         </div>
+
+        {/* The roster answers "where are the centres". This answers "who goes
+            where", which is the question an evacuation actually poses. */}
+        <EvacuationPlanPanel
+          roads={roads}
+          centres={centers}
+          assignments={barangayAssignments}
+          statusMap={roadStatus}
+          field={field}
+        />
       </div>
 
       {/* Add / manage modal — with a pin-the-location map */}
