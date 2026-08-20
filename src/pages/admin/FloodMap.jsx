@@ -39,7 +39,7 @@ import { useRoadStatus, getCabuyaoRoads } from '../../components/admin/routingHe
 import Incidents from './Incidents.jsx'
 import FloodAreaEditor from '../../components/admin/FloodAreaEditor.jsx'
 import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
-import { useBarangayLayers } from '../../components/admin/mapbox3dHelpers.js'
+import { useBarangayLayers, WATER_EXAGGERATION } from '../../components/admin/mapbox3dHelpers.js'
 import { useEvacCentres3D } from '../../components/admin/routing3d.js'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
@@ -593,6 +593,14 @@ export default function FloodMap() {
                 <i style={{ background: RISK_META.high.color }} />
                 <small>Safe → High</small>
               </span>
+              {/* An unlabelled extrusion silently claims surveyed depth. The
+                  columns are exaggerated to be visible at city scale, so the
+                  factor is stated wherever they are shown. */}
+              {use3D && layers.inundation && (
+                <span className="legend-vert" title="Column height is the modelled water depth, exaggerated so tenths of a metre are visible across kilometres of ground">
+                  height = modelled depth ×{WATER_EXAGGERATION}
+                </span>
+              )}
             </div>
 
             <div className="map-coords">
