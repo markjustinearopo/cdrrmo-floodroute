@@ -8,6 +8,7 @@ import { residentBarangayLabel } from '../../data/resident.js'
 import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import '../admin/AdminLayout.css'
+import EmergencyAlert from '../EmergencyAlert.jsx'
 
 /**
  * Shared shell for every CDRRMO Resident screen — alert banner, topbar (live
@@ -101,6 +102,9 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
 
   return (
     <>
+      {/* Residents are who an evacuation order is actually for. */}
+      <EmergencyAlert />
+
       {/* ── Alert banner ── */}
       <div className="alert-banner">
         <svg viewBox="0 0 24 24">

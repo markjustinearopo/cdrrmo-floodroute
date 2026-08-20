@@ -8,6 +8,7 @@ import { officialBarangayLabel } from '../../data/barangay.js'
 import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import '../admin/AdminLayout.css'
+import EmergencyAlert from '../EmergencyAlert.jsx'
 
 /**
  * Shared shell for every CDRRMO Barangay Official screen — alert banner,
@@ -109,6 +110,10 @@ export default function BarangayLayout({ children, mainClassName = '' }) {
 
   return (
     <>
+      {/* Takes over this screen too — a barangay official is exactly who an
+          emergency order needs to reach. */}
+      <EmergencyAlert />
+
       {/* ── Alert banner ── */}
       <div className="alert-banner">
         <svg viewBox="0 0 24 24">

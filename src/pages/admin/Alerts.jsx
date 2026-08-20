@@ -6,6 +6,8 @@ import { BARANGAYS, ALERT_LEVELS } from '../../data/cabuyao.js'
 import { useAlerts, nowLabel, fillAlertTemplate } from '../../context/AdminDataContext.jsx'
 import { sendAlertEmail } from '../../services/emailAlert.js'
 import './Manage.css'
+import api from '../../services/api.js'
+import EmergencyIssueModal from '../../components/admin/EmergencyIssueModal.jsx'
 
 /**
  * CDRRMO Admin — Alerts.
@@ -37,6 +39,10 @@ function defaultScheduleValue() {
 
 export default function Alerts() {
   const { alerts, addAlert, updateAlert, resolveAlert, removeAlert } = useAlerts()
+  const [emergency, setEmergency] = useState(false)
+  // accounts.role — 'admin' is the CDRRMO administrator; operators and viewers
+  // sit in the same portal but do not get the siren.
+  const isCdrrmoAdmin = (api.getUser?.()?.role || '') === 'admin'
   const [showModal, setShowModal] = useState(false)
   const [scheduling, setScheduling] = useState(false)
   const [toast, setToast] = useState('')
@@ -163,9 +169,19 @@ export default function Alerts() {
               <div className="mng-sub">Issue and manage flood-hazard alerts per barangay</div>
             </div>
           </div>
-          <button type="button" className="mng-btn" onClick={openIssue}>
-            <PlusIcon /> Issue Alert
-          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {/* Only CDRRMO administrators can arm the siren. Barangay officials
+                and operators issue ordinary alerts; taking over every screen in
+                the city is a command-centre decision. */}
+            {isCdrrmoAdmin && (
+              <button type="button" className="alerts-emergency-btn" onClick={() => setEmergency(true)}>
+                <SirenIcon /> Emergency
+              </button>
+            )}
+            <button type="button" className="mng-btn" onClick={openIssue}>
+              <PlusIcon /> Issue Alert
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -292,6 +308,17 @@ export default function Alerts() {
         />
       )}
 
+      {emergency && (
+        <EmergencyIssueModal
+          onClose={() => setEmergency(false)}
+          onIssue={(alert) => {
+            addAlert({ ...alert, issuedBy: api.getUser?.()?.name || 'CDRRMO' })
+            setEmergency(false)
+            flash('Emergency alert issued — every signed-in screen is showing it.')
+          }}
+        />
+      )}
+
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </AdminLayout>
   )
@@ -306,5 +333,15 @@ function PlusIcon() {
 function SparkIcon() {
   return (
     <svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /></svg>
+  )
+}
+
+function SirenIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M12 3a5 5 0 0 0-5 5v5h10V8a5 5 0 0 0-5-5z" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+      <line x1="12" y1="3" x2="12" y2="1" />
+    </svg>
   )
 }

@@ -724,3 +724,26 @@
   color: #9a9a9a;
   font-weight: 400;
 }
+
+/* Arms the city-wide siren — deliberately distinct from every other button. */
+.alerts-emergency-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1.5px solid #dc2626;
+  background: #fff;
+  color: #dc2626;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.alerts-emergency-btn:hover { background: #dc2626; color: #fff; }
+.alerts-emergency-btn svg {
+  width: 15px; height: 15px;
+  stroke: currentColor; fill: none; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}

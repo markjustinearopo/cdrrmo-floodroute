@@ -12,6 +12,7 @@ import { useSystemConfig, loadSystemConfigRemote } from '../../services/systemCo
 import { useT } from '../../services/i18n.js'
 import AutoAlertWatcher from './AutoAlertWatcher.jsx'
 import DrillMode from './DrillMode.jsx'
+import EmergencyAlert from '../EmergencyAlert.jsx'
 import './AdminLayout.css'
 
 /**
@@ -173,6 +174,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           the one thing that must never happen is a simulated event being read
           as a real one. */}
       <DrillMode />
+      <EmergencyAlert />
 
       {/* ── Maintenance banner (System Configuration → Maintenance mode) ── */}
       {config.maintenance && (

@@ -29,11 +29,17 @@ export const BARANGAYS = [
 export { BARANGAY_CENTROIDS as BARANGAY_POINTS } from './cabuyaoBarangays.js'
 
 /* ── Hazard alert levels ──────────────────────────────────── */
+/* The tier above High takes over every screen and sounds a siren, so it is
+   deliberately NOT in the ordinary level picker — it has its own guarded flow
+   on the Alerts screen, open to CDRRMO administrators only. See EMERGENCY_LEVEL
+   and components/EmergencyAlert.jsx. */
 export const ALERT_LEVELS = [
   { value: 'high', label: 'High' },
   { value: 'moderate', label: 'Moderate' },
   { value: 'safe', label: 'Safe / All Clear' },
 ]
+
+export const EMERGENCY_LEVEL = 'emergency'
 
 /* ── Barangay safeness ─────────────────────────────────────
    Graded from the modeled flood depth (m) per barangay using the
