@@ -26,8 +26,15 @@ export function getForecastOffset() {
   return offset
 }
 
+/**
+ * Accepts a value or an updater, matching the useState contract callers
+ * reasonably expect. Without the updater form, playback — which has to advance
+ * from wherever the scrub currently is — silently coerced its own callback to
+ * NaN and snapped back to 0 every tick.
+ */
 export function setForecastOffset(next) {
-  const clamped = Math.max(0, Math.round(Number(next) || 0))
+  const raw = typeof next === 'function' ? next(offset) : next
+  const clamped = Math.max(0, Math.round(Number(raw) || 0))
   if (clamped === offset) return
   offset = clamped
   for (const fn of listeners) fn(offset)
