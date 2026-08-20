@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { BARANGAYS } from '../../data/cabuyao.js'
 import { RISK_META, levelFromDepth } from '../../components/admin/mapHelpers.jsx'
@@ -47,6 +48,15 @@ const MAP_OPTS = [
 ]
 
 export default function Reports() {
+  /* One-tap SITREP: /admin/reports?sitrep=1 skips the builder entirely and goes
+     straight to the print dialog with everything switched on and the whole city
+     in scope — which is exactly what a situation report is. The builder was
+     already producing this document; the only thing standing between an
+     operator and a printed SITREP was a configuration step they would pick the
+     defaults for every time anyway. */
+  const [params] = useSearchParams()
+  const autoSitrep = params.get('sitrep') === '1'
+
   const { field } = useFloodRisk()
   const { floodAreas } = useFloodAreas()
   const { evacuationCenters } = useEvacCenters()
@@ -59,7 +69,9 @@ export default function Reports() {
   const samples = useMemo(() => barangayRiskSamples(field), [field])
 
   // ── Report configuration ──
-  const [title, setTitle] = useState('Flood & Road Conditions Report')
+  const [title, setTitle] = useState(
+    autoSitrep ? 'Situation Report (SITREP)' : 'Flood & Road Conditions Report',
+  )
   const [preparedBy, setPreparedBy] = useState('CDRRMO Cabuyao City')
   const [preparedFor, setPreparedFor] = useState('Office of the City Mayor')
   const [scope, setScope] = useState([]) // [] = whole city; else list of barangay names
@@ -69,6 +81,25 @@ export default function Reports() {
   const [mapOpts, setMapOpts] = useState(
     Object.fromEntries(MAP_OPTS.map((o) => [o.key, true])),
   )
+
+  /* Fire the print dialog once, and only after the live feeds have actually
+     answered — printing an empty situation map would be worse than useless.
+     The extra frame lets the SVG map paint before the dialog freezes it. */
+  const printedRef = useRef(false)
+  useEffect(() => {
+    if (!autoSitrep || printedRef.current || !field) return undefined
+    // The "already printed" latch is set INSIDE the timer, not before it.
+    // React double-invokes effects in development: setting it up front meant
+    // the first pass armed the latch and its cleanup cancelled the only timer,
+    // and the second pass saw the latch and did nothing — so the dialog never
+    // opened at all.
+    const id = window.setTimeout(() => {
+      if (printedRef.current) return
+      printedRef.current = true
+      window.print()
+    }, 700)
+    return () => window.clearTimeout(id)
+  }, [autoSitrep, field])
 
   const toggleSection = (k) => setSections((v) => ({ ...v, [k]: !v[k] }))
   const toggleMapOpt = (k) => setMapOpts((v) => ({ ...v, [k]: !v[k] }))
