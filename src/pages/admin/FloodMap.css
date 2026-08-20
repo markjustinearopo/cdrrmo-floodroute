@@ -196,14 +196,20 @@
 }
 .floodmap .panel-tabs {
   display: flex;
+  /* Six tabs cannot fit one row in a 288px panel, so the last one — Barangays —
+     was overflowing and being clipped by the panel's overflow:hidden. Wrapping
+     keeps every tab visible and reachable; a scrolling strip would have hidden
+     it behind an affordance nobody looks for. */
+  flex-wrap: wrap;
   flex-shrink: 0;
   border-bottom: 1px solid #e5e2dd;
   background: #fafaf9;
 }
 .floodmap .panel-tab {
-  flex: 1;
+  flex: 1 1 33.333%;
+  min-width: 0;
   text-align: center;
-  padding: 9px 4px;
+  padding: 8px 4px;
   font-size: 0.6875rem;
   font-weight: 600;
   color: #9a9a9a;
