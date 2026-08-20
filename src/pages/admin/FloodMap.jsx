@@ -600,7 +600,11 @@ export default function FloodMap() {
             </div>
 
             {/* The clock this whole screen is being read at. */}
-            <TimeScrubber weather={weather} projecting={projecting} />
+            <TimeScrubber
+              weather={weather}
+              projecting={projecting}
+              highCount={risk.counts.high}
+            />
           </div>
 
           {/* ── Right Panel ── */}

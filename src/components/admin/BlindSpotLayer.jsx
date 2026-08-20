@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { CircleMarker } from 'react-leaflet'
 import { blindSpotNodes } from '../../services/cutoffAnalysis.js'
 
@@ -24,8 +24,11 @@ export default function BlindSpotLayer({ roads, centres, statusMap, level = 0, o
 
   const points = result?.points || []
 
-  // Hand the count back up so the map chrome can label it honestly.
-  useMemo(() => {
+  /* Hand the count back up so the map chrome can label it honestly.
+     This has to be an EFFECT, not a memo: reporting during render is a setState
+     on the parent mid-render, which React warns about and which can leave the
+     readout showing a count from the previous level. */
+  useEffect(() => {
     onSummary?.(result ? { count: points.length, total: result.total, level } : null)
   }, [result, points.length, level, onSummary])
 
