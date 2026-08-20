@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { ROUTE_TYPES, useCabuyaoRoads } from '../../components/admin/routingHelpers.jsx'
 import { useRouteGraph } from '../../components/admin/routeEngine.js'
-import { useFloodRiskAtScrub, NEUTRAL_FIELD } from '../../components/admin/floodRisk.js'
+import { useFloodRiskAtScrub, NEUTRAL_FIELD, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import { useLiveWeather, hourlyAt } from '../../services/weather.js'
 import TimeScrubber, { ForecastBadge } from '../../components/admin/TimeScrubber.jsx'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
@@ -67,6 +67,13 @@ export default function Routing() {
   const [type, setType] = useState('evacuation')
 
   const live = field || NEUTRAL_FIELD
+
+  // Barangays the scrubbed hour puts at High — the scrubber shows it so moving
+  // the clock reads as a consequence, not just a rainfall number going up.
+  const highCount = useMemo(
+    () => barangayRiskSamples(live).filter((b) => b.level === 'high').length,
+    [live],
+  )
 
   const requested = params.get('tab')
   const active = TABS.some((t) => t.key === requested) ? requested : DEFAULT_TAB
@@ -153,7 +160,13 @@ export default function Routing() {
 
         {/* Only the tabs that actually solve a route follow the clock; Saved is
             a library of past decisions, so scrubbing it would mean nothing. */}
-        {active !== 'saved' && <TimeScrubber weather={weather} projecting={projecting} />}
+        {active !== 'saved' && (
+          <TimeScrubber
+            weather={weather}
+            projecting={projecting}
+            highCount={highCount}
+          />
+        )}
 
         <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
       </div>

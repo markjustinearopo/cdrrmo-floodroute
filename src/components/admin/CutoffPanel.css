@@ -1,16 +1,17 @@
 /* ============================================================
-   Cutoff analysis panel — the ranked "who loses their way out
-   first" list on the Dashboard.
+   Cutoff analysis — a ranked depth gauge.
+
+   Every row is drawn against ONE shared 0 → max scale, with a
+   marker where that barangay's last route dies. Markers on the
+   left go first; the gap between the water line and the marker
+   is the headroom. That reading cannot be inverted, which the
+   old proportional bar could be.
    ============================================================ */
 
-.cut-card { display: flex; flex-direction: column; gap: 12px; }
+.cut { display: flex; flex-direction: column; gap: 13px; }
 
-.cut-hdr {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.cut-hdr-title {
+.cut-hd { display: flex; flex-direction: column; gap: 3px; }
+.cut-hd-t {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -19,16 +20,45 @@
   font-weight: 800;
   color: #1a1a1a;
 }
-.cut-hdr-title svg, .cut-hdr svg {
+.cut-hd svg {
   width: 16px; height: 16px;
   stroke: #c0181b; fill: none; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round;
 }
-.cut-hdr-sub { font-size: 0.6875rem; color: #9a9a9a; }
+.cut-hd-s { font-size: 0.6875rem; color: #9a9a9a; }
+.cut-loading { font-size: 0.75rem; color: #9a9a9a; padding: 16px 0; }
 
-.cut-empty { font-size: 0.75rem; color: #9a9a9a; padding: 18px 0; }
+/* ── Headline ── */
+.cut-lead {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #17212f 0%, #101922 100%);
+  color: #e8edf4;
+}
+.cut-lead-num {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #f87171;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.cut-lead-num i {
+  font-style: normal;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: #8b9bb0;
+  margin-left: 2px;
+}
+.cut-lead-txt { font-size: 0.8125rem; line-height: 1.55; color: #c9d4e2; }
+.cut-lead-txt b { color: #fff; font-weight: 700; }
+.cut-lead-txt span { display: block; margin-top: 3px; font-size: 0.6875rem; color: #7d8da2; }
 
-/* The one-road-isolates-many callout. */
 .cut-choke {
   display: flex;
   gap: 9px;
@@ -41,109 +71,172 @@
   line-height: 1.55;
   color: #7f1d1d;
 }
-.cut-choke svg { width: 16px; height: 16px; stroke: #dc2626; fill: none; stroke-width: 2; flex-shrink: 0; margin-top: 1px; }
+.cut-choke svg {
+  width: 16px; height: 16px;
+  stroke: #dc2626; fill: none; stroke-width: 2;
+  flex-shrink: 0; margin-top: 1px;
+}
 .cut-choke b { color: #991b1b; }
 
-.cut-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-
-.cut-row {
-  --band: #94a3b8;
-  padding: 9px 11px;
-  border: 1px solid #ece9e3;
-  border-left: 3px solid var(--band);
-  border-radius: 9px;
-  background: #fff;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+/* ── Shared scale ── */
+.cut-scale {
+  display: flex;
+  justify-content: space-between;
+  /* Line the ticks up with the gauge column of the rows below. */
+  margin: 2px 92px 0 calc(22px + 10px + 150px + 12px);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  color: #b8b3aa;
+  font-variant-numeric: tabular-nums;
 }
-.cut-row:hover { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06); }
+
+/* ── Rows ── */
+.cut-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.cut-row { --band: #94a3b8; }
 .cut-row--high { --band: #dc2626; }
 .cut-row--mod  { --band: #f97316; }
 .cut-row--low  { --band: #eab308; }
 .cut-row--safe { --band: #16a34a; }
 
-.cut-main {
+.cut-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   border: none;
   background: none;
-  padding: 0;
+  padding: 7px 8px;
+  border-radius: 9px;
   font: inherit;
-  cursor: pointer;
   text-align: left;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.cut-btn:hover { background: #faf9f7; }
+
+.cut-rank {
+  width: 22px;
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #b8b3aa;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.cut-name {
+  width: 150px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 .cut-name {
   font-size: 0.8125rem;
   font-weight: 700;
   color: #1a1a1a;
-  min-width: 108px;
-  flex-shrink: 0;
 }
-.cut-main:hover .cut-name { color: #c0181b; }
+.cut-btn:hover .cut-name { color: #c0181b; }
+.cut-name em {
+  font-style: normal;
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: #9a9a9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-.cut-bar {
+/* The gauge: one shared scale, a fill to the cutoff, a marker on it, and the
+   current water level shown behind so headroom is the visible gap. */
+.cut-gauge {
+  position: relative;
   flex: 1 1 auto;
+  min-width: 60px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+}
+.cut-track {
+  position: absolute;
+  left: 0; right: 0;
   height: 6px;
   border-radius: 999px;
   background: #f0eee9;
-  overflow: hidden;
-  min-width: 40px;
 }
-.cut-bar-fill {
-  display: block;
-  height: 100%;
+.cut-water {
+  position: absolute;
+  left: 0;
+  height: 6px;
+  border-radius: 999px 0 0 999px;
+  background: repeating-linear-gradient(
+    45deg, #bfdbfe, #bfdbfe 3px, #dbeafe 3px, #dbeafe 6px
+  );
+}
+.cut-fill {
+  position: absolute;
+  left: 0;
+  height: 6px;
   border-radius: 999px;
   background: var(--band);
-  transition: width 0.3s ease;
+  opacity: 0.28;
+}
+.cut-mark {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  margin-left: -1.5px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: var(--band);
+  box-shadow: 0 0 0 2px #fff;
 }
 
-.cut-depth {
+.cut-val {
+  width: 84px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  text-align: right;
+}
+.cut-val {
   font-family: var(--font-display);
   font-size: 0.8125rem;
   font-weight: 800;
   color: var(--band);
   font-variant-numeric: tabular-nums;
-  min-width: 62px;
-  text-align: right;
-  flex-shrink: 0;
 }
-.cut-depth em { font-style: normal; font-size: 0.6875rem; font-weight: 600; color: #16a34a; }
-
-.cut-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-top: 5px;
-  padding-left: 118px;
-  font-size: 0.6875rem;
-  flex-wrap: wrap;
-}
-.cut-road { color: #6b7280; }
-.cut-road b { color: #2a2a2a; }
-.cut-muted { color: #b8b3aa; }
-.cut-head {
-  margin-left: auto;
-  font-weight: 700;
-  color: #6b7280;
-  font-variant-numeric: tabular-nums;
-}
-.cut-head.tight { color: #dc2626; }
-
-.cut-foot { display: flex; gap: 14px; align-items: center; }
-.cut-more, .cut-method {
-  border: none;
-  background: none;
-  padding: 0;
-  font: inherit;
+.cut-val em {
+  font-style: normal;
   font-size: 0.6875rem;
   font-weight: 700;
-  color: #c0181b;
-  cursor: pointer;
+  color: #16a34a;
 }
-.cut-method { color: #9a9a9a; font-weight: 600; margin-left: auto; }
+.cut-val i {
+  font-style: normal;
+  font-family: var(--font-body);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #9a9a9a;
+}
+.cut-val i.tight { color: #dc2626; }
+
+/* ── Foot ── */
+.cut-ft { display: flex; align-items: center; gap: 14px; }
+.cut-more, .cut-how {
+  border: none; background: none; padding: 0;
+  font: inherit; font-size: 0.6875rem; font-weight: 700;
+  color: #c0181b; cursor: pointer;
+}
+.cut-how { color: #9a9a9a; font-weight: 600; margin-left: auto; }
 .cut-more:hover { text-decoration: underline; }
-.cut-method:hover { color: #6b7280; }
+.cut-how:hover { color: #6b7280; }
 
 .cut-note {
   margin: 0;
@@ -157,7 +250,8 @@
 }
 .cut-note b { color: #3a3a3a; }
 
-@media (max-width: 640px) {
-  .cut-meta { padding-left: 0; }
-  .cut-name { min-width: 0; }
+@media (max-width: 720px) {
+  .cut-scale { display: none; }
+  .cut-name { width: 118px; }
+  .cut-val { width: 68px; }
 }

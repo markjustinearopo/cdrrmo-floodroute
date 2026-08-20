@@ -1,23 +1,26 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCutoffAnalysis, IMPASSABLE_M } from '../../services/cutoffAnalysis.js'
+import { getCutoffAnalysis, IMPASSABLE_M, MAX_LEVEL_M } from '../../services/cutoffAnalysis.js'
 import './CutoffPanel.css'
 
 /**
  * "Banlic loses its last road out at 0.50 m — and it is Banlic–Mamatid Road."
  *
- * The ranked output of the cutoff sweep. Every figure here is computed from
- * data already on the client: the OSM road graph, the bundled terrain, and the
- * real evacuation centres. Nothing new is fetched.
+ * The ranked output of the cutoff sweep. Every figure is computed from data
+ * already on the client: the OSM road graph, the bundled terrain, and the real
+ * evacuation centres. Nothing new is fetched.
  *
- * The bar next to each barangay is its headroom — how much further the water
- * can rise before that barangay has no way out. Short bar, little room.
+ * THE GAUGE. Each row draws one shared depth scale from 0 to the deepest
+ * cutoff, with a marker where that barangay goes. The first version filled a
+ * bar proportional to the cutoff, which read backwards — a long bar looked like
+ * a bad thing when it actually meant the barangay held out longest. A shared
+ * scale with a marker cannot be misread that way: markers on the left go first,
+ * and the distance from the current water line to the marker IS the headroom.
  *
- * On reading it honestly: the ORDER is the finding. The individual depths come
- * out of a uniform-rise model with no drainage and no bridge heights, so "0.50"
- * should be read as "sooner than 0.62 and later than 0.33", not as a survey
- * result. The panel says so rather than leaving the precision to imply more
- * than it has earned.
+ * On reading it honestly: the ORDER is the finding. The depths come out of a
+ * uniform-rise model with no drainage and no bridge heights, so "0.50" means
+ * "sooner than 0.62, later than 0.33" — not a survey result. The panel says so
+ * rather than letting two decimal places imply more than they have earned.
  */
 export default function CutoffPanel({ roads, centres, statusMap, currentLevelM = 0 }) {
   const navigate = useNavigate()
@@ -30,20 +33,24 @@ export default function CutoffPanel({ roads, centres, statusMap, currentLevelM =
   )
 
   const rows = analysis?.rows || []
+  const withCutoff = rows.filter((r) => r.cutoffM != null)
   const visible = showAll ? rows : rows.slice(0, 6)
-  const worst = rows.filter((r) => r.cutoffM != null)
-  const deepest = worst.length ? worst[worst.length - 1].cutoffM : 1
 
-  // One road appearing across several barangays is the single most actionable
-  // thing this analysis produces, so it gets called out rather than buried.
+  // The shared scale everything is drawn against.
+  const scaleMax = useMemo(() => {
+    const deepest = withCutoff.length ? withCutoff[withCutoff.length - 1].cutoffM : 1
+    return Math.max(0.6, Math.min(MAX_LEVEL_M, deepest * 1.15))
+  }, [withCutoff])
+  const pos = (m) => `${Math.max(0, Math.min(100, (m / scaleMax) * 100))}%`
+
+  // One road being the last way out for several barangays is the single most
+  // actionable thing this analysis produces, so it leads rather than hides.
   const chokepoint = useMemo(() => {
     const tally = new Map()
     for (const r of rows) {
-      for (const road of r.criticalRoads.slice(0, 1)) {
-        const cur = tally.get(road.name) || []
-        cur.push(r.barangay)
-        tally.set(road.name, cur)
-      }
+      const road = r.criticalRoads[0]
+      if (!road) continue
+      tally.set(road.name, [...(tally.get(road.name) || []), r.barangay])
     }
     let best = null
     for (const [name, brgys] of tally) {
@@ -52,92 +59,116 @@ export default function CutoffPanel({ roads, centres, statusMap, currentLevelM =
     return best
   }, [rows])
 
+  const first = withCutoff[0]
+
   if (!analysis) {
     return (
-      <div className="section-card cut-card">
-        <div className="cut-hdr"><CutIcon /> Cutoff Analysis</div>
-        <div className="cut-empty">Loading the road network…</div>
+      <div className="section-card cut">
+        <div className="cut-hd"><CutIcon /> Cutoff Analysis</div>
+        <div className="cut-loading">Loading the road network…</div>
       </div>
     )
   }
 
   return (
-    <div className="section-card cut-card">
-      <div className="cut-hdr">
-        <span className="cut-hdr-title"><CutIcon /> Cutoff Analysis</span>
-        <span className="cut-hdr-sub">{rows.length} barangays ranked by how soon they lose every road out</span>
+    <div className="section-card cut">
+      <div className="cut-hd">
+        <span className="cut-hd-t"><CutIcon /> Cutoff Analysis</span>
+        <span className="cut-hd-s">
+          At what water level each barangay loses every route to an evacuation centre
+        </span>
       </div>
+
+      {/* The headline finding, said in one sentence. */}
+      {first && (
+        <div className="cut-lead">
+          <div className="cut-lead-num">
+            {first.cutoffM.toFixed(2)}<i>m</i>
+          </div>
+          <div className="cut-lead-txt">
+            <b>{first.barangay}</b> is cut off first
+            {first.criticalRoads[0] && <> — its last road out is <b>{first.criticalRoads[0].name}</b></>}.
+            <span>{withCutoff.length} of {rows.length} barangays lose every route below {scaleMax.toFixed(1)} m.</span>
+          </div>
+        </div>
+      )}
 
       {chokepoint && (
         <div className="cut-choke">
           <WarnIcon />
           <div>
-            <b>{chokepoint.name}</b> is the last way out for{' '}
-            <b>{chokepoint.brgys.length} barangays</b> — {chokepoint.brgys.join(', ')}.
-            One road closing isolates all of them.
+            <b>{chokepoint.name}</b> is the last way out for {chokepoint.brgys.length} barangays
+            — {chokepoint.brgys.join(', ')}. One road closing isolates all of them.
           </div>
         </div>
       )}
 
-      <ul className="cut-list">
-        {visible.map((r) => {
+      {/* Shared scale header — every row below is drawn against this. */}
+      <div className="cut-scale" aria-hidden="true">
+        <span>0 m</span>
+        <span>{(scaleMax / 2).toFixed(1)} m</span>
+        <span>{scaleMax.toFixed(1)} m</span>
+      </div>
+
+      <ul className="cut-rows">
+        {visible.map((r, i) => {
           const never = r.cutoffM == null
-          const headroom = never ? null : Math.max(0, r.cutoffM - currentLevelM)
-          const pct = never ? 100 : Math.min(100, (r.cutoffM / (deepest || 1)) * 100)
           const band = never ? 'safe' : r.cutoffM <= 0.35 ? 'high' : r.cutoffM <= 0.5 ? 'mod' : 'low'
+          const headroom = never ? null : r.cutoffM - currentLevelM
           return (
             <li className={`cut-row cut-row--${band}`} key={r.barangay}>
               <button
                 type="button"
-                className="cut-main"
+                className="cut-btn"
                 onClick={() => navigate(`/admin/routing?from=${encodeURIComponent(r.barangay)}`)}
                 title={`Plan a route out of ${r.barangay}`}
               >
-                <span className="cut-name">{r.barangay}</span>
-                <span className="cut-bar" aria-hidden="true">
-                  <span className="cut-bar-fill" style={{ width: `${pct}%` }} />
+                <span className="cut-rank">{i + 1}</span>
+
+                <span className="cut-name">
+                  {r.barangay}
+                  {r.criticalRoads[0] && (
+                    <em>via {r.criticalRoads[0].name}{r.criticalRoads.length > 1 ? ` +${r.criticalRoads.length - 1}` : ''}</em>
+                  )}
+                  {!r.criticalRoads[0] && !never && <em>no named road on its final route</em>}
                 </span>
-                <span className="cut-depth">
-                  {never ? <em>no cutoff</em> : `${r.cutoffM.toFixed(2)} m`}
+
+                <span className="cut-gauge">
+                  <span className="cut-track" />
+                  {currentLevelM > 0 && (
+                    <span className="cut-water" style={{ width: pos(currentLevelM) }} />
+                  )}
+                  {!never && (
+                    <>
+                      <span className="cut-fill" style={{ width: pos(r.cutoffM) }} />
+                      <span className="cut-mark" style={{ left: pos(r.cutoffM) }} />
+                    </>
+                  )}
+                </span>
+
+                <span className="cut-val">
+                  {never ? <em>holds</em> : `${r.cutoffM.toFixed(2)} m`}
+                  {headroom != null && currentLevelM > 0 && (
+                    <i className={headroom <= 0.1 ? 'tight' : ''}>
+                      {headroom <= 0 ? 'cut off now' : `+${headroom.toFixed(2)} left`}
+                    </i>
+                  )}
                 </span>
               </button>
-              <div className="cut-meta">
-                {never ? (
-                  <span className="cut-muted">Stays connected up to the 2.5 m ceiling of this sweep.</span>
-                ) : (
-                  <>
-                    {r.criticalRoads.length > 0 ? (
-                      <span className="cut-road">
-                        Last road out: <b>{r.criticalRoads[0].name}</b>
-                        {r.criticalRoads.length > 1 && (
-                          <span className="cut-muted"> +{r.criticalRoads.length - 1} more</span>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="cut-muted">No named road on its final route.</span>
-                    )}
-                    {headroom != null && (
-                      <span className={`cut-head ${headroom <= 0.1 ? 'tight' : ''}`}>
-                        {headroom <= 0 ? 'cut off now' : `${headroom.toFixed(2)} m headroom`}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
             </li>
           )
         })}
       </ul>
 
-      <div className="cut-foot">
+      <div className="cut-ft">
         {rows.length > 6 && (
           <button type="button" className="cut-more" onClick={() => setShowAll((v) => !v)}>
-            {showAll ? 'Show top 6' : `Show all ${rows.length}`}
+            {showAll ? 'Show top 6' : `Show all ${rows.length} barangays`}
           </button>
         )}
         <button
           type="button"
-          className="cut-method"
+          className="cut-how"
           onClick={() => setShowMethod((v) => !v)}
           aria-expanded={showMethod}
         >
@@ -147,12 +178,12 @@ export default function CutoffPanel({ roads, centres, statusMap, currentLevelM =
 
       {showMethod && (
         <p className="cut-note">
-          A uniform rise of X metres is spread over the city by terrain — low ground takes
-          more of it — and a road is treated as impassable once the water over it reaches{' '}
-          {IMPASSABLE_M} m. The sweep raises X until no route survives from the barangay to
-          any open evacuation centre. There is no drainage, no culverts and no bridge deck
-          heights in this model, so read the <b>order</b> as the finding and the individual
-          depths as rough. Roads you have closed on Road Status are honoured at every level.
+          A uniform rise of X metres is spread over the city by terrain — low ground takes more
+          of it — and a road is treated as impassable once the water over it reaches{' '}
+          {IMPASSABLE_M} m. The sweep raises X until no route survives from the barangay to any
+          open evacuation centre. There is no drainage, no culverts and no bridge deck heights
+          in this model, so read the <b>order</b> as the finding and the individual depths as
+          rough. Roads you have closed on Road Status are honoured at every level.
         </p>
       )}
     </div>
@@ -160,11 +191,7 @@ export default function CutoffPanel({ roads, centres, statusMap, currentLevelM =
 }
 
 function CutIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M3 12h5l2-5 4 10 2-5h5" />
-    </svg>
-  )
+  return <svg viewBox="0 0 24 24"><path d="M3 12h5l2-5 4 10 2-5h5" /></svg>
 }
 function WarnIcon() {
   return (

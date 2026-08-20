@@ -1,25 +1,30 @@
 /* ============================================================
-   Time scrubber.
+   Time scrubber — an instrument, not a form control.
 
-   Two states, and the difference has to be unmissable: LIVE is
-   the ordinary chrome of the app, FORECAST goes amber and stays
-   amber, because the whole risk of the feature is someone
-   reading a projection as the present.
+   Dark panel on purpose: this is not part of the page's
+   content, it is the clock the content is being read at, and
+   it has to look like a different kind of object or nobody
+   notices they have moved it.
 
-   The strip is the centrepiece — tall coloured bars you can
-   click, a playhead you can drag, and a play button that walks
-   the forecast on its own.
+   LIVE is calm and green. FORECAST turns the whole panel amber
+   — the entire risk of this feature is someone reading a
+   projection as the present.
    ============================================================ */
 
 .ts {
+  --ts-accent: #38bdf8;
+  --ts-ink: #e8edf4;
+  --ts-dim: #8b9bb0;
   flex-shrink: 0;
-  background: #fff;
-  border-top: 1px solid #e5e2dd;
-  padding: 12px 18px 10px;
-  transition: background 0.25s ease, border-color 0.25s ease;
+  background: linear-gradient(180deg, #16202e 0%, #101822 100%);
+  border-top: 1px solid #24303f;
+  padding: 11px 16px 9px;
+  color: var(--ts-ink);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 .ts--forecast {
-  background: linear-gradient(180deg, #fffbeb 0%, #fff 70%);
+  --ts-accent: #fbbf24;
+  background: linear-gradient(180deg, #2a1f0d 0%, #1a1408 100%);
   border-top: 2px solid #f59e0b;
 }
 
@@ -28,296 +33,238 @@
   align-items: center;
   gap: 8px;
   font-size: 0.75rem;
-  color: #9a9a9a;
-  padding: 14px 18px;
+  color: var(--ts-dim);
+  padding: 14px 16px;
 }
 
 .ts-icon {
-  width: 15px;
-  height: 15px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 15px; height: 15px;
+  stroke: currentColor; fill: none; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
   flex-shrink: 0;
 }
+.ts-icon--solid { fill: currentColor; stroke: none; }
 
-/* ── Top row ── */
-.ts-main {
+/* ── Readout row ── */
+.ts-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 10px;
+  gap: 16px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .ts-play {
-  width: 38px;
-  height: 38px;
+  width: 36px; height: 36px;
   flex-shrink: 0;
   border-radius: 50%;
   border: none;
-  background: #c0181b;
-  color: #fff;
+  background: var(--ts-accent);
+  color: #0b1119;
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(192, 24, 27, 0.32);
-  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 0 0 5px rgba(56, 189, 248, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
-.ts-play .ts-icon { width: 17px; height: 17px; fill: currentColor; stroke: none; }
-.ts-play:hover:not(:disabled) { transform: scale(1.06); }
-.ts-play:active:not(:disabled) { transform: scale(0.96); }
-.ts-play:disabled { background: #d8d4cd; box-shadow: none; cursor: default; }
-.ts--forecast .ts-play { background: #b45309; box-shadow: 0 2px 10px rgba(180, 83, 9, 0.32); }
-.ts-play.on { background: #78350f; }
+.ts--forecast .ts-play { box-shadow: 0 0 0 5px rgba(251, 191, 36, 0.14); }
+.ts-play .ts-icon { width: 15px; height: 15px; }
+.ts-play:hover:not(:disabled) { transform: scale(1.07); }
+.ts-play:active:not(:disabled) { transform: scale(0.95); }
+.ts-play:disabled { background: #334155; color: #64748b; box-shadow: none; cursor: default; }
 
-.ts-when { min-width: 132px; }
-.ts-when-top {
+.ts-state {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 2px;
-}
-.ts-pill {
-  font-size: 0.5625rem;
+  font-size: 0.625rem;
   font-weight: 800;
-  letter-spacing: 0.07em;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: #f59e0b;
-  color: #fff;
+  letter-spacing: 0.09em;
+  color: var(--ts-accent);
   white-space: nowrap;
 }
-.ts-pill--live { background: #16a34a; }
-.ts-working { font-size: 0.625rem; color: #9a9a9a; font-style: italic; }
+.ts-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--ts-accent);
+}
+.ts-dot.live {
+  background: #4ade80;
+  box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+  animation: ts-pulse 2.4s ease-out infinite;
+}
+@keyframes ts-pulse {
+  70% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .ts-dot.live { animation: none; } }
 
 .ts-clock {
   display: flex;
   align-items: baseline;
   gap: 7px;
+  min-width: 118px;
+}
+.ts-clock b {
   font-family: var(--font-display);
-  font-size: 1.375rem;
+  font-size: 1.5rem;
   font-weight: 800;
-  line-height: 1.1;
-  color: #1a1a1a;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: #fff;
 }
-.ts--forecast .ts-clock { color: #78350f; }
-.ts-day {
-  font-family: var(--font-body);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #9a9a9a;
-}
+.ts-clock span { font-size: 0.75rem; font-weight: 600; color: var(--ts-dim); }
 
-.ts-rainbox {
-  padding-left: 14px;
-  border-left: 1px solid #ece9e3;
-  min-width: 96px;
-}
-.ts-rain {
+.ts-metrics { display: flex; gap: 20px; }
+.ts-metric { display: flex; flex-direction: column; gap: 1px; }
+.ts-metric b {
   font-family: var(--font-display);
-  font-size: 1.375rem;
+  font-size: 1.125rem;
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1;
+  color: #fff;
   font-variant-numeric: tabular-nums;
-  color: #1a1a1a;
-  letter-spacing: -0.01em;
 }
-.ts-unit {
+.ts-metric b i {
+  font-style: normal;
   font-family: var(--font-body);
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 600;
-  color: #9a9a9a;
-  margin-left: 4px;
+  color: var(--ts-dim);
+  margin-left: 2px;
 }
-.ts-rain--dry, .ts-rain--none { color: #94a3b8; }
-.ts-rain--light { color: #38bdf8; }
-.ts-rain--heavy { color: #2563eb; }
-.ts-rain--intense { color: #f97316; }
-.ts-rain--torrential { color: #c0181b; }
-.ts-rain-lbl {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: #6b7280;
-  margin-top: 1px;
+.ts-metric span {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ts-dim);
 }
+.ts-metric--light b { color: #7dd3fc; }
+.ts-metric--heavy b { color: #60a5fa; }
+.ts-metric--intense b { color: #fb923c; }
+.ts-metric--torrential b { color: #f87171; }
+.ts-metric--alarm b { color: #f87171; }
 
-.ts-spacer { flex: 1 1 auto; }
+.ts-working { font-size: 0.6875rem; color: var(--ts-dim); font-style: italic; }
 
-.ts-jump, .ts-now {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid #e5e2dd;
-  background: #fff;
+.ts-actions { margin-left: auto; display: flex; gap: 7px; }
+.ts-chip {
+  border: 1px solid #2c3a4d;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ts-ink);
   border-radius: 999px;
-  padding: 7px 13px;
+  padding: 6px 12px;
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: #3a3a3a;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.ts-jump b { color: #c0181b; font-variant-numeric: tabular-nums; }
-.ts-jump:hover { border-color: #f97316; background: #fff7ed; }
-.ts-now { border-color: #16a34a; color: #15803d; }
-.ts-now:hover:not(:disabled) { background: #f0fdf4; }
-.ts-now:disabled { border-color: #ece9e3; color: #b8b3aa; cursor: default; }
+.ts-chip:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); border-color: var(--ts-accent); }
+.ts-chip--now { border-color: rgba(74, 222, 128, 0.45); color: #86efac; }
+.ts-chip:disabled { opacity: 0.35; cursor: default; }
 
-/* ── The strip ── */
-.ts-strip {
+/* ── The curve ── */
+.ts-plot {
   position: relative;
+  height: 60px;
+}
+.ts-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+.ts-line {
+  fill: none;
+  stroke: var(--ts-accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+.ts-day {
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  vector-effect: non-scaling-stroke;
+}
+.ts-playhead {
+  stroke: #fff;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.85;
+}
+.ts-knob {
+  fill: #fff;
+  stroke: var(--ts-accent);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* One hit zone per hour so a click lands on the hour you aimed at. */
+.ts-hits {
+  position: absolute;
+  inset: 0;
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 52px;
-  padding: 0 0 2px;
 }
-
-.ts-bar {
-  position: relative;
+.ts-hit {
   flex: 1 1 0;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
   border: none;
-  background: none;
+  background: transparent;
+  padding: 0;
   cursor: pointer;
-  display: flex;
-  align-items: flex-end;
-  border-radius: 3px;
-  transition: background 0.12s ease;
+  border-radius: 2px;
 }
-.ts-bar:hover { background: rgba(0, 0, 0, 0.04); }
-/* A hairline where the calendar day changes, so "+30h" reads as a real time. */
-.ts-bar.newday::before {
-  content: '';
-  position: absolute;
-  left: -1.5px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: #d8d4cd;
-}
+.ts-hit:hover { background: rgba(255, 255, 255, 0.07); }
 
-.ts-bar-fill {
-  display: block;
-  width: 100%;
-  height: var(--h);
-  border-radius: 3px 3px 0 0;
-  background: #cbd5e1;
-  transition: height 0.2s ease, background 0.15s ease, transform 0.15s ease;
-  transform-origin: bottom;
-}
-.ts-bar--dry .ts-bar-fill, .ts-bar--none .ts-bar-fill { background: #dbe3ec; }
-.ts-bar--light .ts-bar-fill { background: #7dd3fc; }
-.ts-bar--heavy .ts-bar-fill { background: #3b82f6; }
-.ts-bar--intense .ts-bar-fill { background: #fb923c; }
-.ts-bar--torrential .ts-bar-fill { background: #dc2626; }
-.ts-bar:hover .ts-bar-fill { transform: scaleY(1.06); }
-.ts-bar.on .ts-bar-fill {
-  background: #c0181b;
-  box-shadow: 0 0 0 1.5px rgba(192, 24, 27, 0.28);
-}
-.ts--forecast .ts-bar.on .ts-bar-fill {
-  background: #b45309;
-  box-shadow: 0 0 0 1.5px rgba(180, 83, 9, 0.3);
-}
-
-/* Playhead */
-.ts-head {
-  position: absolute;
-  top: -4px;
-  bottom: -2px;
-  width: 0;
-  pointer-events: none;
-  border-left: 2px solid #c0181b;
-  transform: translateX(-1px);
-  transition: left 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.ts--forecast .ts-head { border-left-color: #b45309; }
-.ts-head-knob {
-  position: absolute;
-  top: -5px;
-  left: -6px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #c0181b;
-  border: 2.5px solid #fff;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.32);
-}
-.ts--forecast .ts-head-knob { background: #b45309; }
-
-/* The real input sits over the strip for drag + keyboard, invisible. */
 .ts-range {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  width: 100%; height: 100%;
   margin: 0;
   opacity: 0;
-  cursor: grab;
   appearance: none;
+  cursor: grab;
+  pointer-events: none; /* the hit zones handle the mouse; this is for keys */
 }
-.ts-range:active { cursor: grabbing; }
 .ts-range:focus-visible {
   opacity: 1;
-  outline: 2px solid #c0181b;
+  outline: 2px solid var(--ts-accent);
   outline-offset: 3px;
   border-radius: 6px;
 }
 
+/* ── Foot ── */
+.ts-foot {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
 .ts-axis {
   display: flex;
   justify-content: space-between;
+  flex: 1 1 300px;
   font-size: 0.625rem;
   font-weight: 600;
-  color: #b8b3aa;
-  margin-top: 5px;
+  color: #5b6b80;
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Footer: source always visible, caveats on demand ── */
-.ts-foot { margin-top: 7px; }
-.ts-info {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: none;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: #9a9a9a;
+.ts-src { font-size: 0.625rem; color: var(--ts-dim); }
+.ts-src summary {
   cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+  transition: color 0.15s ease;
 }
-.ts-info:hover { color: #6b7280; }
-.ts--forecast .ts-info { color: #b45309; }
-.ts-info .ts-icon { width: 13px; height: 13px; }
-.ts-chev { transition: transform 0.18s ease; }
-.ts-chev.open { transform: rotate(180deg); }
-
-.ts-detail {
-  margin: 6px 0 0;
-  padding: 9px 11px;
-  border-radius: 9px;
-  background: #faf9f7;
-  border: 1px solid #ece9e3;
-  font-size: 0.6875rem;
-  line-height: 1.6;
-  color: #6b7280;
-  max-width: 78ch;
-}
-.ts--forecast .ts-detail {
-  background: #fffbeb;
-  border-color: #fde68a;
-  color: #92400e;
+.ts-src summary::-webkit-details-marker { display: none; }
+.ts-src summary::before { content: 'ⓘ '; opacity: 0.75; }
+.ts-src summary:hover { color: var(--ts-ink); }
+.ts-src p {
+  margin: 7px 0 0;
+  max-width: 82ch;
+  line-height: 1.65;
+  color: #97a6ba;
 }
 
 /* ── The map's own forecast treatment ──────────────────────────────────────
@@ -364,8 +311,8 @@
 }
 .forecast-badge .ts-icon { width: 13px; height: 13px; }
 
-@media (max-width: 860px) {
-  .ts-main { flex-wrap: wrap; gap: 10px; }
-  .ts-spacer { display: none; }
-  .ts-rainbox { border-left: none; padding-left: 0; }
+@media (max-width: 900px) {
+  .ts-bar { gap: 12px; }
+  .ts-actions { margin-left: 0; width: 100%; }
+  .ts-metrics { gap: 14px; }
 }
