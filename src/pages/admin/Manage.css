@@ -714,3 +714,13 @@
 /* RecordList's bulk-select column. */
 .mng-table th.mng-check-col,
 .mng-table td.mng-check-col { width: 28px; }
+
+/* Field-level explainer inside a modal form (e.g. barangay population). */
+.mng-form .mng-field-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: #9a9a9a;
+  font-weight: 400;
+}

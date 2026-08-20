@@ -490,13 +490,20 @@ export function planRoute(graph, start, goal, opts = {}) {
   const safeRaw = aStar(graph, sNode, gNode, makeCost(opts, alpha, beta), riskOf)
   if (!safeRaw) return { ok: false, reason: 'no-path' }
 
-  // Pure-distance path for comparison (alpha = 0 ⇒ cost = length), still
-  // forbidding blocked roads so the "shortest" option stays drivable.
-  const fastCost = (edge) => {
-    const r = edgeRisk(edge, opts)
-    return isFinite(r) ? edge.d : Infinity
-  }
-  const fastRaw = aStar(graph, sNode, gNode, fastCost, riskOf)
+  /* Pure-distance path for comparison (alpha = 0 ⇒ cost = length), still
+     forbidding blocked roads so the "shortest" option stays drivable.
+
+     This is a SECOND full A* on every call, which is right when a human is
+     going to read "you detour 300 m to halve your exposure" — and pure waste
+     when a batch job only wants the distance. `compare: false` skips it; the
+     caller then gets `fast === safe` and a zero detour, which is honest for a
+     result that never made the comparison. */
+  const fastRaw = opts.compare === false
+    ? null
+    : aStar(graph, sNode, gNode, (edge) => {
+      const r = edgeRisk(edge, opts)
+      return isFinite(r) ? edge.d : Infinity
+    }, riskOf)
 
   const safe = decorate(graph, safeRaw, opts)
   const fast = fastRaw ? decorate(graph, fastRaw, opts) : safe
