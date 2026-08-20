@@ -20,6 +20,7 @@ import {
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock } from '../../components/admin/mapHelpers.jsx'
 import { useAlerts, useIncidents, useRoadReports, useEvacCenters } from '../../context/AdminDataContext.jsx'
 import CutoffPanel from '../../components/admin/CutoffPanel.jsx'
+import DecisionStrip from '../../components/admin/DecisionStrip.jsx'
 import { levelFromDepth } from '../../services/systemConfig.js'
 import { useT } from '../../services/i18n.js'
 import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
@@ -324,6 +325,31 @@ export default function Dashboard() {
 
   return (
     <AdminLayout>
+      {/* The first thing on the screen: what is waiting for a person to decide.
+          This took the rainfall chart's place — rainfall is already on the
+          topbar, the stat cards and the Flood Map, and a chart cannot be acted
+          on. */}
+      <div className="dash-actionbar">
+        <DecisionStrip field={field} />
+        {/* One tap to a printable SITREP. The report builder already produced
+            this exact document — live situation map, alerts, road closures,
+            centre occupancy, timestamp — behind a configuration step nobody
+            was going to change. This removes the step, not the control: the
+            full builder is still on Reports. */}
+        <button
+          type="button"
+          className="dash-sitrep"
+          onClick={() => navigate('/admin/reports?sitrep=1')}
+          title="Generate the current situation report and open the print dialog"
+        >
+          <DocIcon />
+          <span>
+            <b>One-tap SITREP</b>
+            <em>Print the current situation report</em>
+          </span>
+        </button>
+      </div>
+
       {/* ── Stat cards ── */}
       <div className="stat-cards">
         <StatCard color="yellow" icon={<BellIcon />} value={activeAlerts} label={t('Active Alerts')} />
@@ -351,15 +377,7 @@ export default function Dashboard() {
         currentLevelM={currentWaterM}
       />
 
-      <div className="viz-strip">
-        <div className="section-card viz-card viz-rain">
-          <div className="viz-hdr">
-            <span className="viz-hdr-title"><RainIcon />{t('Rainfall Trend')}</span>
-            <span className="viz-now-chip">{t('Now')} <b>{formatRain(rainfall)}</b></span>
-          </div>
-          <RainfallChart data={rainHistory} />
-        </div>
-
+      <div className="viz-strip viz-strip--two">
         <div className="section-card viz-card viz-gauge">
           <div className="viz-hdr">
             <span className="viz-hdr-title"><GaugeIcon />{t('City Flood Risk')}</span>
@@ -839,56 +857,6 @@ function useCountUp(value, duration = 700) {
    gradient fill, a stroke that draws itself in on mount, faint gridlines and a
    pulsing "now" marker. Purely presentational; the data is the same live feed
    the stat-card sparkline uses. */
-function RainfallChart({ data }) {
-  const series = Array.isArray(data) && data.length ? data : Array(8).fill(0)
-  const W = 520
-  const H = 116
-  const PAD = { l: 6, r: 6, t: 12, b: 8 }
-  const max = Math.max(...series, 1)
-  const n = series.length
-  const peakIdx = series.indexOf(Math.max(...series))
-  const x = (i) => PAD.l + (i * (W - PAD.l - PAD.r)) / Math.max(n - 1, 1)
-  const y = (v) => PAD.t + (H - PAD.t - PAD.b) * (1 - v / max)
-  const pts = series.map((v, i) => [x(i), y(v)])
-
-  // Catmull-Rom → cubic Bézier for a smooth line without external libs.
-  const line = smoothPath(pts)
-  const area = `${line} L ${x(n - 1)} ${H - PAD.b} L ${x(0)} ${H - PAD.b} Z`
-  const last = pts[pts.length - 1]
-
-  return (
-    <div className="rain-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Rainfall over the last 8 hours">
-        <defs>
-          <linearGradient id="rainFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.42" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="rainStroke" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#22d3ee" />
-            <stop offset="100%" stopColor="#2563eb" />
-          </linearGradient>
-        </defs>
-        {/* gridlines */}
-        {[0.33, 0.66].map((g) => (
-          <line key={g} className="rc-grid" x1={PAD.l} x2={W - PAD.r} y1={PAD.t + (H - PAD.t - PAD.b) * g} y2={PAD.t + (H - PAD.t - PAD.b) * g} />
-        ))}
-        {/* area + animated line (re-keys on data so the draw-in replays on change) */}
-        <path key={`a-${max}-${n}`} className="rc-area" d={area} fill="url(#rainFill)" />
-        <path key={`l-${max}-${series.join(',')}`} className="rc-line" d={line} stroke="url(#rainStroke)" />
-        {/* data dots (peak called out) */}
-        {pts.map(([cx, cy], i) => (
-          series[i] > 0 && i !== pts.length - 1 ? (
-            <circle key={i} className={`rc-dot ${i === peakIdx ? 'peak' : ''}`} cx={cx} cy={cy} r={i === peakIdx ? 3 : 1.8} />
-          ) : null
-        ))}
-        {/* now marker */}
-        <circle className="rc-now-halo" cx={last[0]} cy={last[1]} r="7" />
-        <circle className="rc-now" cx={last[0]} cy={last[1]} r="3.2" />
-      </svg>
-    </div>
-  )
-}
 
 /** Smooth an array of [x,y] points into an SVG path (Catmull-Rom → Bézier). */
 function smoothPath(p) {
@@ -1052,6 +1020,16 @@ function BellIcon() {
     <svg viewBox="0 0 24 24">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  )
+}
+function DocIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="8" y1="13" x2="16" y2="13" />
+      <line x1="8" y1="17" x2="13" y2="17" />
     </svg>
   )
 }

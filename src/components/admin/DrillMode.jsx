@@ -103,7 +103,13 @@ export default function DrillMode() {
     // Alerts the watcher raised during the drill: they are real records the
     // system genuinely decided to issue, so they are removed too — leaving
     // them would mean a simulated event left live warnings behind.
-    for (const a of alerts) if (a.auto && a.issuedAt >= state.startedAt) removeAlert(a.id)
+    // Alerts the watcher raised during a drill carry a [DRILL] title, which
+    // survives the database — so this catches them even after a reload, and
+    // even from a drill run that was never reset.
+    for (const a of alerts) {
+      if (a.drill || (a.title || '').startsWith('[DRILL]')) removeAlert(a.id)
+      else if (a.auto && state.startedAt && a.issuedAt >= state.startedAt) removeAlert(a.id)
+    }
     setConfirmReset(false)
   }, [floodReports, incidents, roadReports, alerts, state.startedAt,
     removeFloodReport, removeIncident, removeRoadReport, removeAlert])

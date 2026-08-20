@@ -1172,3 +1172,55 @@
   .risk-badge { align-self: flex-start; }
   .toast { max-width: calc(100vw - 24px); white-space: normal; text-align: center; }
 }
+
+/* The rainfall chart moved out of the insight strip (its slot is now the
+   decision strip at the top), so the remaining two cards share the row. */
+.viz-strip--two { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
+@media (max-width: 900px) {
+  .viz-strip--two { grid-template-columns: 1fr; }
+}
+
+/* Decision strip + the one-tap SITREP, side by side at the top. */
+.dash-actionbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: stretch;
+}
+.dash-actionbar > .ds { margin-bottom: 0; }
+.dash-sitrep {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 232px;
+  border: 1px solid #e5e2dd;
+  border-radius: 12px;
+  background: #fff;
+  padding: 14px 16px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+.dash-sitrep:hover {
+  border-color: #c0181b;
+  box-shadow: 0 4px 14px rgba(192, 24, 27, 0.12);
+  transform: translateY(-1px);
+}
+.dash-sitrep svg {
+  width: 26px; height: 26px; flex-shrink: 0;
+  stroke: #c0181b; fill: none; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.dash-sitrep span { display: flex; flex-direction: column; gap: 2px; }
+.dash-sitrep b {
+  font-family: var(--font-display);
+  font-size: 0.875rem; font-weight: 800; color: #1a1a1a;
+}
+.dash-sitrep em { font-style: normal; font-size: 0.6875rem; color: #9a9a9a; }
+
+@media (max-width: 900px) {
+  .dash-actionbar { grid-template-columns: 1fr; }
+  .dash-actionbar > .ds { margin-bottom: 0; }
+}

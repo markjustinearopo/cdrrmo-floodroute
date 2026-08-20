@@ -1,0 +1,158 @@
+/* ============================================================
+   Decision strip — the first thing on the dashboard, because
+   the first question an operator has is "what is waiting for
+   me", not "what does the rainfall look like".
+   ============================================================ */
+
+.ds {
+  background: #fff;
+  border: 1px solid #e5e2dd;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.ds-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 11px;
+}
+.ds-title {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+.ds-count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #c0181b;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  display: inline-grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 10px;
+}
+
+.ds-item {
+  --tone: #6b7280;
+  --tone-bg: #f7f5f2;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #ece9e3;
+  border-left: 3px solid var(--tone);
+  border-radius: 10px;
+  background: #fff;
+  padding: 11px 13px;
+  font: inherit;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
+}
+.ds-item:hover {
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+.ds-item--blue  { --tone: #2563eb; --tone-bg: #eff6ff; }
+.ds-item--amber { --tone: #f97316; --tone-bg: #fff7ed; }
+.ds-item--red   { --tone: #dc2626; --tone-bg: #fef2f2; }
+
+.ds-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--tone-bg);
+  display: grid;
+  place-items: center;
+}
+.ds-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke: var(--tone);
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ds-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ds-line {
+  font-size: 0.8125rem;
+  color: #3a3a3a;
+  line-height: 1.35;
+}
+.ds-line b {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: var(--tone);
+  margin-right: 3px;
+}
+.ds-detail {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ds-cta {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--tone);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.ds-item:hover .ds-cta,
+.ds-item:focus-visible .ds-cta { opacity: 1; transform: translateX(0); }
+
+/* All clear. Said plainly — "nothing waiting" is an answer, not an empty state. */
+.ds-clear {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 13px;
+  border-radius: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+.ds-clear svg {
+  width: 20px;
+  height: 20px;
+  stroke: #16a34a;
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.ds-clear div { display: flex; flex-direction: column; gap: 2px; }
+.ds-clear b { font-size: 0.8125rem; color: #14532d; }
+.ds-clear span { font-size: 0.6875rem; color: #166534; line-height: 1.5; }
+
+@media (max-width: 560px) {
+  .ds-cta { display: none; }
+}

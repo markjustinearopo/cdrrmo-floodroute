@@ -24,6 +24,14 @@ import { levelFromDepth } from '../../services/systemConfig.js'
 import {
   useAlerts, loadAlertSettings, fillAlertTemplate,
 } from '../../context/AdminDataContext.jsx'
+import { isDrillActive } from '../../services/drillMode.js'
+
+/* An alert this raises during a drill is a REAL record — the system genuinely
+   decided to issue it, which is the whole point of running a drill. But it must
+   never be mistakable for a live warning after the fact, and the `drill` flag
+   used elsewhere does not survive the database. So the marker goes in the title,
+   which does persist and is visible everywhere an alert is read. */
+const DRILL_PREFIX = '[DRILL] '
 
 const LEDGER_KEY = 'cdrrmo_auto_alert_log' // { [barangay]: [issuedAtMs, …] }
 const RANK = { safe: 0, low: 1, moderate: 2, high: 3 }
@@ -90,12 +98,15 @@ export default function AutoAlertWatcher({ field }) {
         if (now - lastAt < interval) { ledger[b.name] = recent; continue }
         if (recent.length >= maxPerHour) { ledger[b.name] = recent; continue }
 
+        const drill = isDrillActive()
+        const headline = level === 'high' ? 'Automatic Severe Flood Warning' : 'Automatic Flood Advisory'
         addAlert({
           level,
           barangay: b.name,
-          title: level === 'high' ? 'Automatic Severe Flood Warning' : 'Automatic Flood Advisory',
+          title: drill ? DRILL_PREFIX + headline : headline,
           message: fillAlertTemplate(level, { barangay: b.name, depth: b.floodDepth }),
           auto: true,
+          drill,
         })
         ledger[b.name] = [...recent, now]
         changed = true
