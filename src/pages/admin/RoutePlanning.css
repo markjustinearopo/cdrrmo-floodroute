@@ -74,6 +74,24 @@
   color: var(--seg, #c0181b);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
+/* Caption variant: the resident map has a single recommended mode, so the
+   segmented control carries one line of text instead of buttons.
+
+   Two things went wrong reusing the parts. The wrapper's 3px padding assumes
+   the .rp-type buttons bring their own 6px/12px — with a bare caption that was
+   all the text had, so it sat 4px from the right border while the dot gave the
+   left 20px. And .rp-type-note is a PANEL caption everywhere else, where its
+   margin-top: 10px is right; inside this pill it pushed the text 14px down
+   against 4px beneath it. */
+.route-plan .rp-type-seg--note {
+  padding: 6px 12px;
+  /* It is a label — it should not read as clickable. */
+  pointer-events: none;
+}
+.route-plan .rp-type-seg--note .rp-type-note {
+  margin-top: 0;
+}
+
 .route-plan .rp-type-dot {
   width: 9px;
   height: 9px;
@@ -193,6 +211,12 @@
   top: 18px;
   left: 50%;
   transform: translateX(-50%);
+  /* left:50% shrink-to-fits into what is LEFT of that offset — half the map —
+     and the translate only slides it back afterwards, so this card was pinned
+     to 50% of the map at every size and broke its heading over three lines on
+     a phone. Sized to content, capped against the map. */
+  width: max-content;
+  max-width: calc(100% - 32px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -734,4 +758,17 @@
     border-left: none;
     border-top: 1px solid #f0eee9;
   }
+}
+
+/* Phone: one step down. The card is a prompt, not the content — at full size it
+   was taking ~92% of a 390px map and 112px of its height. */
+@media (max-width: 560px) {
+  .route-plan .rp-hint {
+    padding: 10px 16px;
+    gap: 3px;
+    border-radius: 10px;
+  }
+  .route-plan .rp-hint svg { width: 19px; height: 19px; }
+  .route-plan .rp-hint span { font-size: 0.75rem; }
+  .route-plan .rp-hint small { font-size: 0.625rem; }
 }

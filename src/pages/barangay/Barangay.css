@@ -55,7 +55,7 @@
 .bq-banner.low .bq-banner-icon svg { stroke: #b45309; }
 .bq-banner.moderate .bq-banner-icon svg { stroke: #ea580c; }
 .bq-banner.high .bq-banner-icon svg { stroke: #dc2626; }
-.bq-banner-text { flex: 1; min-width: 0; }
+.bq-banner-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .bq-banner-text h2 {
   font-family: var(--font-display);
   font-size: 1.2rem;
@@ -496,5 +496,8 @@
 @media (max-width: 560px) {
   .bq-stats { grid-template-columns: 1fr; }
   .bq-kv-grid { grid-template-columns: 1fr; }
-  .bq-banner { flex-wrap: wrap; }
+  .bq-banner { flex-wrap: wrap; gap: 12px 14px; padding: 16px; }
+  /* Once wrapped, the risk chip sits on its own row rather than a stray
+     right-aligned island. */
+  .bq-banner-level { flex: 1 0 100%; text-align: left; }
 }

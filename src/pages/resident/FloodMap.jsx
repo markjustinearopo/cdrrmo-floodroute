@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
 import { usePersistedState } from '../../utils/usePersistedState.js'
+import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import {
   CABUYAO_CENTER,
   CABUYAO_ZOOM,
@@ -124,7 +125,21 @@ export default function FloodMap() {
   const [dark, setDark] = usePersistedState('cdrrmo-map-dark-v1', false)
   // Layers panel: visible by default on desktop, tucked away on phones (the
   // Layers FAB opens it) so the small map isn't buried under chrome.
-  const [showLayers, setShowLayers] = usePersistedState('cdrrmo-map-showlayers-v1', window.innerWidth > 760)
+  //
+  // The phone case can't come from the persisted default — that is consulted
+  // only on the very first visit, so a reader whose first load was on a wide
+  // viewport had `true` stored and then got the panel covering the map on
+  // their phone forever after. The width is checked live instead, and the
+  // phone state is session-only so opening the panel there never rewrites the
+  // desktop preference.
+  const narrow = useNarrowScreen()
+  const [layersPref, setLayersPref] = usePersistedState('cdrrmo-map-showlayers-v1', true)
+  const [layersOpenMobile, setLayersOpenMobile] = useState(false)
+  useEffect(() => {
+    if (narrow) setLayersOpenMobile(false)
+  }, [narrow])
+  const showLayers = narrow ? layersOpenMobile : layersPref
+  const setShowLayers = narrow ? setLayersOpenMobile : setLayersPref
   // Still drives the pin + flyTo when the Emergency panel picks a shelter
   // (the always-on search BAR lives on the Hazard Layer screens; here it
   // opens on demand from the Search Location FAB).

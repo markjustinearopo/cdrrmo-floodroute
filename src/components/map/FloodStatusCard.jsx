@@ -16,6 +16,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatPHT } from '../admin/mapHelpers.jsx'
+import { useOverlayOpen } from '../../hooks/useNarrowScreen.js'
 import './mapUpgrade.css'
 
 const TICK_MS = 15_000
@@ -30,6 +31,9 @@ const STATUS_META = {
 export default function FloodStatusCard({ barangays = [], roadReports = [] }) {
   const [updated, setUpdated] = useState(formatPHT())
   const [toast, setToast] = useState(null)
+  // Minimisable, like the weather card: expanded on desktop, a status chip on
+  // phones, and either way the reader can fold it out of the way.
+  const [open, setOpen] = useOverlayOpen()
   const prevRef = useRef(null)
   // The live feeds land asynchronously right after mount; those first
   // transitions are "loading", not "the flood changed" — don't toast them.
@@ -68,10 +72,35 @@ export default function FloodStatusCard({ barangays = [], roadReports = [] }) {
 
   return (
     <div className="fsc">
+      {/* Collapsed, the chip keeps the one thing that matters — the headline
+          status — so minimising never hides the fact that a road is closed.
+          It also starts collapsed on phone-width screens, where the full card
+          covers most of the map. */}
+      {!open ? (
+        <button
+          type="button"
+          className={`fsc-chip fsc--${summary.meta.tone}`}
+          onClick={() => setOpen(true)}
+          title="Show flood status"
+          aria-label={`Flood status: ${summary.meta.label}. Show details`}
+        >
+          <span className="fsc-pulse" aria-hidden="true" />
+          <b>{summary.meta.label}</b>
+        </button>
+      ) : (
       <div className={`fsc-card fsc--${summary.meta.tone}`}>
         <div className="fsc-head">
           <span className="fsc-pulse" aria-hidden="true" />
           <span className="fsc-title">Current Flood Status</span>
+          <button
+            type="button"
+            className="fsc-min"
+            onClick={() => setOpen(false)}
+            title="Minimize"
+            aria-label="Minimize flood status card"
+          >
+            —
+          </button>
         </div>
         <div className="fsc-badge-row">
           <span className={`fsc-badge fsc-badge--${summary.meta.tone}`}>{summary.meta.label}</span>
@@ -87,6 +116,10 @@ export default function FloodStatusCard({ barangays = [], roadReports = [] }) {
           <div>Data Source: Flood model · Open-Meteo · CDRRMO reports</div>
         </div>
       </div>
+      )}
+
+      {/* Outside the open/closed branch on purpose: a status change has to
+          reach the reader even while the card is folded away. */}
 
       {toast && (
         <div className={`fsc-toast fsc-toast--${toast.tone}`} role="status">

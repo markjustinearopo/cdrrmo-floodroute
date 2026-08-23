@@ -11,6 +11,18 @@
   overflow-y: auto;
 }
 
+/* The shell is a column: chrome (maintenance / drill / alert banners + topbar)
+   at natural height, then .body-wrap taking whatever is left. Measuring the
+   chrome this way replaces the old `calc(100dvh - 86px)`, which assumed a
+   34px banner + 52px topbar and so came up ~31px short on a phone (where the
+   topbar is taller) and shorter still whenever a long alert wraps to 2-3
+   lines. */
+.admin-body #root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
 /* Maintenance-mode banner (System Configuration → Maintenance mode). Amber
    hazard-tape so it never reads as a flood alert; sits above the flood banner. */
 .maint-banner {
@@ -40,17 +52,21 @@
 
 /* ── Alert Banner ── */
 .alert-banner {
-  height: 34px;
-  background: #b91c1c;
+  min-height: 34px;
+  /* Safe/green is the base tone — a banner rendered without a severity class
+     reads calm rather than alarming. `.lvl-*` overrides it below. */
+  background: #15803d;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  padding: 6px 16px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #fee2e2;
-  white-space: nowrap;
-  overflow: hidden;
+  color: #dcfce7;
+  /* Long alert text wraps onto extra lines instead of being clipped off the
+     right edge once the viewport gets narrow. */
+  overflow-wrap: anywhere;
   z-index: 100;
   position: relative;
   flex-shrink: 0;
@@ -58,26 +74,39 @@
 .alert-banner svg {
   width: 14px;
   height: 14px;
-  stroke: #fca5a5;
+  stroke: #86efac;
   fill: none;
   stroke-width: 2;
   flex-shrink: 0;
 }
 .alert-banner .lbl {
-  color: #fecaca;
+  color: #bbf7d0;
   font-weight: 700;
   text-transform: uppercase;
   font-size: 0.6875rem;
   letter-spacing: 0.06em;
   margin-right: 2px;
 }
-/* Banner re-themes by live severity (default = high/red) */
-.alert-banner.lvl-safe { background: #15803d; color: #dcfce7; }
-.alert-banner.lvl-safe .lbl { color: #bbf7d0; }
-.alert-banner.lvl-safe svg { stroke: #86efac; }
-.alert-banner.lvl-moderate { background: #b45309; color: #ffedd5; }
+
+/* Banner re-themes by live severity:
+     green  = safe (and low — the same "nothing to act on" state)
+     orange = moderate hazard
+     red    = high / danger / critical
+   Each tier is stated explicitly so the colour never depends on a fall-through. */
+.alert-banner.lvl-safe,
+.alert-banner.lvl-low { background: #15803d; color: #dcfce7; }
+.alert-banner.lvl-safe .lbl,
+.alert-banner.lvl-low .lbl { color: #bbf7d0; }
+.alert-banner.lvl-safe svg,
+.alert-banner.lvl-low svg { stroke: #86efac; }
+
+.alert-banner.lvl-moderate { background: #c2410c; color: #ffedd5; }
 .alert-banner.lvl-moderate .lbl { color: #fed7aa; }
 .alert-banner.lvl-moderate svg { stroke: #fdba74; }
+
+.alert-banner.lvl-high { background: #b91c1c; color: #fee2e2; }
+.alert-banner.lvl-high .lbl { color: #fecaca; }
+.alert-banner.lvl-high svg { stroke: #fca5a5; }
 
 /* ── Topbar ── */
 .topbar {
@@ -92,6 +121,47 @@
   position: relative;
   flex-shrink: 0;
 }
+/* Burger toggle for the mobile nav drawer. Desktop keeps the permanent rail,
+   so this only appears at the drawer breakpoint below. */
+.nav-burger {
+  display: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e5e2dd;
+  background: #fafafa;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+.nav-burger svg {
+  width: 16px;
+  height: 16px;
+  stroke: #5a5a5a;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.nav-burger:hover {
+  border-color: #c0181b;
+  background: #fef2f2;
+}
+.nav-burger:hover svg { stroke: #c0181b; }
+
+/* Scrim behind the open drawer. Inert on desktop, where there is no drawer. */
+.nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  /* Above every map layer — see the note on .sidebar below. */
+  z-index: 1400;
+  border: none;
+  padding: 0;
+}
+
 .logo-wrap {
   display: flex;
   align-items: center;
@@ -129,43 +199,6 @@
   font-size: 0.6875rem;
   color: #9a9a9a;
   white-space: nowrap;
-}
-.flood-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
-  border-radius: 20px;
-  padding: 5px 14px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #78350f;
-  flex: 1 1 280px;
-  min-width: 0;
-  max-width: 560px;
-  margin: 0 auto;
-}
-.flood-pill .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #f59e0b;
-  flex-shrink: 0;
-  animation: pulse 2s infinite;
-}
-/* Status pill re-themes by live severity (default = moderate/amber) */
-.flood-pill.lvl-safe { background: #dcfce7; border-color: #86efac; color: #14532d; }
-.flood-pill.lvl-safe .dot { animation: none; }
-.flood-pill.lvl-high { background: #fee2e2; border-color: #fca5a5; color: #7f1d1d; }
-@keyframes pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.1);
-  }
 }
 .topbar-right {
   display: flex;
@@ -886,7 +919,12 @@
 .body-wrap {
   display: flex;
   align-items: stretch;
-  height: calc(100dvh - 86px);
+  /* Fills the space the chrome leaves — no hardcoded chrome height. Basis 0,
+     not auto: an auto basis sizes from content, which would let a tall page
+     stretch the shell and hand scrolling back to the document instead of
+     keeping it inside <main>. */
+  flex: 1 1 0;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -967,14 +1005,15 @@
   overflow-y: auto;
 }
 
-/* Full-bleed map screens (Flood Map, Hazard Layer) run flush: no padding and
-   they fill the viewport instead of scrolling like the other admin screens.
-   86px = alert banner (34) + topbar (52). */
+/* Full-bleed map screens (Flood Map, Road Status, Routing) run flush: no
+   padding, and they fill the viewport instead of scrolling like the other
+   admin screens. */
 .main--flush {
   padding: 0;
   gap: 0;
   overflow: hidden;
-  height: calc(100dvh - 86px);
+  /* Fills .body-wrap, which already fills what the chrome leaves. */
+  height: 100%;
 }
 
 /* ── Responsive ── */
@@ -987,18 +1026,15 @@
   .logo-wrap {
     min-width: 192px;
   }
-  .flood-pill {
-    max-width: 420px;
-  }
   .stat-chip {
     display: none;
   }
-  /* The topbar can wrap to two rows below this width, so the fixed 86px shell
-     height no longer holds — fall back to a normal scrolling page where the
-     whole layout (chrome + sidebar + main) scrolls together. */
+  /* Below this width the app-shell is unwound into a normal scrolling page:
+     the whole layout (chrome + sidebar + main) scrolls together rather than
+     only <main> scrolling inside a fixed-height shell. */
   .body-wrap {
+    flex: 0 0 auto;
     height: auto;
-    min-height: calc(100dvh - 86px);
     overflow: visible;
   }
   .sidebar {
@@ -1009,61 +1045,109 @@
     height: auto;
     overflow-y: visible;
   }
+  /* Flush screens unwind too. Their content is a stacked column on mobile —
+     e.g. the Flood Map puts the map at 60vh with the detail panel BELOW it —
+     so the page has to scroll. Pinning the shell to viewport height here would
+     clip that panel and make it unreachable. */
 }
 
 @media (max-width: 760px) {
   .alert-banner {
-    height: auto;
-    min-height: 34px;
-    white-space: normal;
-    align-items: flex-start;
-    padding: 8px 12px;
+    padding: 7px 12px;
   }
   .topbar {
     padding: 8px 12px;
+    /* A wrapping flex container breaks the line before it shrinks anything, so
+       the brand block could never give way. One row here, and the logo
+       truncates to fit beside the controls. */
+    flex-wrap: nowrap;
   }
+  /* The brand block is flex-shrink:0 and ~224px wide on desktop, which alone
+     overflows a phone row and pushes the controls onto a second line. Here it
+     yields: it shrinks, and the two nowrap text lines truncate instead. */
   .logo-wrap {
     width: auto;
     min-width: 0;
+    flex-shrink: 1;
+    gap: 8px;
   }
-  .flood-pill {
-    order: 3;
-    flex-basis: 100%;
-    max-width: none;
-    margin: 0;
+  .logo-shield {
+    width: 30px;
+    height: 30px;
+  }
+  .logo-shield img {
+    width: 32px;
+    height: 32px;
+  }
+  .logo-text {
+    min-width: 0;
+  }
+  .logo-text strong {
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .logo-text span {
+    display: block;
+    font-size: 0.625rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .topbar-right {
-    margin-left: 0;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  /* Rainfall / wind / clock are reference readings, not actions — they lose to
+     the nav controls for the little width a phone has. (.stat-chip is already
+     hidden from 1180px down.)
+
+     The sync chip goes with them: it is admin-only and 140px wide, enough on
+     its own to push the whole control cluster onto a second row. Its refresh
+     button is a convenience — useRealTimeSync already re-polls every 5s. */
+  .time-chip,
+  .sync-chip {
+    display: none;
+  }
+  .nav-burger {
+    display: inline-flex;
+  }
+  .nav-backdrop {
+    display: block;
   }
   .body-wrap {
     flex-direction: column;
     min-height: 0;
   }
+  /* The rail becomes an off-canvas drawer: out of flow so <main> gets the full
+     width, slid in from the left when the burger is tapped. */
   .sidebar {
-    width: 100%;
-    max-height: none;
-    flex-direction: row;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-right: none;
-    border-bottom: 1px solid #e5e2dd;
-    overflow-x: auto;
-    overflow-y: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(78vw, 280px);
+    height: 100dvh;
+    /* 310 put the drawer UNDER the maps. Nothing between <body> and the map
+       opens a stacking context, so Leaflet's own chrome (panes 400, controls
+       800, the corner containers 1000) and this app's floating map cards
+       (up to 1300 in mapUpgrade.css) all competed with the drawer directly and
+       won — tiles, legends and the zoom control drew straight through it.
+
+       1410 clears the tallest map layer (1300) and still sits under every
+       modal: the Add-Centre overlay (2000), the flood-report modal (3000),
+       the first-login prompt (4000) and the emergency takeover (100000). */
+    z-index: 1410;
+    flex-direction: column;
+    padding: 16px 10px;
+    border-right: 1px solid #e5e2dd;
+    border-bottom: none;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.18);
   }
-  .sidebar > div {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .sidebar-section,
-  .signout {
-    display: none;
-  }
-  .nav-item {
-    flex: 0 0 auto;
-    padding: 8px 10px;
-    white-space: nowrap;
+  .sidebar.open {
+    transform: translateX(0);
   }
   .main {
     padding: 12px;
@@ -1071,10 +1155,19 @@
   }
 }
 
+/* Users who prefer reduced motion get the drawer without the slide. */
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
+
 @media (max-width: 460px) {
+  /* With the chips gone this is just three small buttons — it rides the logo
+     row rather than claiming one of its own. */
   .topbar-right {
-    width: 100%;
-    justify-content: space-between;
+    width: auto;
+    justify-content: flex-end;
   }
   .icon-btn,
   .avatar {

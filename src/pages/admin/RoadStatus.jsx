@@ -15,6 +15,7 @@ import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx
 import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
 import RoadConditionModal from '../../components/admin/RoadConditionModal.jsx'
 import { useRoadRequests, useRoadReports } from '../../context/AdminDataContext.jsx'
+import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
 import { ftToM, formatMeters } from '../../services/depth.js'
 import './Manage.css'
@@ -63,6 +64,19 @@ export default function RoadStatus() {
   const [approving, setApproving] = useState(null) // barangay request under review
 
   const isTraffic = mode === 'traffic'
+
+  /* The paint hint sits on the map, and the map runs short of room TWICE: on a
+     phone, and again between 761px and ~1007px, where the 220px rail and the
+     300px panel are both in flow and leave the map under 490px. The long
+     sentence needs 486px to stay on one line, so in those two bands — and only
+     those — it is swapped for a short one rather than wrapping to two lines. */
+  const hintTight = useNarrowScreen('(max-width: 500px), (min-width: 761px) and (max-width: 1020px)')
+  const hintMeta = isTraffic ? TRAFFIC_STATUS[trafficBrush] : ROAD_STATUS[brush]
+  /* Phone: the source line sheds its tail so it can share a row with the
+     brushes instead of claiming a third one. The "OpenStreetMap" credit stays
+     at every width — the map sets attributionControl={false}, so this line
+     carries the tile attribution. */
+  const phone = useNarrowScreen('(max-width: 560px)')
 
   // Click a road in Traffic mode → toggle its congestion level. Clicking with
   // the active brush again clears it (same feel as the flood brush).
@@ -257,7 +271,7 @@ export default function RoadStatus() {
 
           <div className="rs-source">
             <span className="rs-source-dot" />
-            OpenStreetMap · {roads ? `${roads.features.length.toLocaleString()} roads — full city network` : 'Overpass'}
+            OpenStreetMap · {roads ? `${roads.features.length.toLocaleString()} roads${phone ? '' : ' — full city network'}` : 'Overpass'}
           </div>
 
           {/* The traffic board is a precise 2D painting surface; the 3D twin
@@ -303,11 +317,17 @@ export default function RoadStatus() {
             {roads && (
               <div className="rs-paint-hint">
                 <BrushIcon />
-                {isTraffic ? (
-                  <>Click a road to set congestion — defaults to <b style={{ color: TRAFFIC_STATUS[trafficBrush].swatch }}>{TRAFFIC_STATUS[trafficBrush].label}</b></>
-                ) : (
-                  <>Click a road to set its condition &amp; flood depth — defaults to <b style={{ color: ROAD_STATUS[brush].swatch }}>{ROAD_STATUS[brush].label}</b></>
-                )}
+                {/* One element around the sentence: as loose text nodes it
+                    could only break BETWEEN flex items, never inside itself. */}
+                <span className="rs-paint-hint-text">
+                  {hintTight ? (
+                    <>Tap a road — defaults to <b style={{ color: hintMeta.swatch }}>{hintMeta.label}</b></>
+                  ) : isTraffic ? (
+                    <>Click a road to set congestion — defaults to <b style={{ color: hintMeta.swatch }}>{hintMeta.label}</b></>
+                  ) : (
+                    <>Click a road to set its condition &amp; flood depth — defaults to <b style={{ color: hintMeta.swatch }}>{hintMeta.label}</b></>
+                  )}
+                </span>
               </div>
             )}
 

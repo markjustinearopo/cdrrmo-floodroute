@@ -1,31 +1,38 @@
 /* ============================================================
-   Time scrubber — an instrument, not a form control.
+   Time scrubber — the forecast strip under the map.
 
-   Dark panel on purpose: this is not part of the page's
-   content, it is the clock the content is being read at, and
-   it has to look like a different kind of object or nobody
-   notices they have moved it.
+   Styled in the app's own vocabulary rather than as a separate
+   dark "instrument": white surface, #e5e2dd hairlines, the
+   display face for figures, muted uppercase labels, and the
+   same mini-button and pill shapes used across the admin
+   screens. Fewer competing surfaces, one accent at a time.
 
-   LIVE is calm and green. FORECAST turns the whole panel amber
-   — the entire risk of this feature is someone reading a
-   projection as the present.
+   The live/forecast distinction still has to be unmissable —
+   reading a projection as the present is the whole risk of the
+   feature — so it now uses the same severity language as the
+   rest of the system: green for LIVE, orange for FORECAST.
    ============================================================ */
 
 .ts {
-  --ts-accent: #38bdf8;
-  --ts-ink: #e8edf4;
-  --ts-dim: #8b9bb0;
+  /* One accent at a time: blue reads as water/rainfall while live, orange
+     takes over the moment the strip is showing a projection. */
+  --ts-accent: #2563eb;
+  --ts-ink: #1a1a1a;
+  --ts-dim: #9a9a9a;
+  --ts-rule: #e5e2dd;
+  --ts-fill: #f7f5f2;
+
   flex-shrink: 0;
-  background: linear-gradient(180deg, #16202e 0%, #101822 100%);
-  border-top: 1px solid #24303f;
-  padding: 11px 16px 9px;
+  background: #fff;
+  border-top: 1px solid var(--ts-rule);
+  padding: 12px 16px 10px;
   color: var(--ts-ink);
-  transition: background 0.3s ease, border-color 0.3s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 .ts--forecast {
-  --ts-accent: #fbbf24;
-  background: linear-gradient(180deg, #2a1f0d 0%, #1a1408 100%);
-  border-top: 2px solid #f59e0b;
+  --ts-accent: #c2410c;
+  background: #fffbf7;
+  border-top: 2px solid #f97316;
 }
 
 .ts--offline {
@@ -38,9 +45,13 @@
 }
 
 .ts-icon {
-  width: 15px; height: 15px;
-  stroke: currentColor; fill: none; stroke-width: 2;
-  stroke-linecap: round; stroke-linejoin: round;
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   flex-shrink: 0;
 }
 .ts-icon--solid { fill: currentColor; stroke: none; }
@@ -49,80 +60,101 @@
 .ts-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   margin-bottom: 8px;
   flex-wrap: wrap;
 }
 
+/* Primary action, so it carries the app's red the way other primary
+   controls do — not a glowing puck. */
 .ts-play {
-  width: 36px; height: 36px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
-  border-radius: 50%;
+  border-radius: 8px;
   border: none;
-  background: var(--ts-accent);
-  color: #0b1119;
+  background: #c0181b;
+  color: #fff;
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 0 0 5px rgba(56, 189, 248, 0.12);
-  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: background 0.15s ease;
 }
-.ts--forecast .ts-play { box-shadow: 0 0 0 5px rgba(251, 191, 36, 0.14); }
-.ts-play .ts-icon { width: 15px; height: 15px; }
-.ts-play:hover:not(:disabled) { transform: scale(1.07); }
-.ts-play:active:not(:disabled) { transform: scale(0.95); }
-.ts-play:disabled { background: #334155; color: #64748b; box-shadow: none; cursor: default; }
+.ts-play .ts-icon { width: 13px; height: 13px; }
+.ts-play:hover:not(:disabled) { background: #a81518; }
+.ts-play:disabled {
+  background: #fafafa;
+  border: 1px solid var(--ts-rule);
+  color: #c8c8c8;
+  cursor: default;
+}
 
+/* Status pill — the same green/orange tiering the alert banner uses. */
 .ts-state {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
   font-size: 0.625rem;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  color: var(--ts-accent);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
+.ts--forecast .ts-state {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
 .ts-dot {
-  width: 7px; height: 7px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--ts-accent);
+  background: currentColor;
+  flex-shrink: 0;
 }
-.ts-dot.live {
-  background: #4ade80;
-  box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
-  animation: ts-pulse 2.4s ease-out infinite;
-}
+.ts-dot.live { animation: ts-pulse 2.4s ease-in-out infinite; }
 @keyframes ts-pulse {
-  70% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
-@media (prefers-reduced-motion: reduce) { .ts-dot.live { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .ts-dot.live { animation: none; }
+}
 
 .ts-clock {
   display: flex;
   align-items: baseline;
   gap: 7px;
-  min-width: 118px;
+  min-width: 0;
 }
 .ts-clock b {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
   line-height: 1;
-  color: #fff;
+  color: var(--ts-ink);
+  font-variant-numeric: tabular-nums;
 }
-.ts-clock span { font-size: 0.75rem; font-weight: 600; color: var(--ts-dim); }
+.ts-clock span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ts-dim);
+  white-space: nowrap;
+}
 
-.ts-metrics { display: flex; gap: 20px; }
-.ts-metric { display: flex; flex-direction: column; gap: 1px; }
+.ts-metrics { display: flex; gap: 18px; }
+.ts-metric { display: flex; flex-direction: column; gap: 2px; }
 .ts-metric b {
   font-family: var(--font-display);
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 800;
   line-height: 1;
-  color: #fff;
+  color: var(--ts-ink);
   font-variant-numeric: tabular-nums;
 }
 .ts-metric b i {
@@ -139,39 +171,58 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ts-dim);
+  white-space: nowrap;
 }
-.ts-metric--light b { color: #7dd3fc; }
-.ts-metric--heavy b { color: #60a5fa; }
-.ts-metric--intense b { color: #fb923c; }
-.ts-metric--torrential b { color: #f87171; }
-.ts-metric--alarm b { color: #f87171; }
+/* Rainfall intensity on the shared risk ramp: blue while it is just water,
+   orange and red once it is a hazard. */
+.ts-metric--light b { color: #2563eb; }
+.ts-metric--heavy b { color: #1d4ed8; }
+.ts-metric--intense b { color: #c2410c; }
+.ts-metric--torrential b { color: #dc2626; }
+.ts-metric--alarm b { color: #dc2626; }
 
-.ts-working { font-size: 0.6875rem; color: var(--ts-dim); font-style: italic; }
-
-.ts-actions { margin-left: auto; display: flex; gap: 7px; }
-.ts-chip {
-  border: 1px solid #2c3a4d;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--ts-ink);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font: inherit;
+.ts-working {
   font-size: 0.6875rem;
   font-weight: 600;
+  color: var(--ts-dim);
+}
+
+.ts-actions { margin-left: auto; display: flex; gap: 7px; }
+/* Same shape as the admin mini-buttons. */
+.ts-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 11px;
+  border: 1px solid var(--ts-rule);
+  background: #fafafa;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #3a3a3a;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: all 0.15s;
 }
-.ts-chip:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); border-color: var(--ts-accent); }
-.ts-chip--now { border-color: rgba(74, 222, 128, 0.45); color: #86efac; }
-.ts-chip:disabled { opacity: 0.35; cursor: default; }
+.ts-chip:hover:not(:disabled) {
+  border-color: #c0181b;
+  color: #c0181b;
+  background: #fef2f2;
+}
+.ts-chip--now { color: #15803d; }
+.ts-chip:disabled { opacity: 0.4; cursor: default; }
 
 /* ── The curve ── */
 .ts-plot {
   position: relative;
-  height: 60px;
+  height: 56px;
+  background: var(--ts-fill);
+  border: 1px solid var(--ts-rule);
+  border-radius: 8px;
+  overflow: hidden;
 }
-.ts-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ts--forecast .ts-plot { background: #fff7ed; border-color: #fed7aa; }
+.ts-svg { width: 100%; height: 100%; display: block; }
 
 .ts-line {
   fill: none;
@@ -181,16 +232,16 @@
   stroke-linejoin: round;
 }
 .ts-day {
-  stroke: rgba(255, 255, 255, 0.14);
+  stroke: #d8d4cd;
   stroke-width: 1;
   stroke-dasharray: 2 4;
   vector-effect: non-scaling-stroke;
 }
 .ts-playhead {
-  stroke: #fff;
+  stroke: var(--ts-ink);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
-  opacity: 0.85;
+  opacity: 0.55;
 }
 .ts-knob {
   fill: #fff;
@@ -211,14 +262,14 @@
   background: transparent;
   padding: 0;
   cursor: pointer;
-  border-radius: 2px;
 }
-.ts-hit:hover { background: rgba(255, 255, 255, 0.07); }
+.ts-hit:hover { background: rgba(0, 0, 0, 0.05); }
 
 .ts-range {
   position: absolute;
   inset: 0;
-  width: 100%; height: 100%;
+  width: 100%;
+  height: 100%;
   margin: 0;
   opacity: 0;
   appearance: none;
@@ -227,9 +278,9 @@
 }
 .ts-range:focus-visible {
   opacity: 1;
-  outline: 2px solid var(--ts-accent);
-  outline-offset: 3px;
-  border-radius: 6px;
+  outline: 2px solid #c0181b;
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 /* ── Foot ── */
@@ -237,7 +288,7 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  margin-top: 5px;
+  margin-top: 6px;
   flex-wrap: wrap;
 }
 .ts-axis {
@@ -246,7 +297,7 @@
   flex: 1 1 300px;
   font-size: 0.625rem;
   font-weight: 600;
-  color: #5b6b80;
+  color: var(--ts-dim);
   font-variant-numeric: tabular-nums;
 }
 
@@ -259,12 +310,12 @@
 }
 .ts-src summary::-webkit-details-marker { display: none; }
 .ts-src summary::before { content: 'ⓘ '; opacity: 0.75; }
-.ts-src summary:hover { color: var(--ts-ink); }
+.ts-src summary:hover { color: #5a5a5a; }
 .ts-src p {
   margin: 7px 0 0;
   max-width: 82ch;
-  line-height: 1.65;
-  color: #97a6ba;
+  line-height: 1.6;
+  color: #5a5a5a;
 }
 
 /* ── The map's own forecast treatment ──────────────────────────────────────
@@ -277,8 +328,8 @@
   inset: 0;
   pointer-events: none;
   z-index: 500; /* above Leaflet panes, below its controls */
-  border: 3px solid #f59e0b;
-  box-shadow: inset 0 0 34px rgba(245, 158, 11, 0.16);
+  border: 2px solid #f97316;
+  box-shadow: inset 0 0 26px rgba(249, 115, 22, 0.14);
 }
 
 .forecast-badge {
@@ -290,22 +341,21 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(180, 83, 9, 0.96);
+  background: #c2410c;
   color: #fff;
   border-radius: 999px;
-  padding: 6px 15px;
+  padding: 6px 14px;
   font-size: 0.6875rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.03em;
-  box-shadow: 0 4px 16px rgba(120, 53, 15, 0.4);
+  box-shadow: 0 4px 14px rgba(120, 53, 15, 0.28);
   pointer-events: none;
   white-space: nowrap;
-  backdrop-filter: blur(4px);
 }
 .forecast-badge em {
   font-style: normal;
   font-weight: 600;
-  opacity: 0.82;
+  opacity: 0.85;
   border-left: 1px solid rgba(255, 255, 255, 0.4);
   padding-left: 8px;
 }
@@ -315,4 +365,16 @@
   .ts-bar { gap: 12px; }
   .ts-actions { margin-left: 0; width: 100%; }
   .ts-metrics { gap: 14px; }
+}
+
+/* On a phone the strip keeps the readout and the controls; the curve and the
+   axis are the first things to go, since a 48-hour series is unreadable at
+   that width and the Peak / Now chips already do the navigating. */
+@media (max-width: 560px) {
+  .ts { padding: 10px 12px; }
+  .ts-bar { gap: 10px; margin-bottom: 0; }
+  .ts-clock b { font-size: 1.125rem; }
+  .ts-plot { height: 40px; margin-top: 8px; }
+  .ts-axis { display: none; }
+  .ts-foot { margin-top: 6px; }
 }

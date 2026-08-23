@@ -524,7 +524,81 @@ export default function FloodMap() {
             )}
 
             {/* Floating smart search (2D view; the result layer is Leaflet-only) */}
-            {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
+            {!use3D && <MapSearchBar collapsible localIndex={localIndex} onSelect={setSearchResult} />}
+
+            {/* ── Left rail: layer control, then hazard detail beneath it ──
+                One positioned column rather than two absolutely-placed cards,
+                so the hazard panel can never land on top of the layer control
+                however tall either grows. The rail scrolls if the pair
+                outgrows the canvas. */}
+            <div className="fm-left-rail">
+            <MapLayerToggles
+              collapsible
+              compact
+              placement="left"
+              opacity={intensity}
+              onOpacity={setIntensity}
+              /* The five layers the barangay and resident maps also carry come
+                 first, in their order and with their labels and swatches, so
+                 the three portals read as one system. "Verified Flood Reports"
+                 is theirs alone — this map does not draw report markers, and a
+                 toggle for something that never appears is worse than no
+                 toggle. The operational layers below the divide are admin-only.
+
+                 Toggle source differs by key: noah / inundation / barangays
+                 live in `layers`, the rest in `overlays`. */
+              layers={[
+                { key: 'noah', label: 'Project NOAH Hazard', color: '#C0181B', on: layers.noah, onToggle: () => toggleLayer('noah') },
+                { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#B91C1C', on: overlays.floodAreas, onToggle: () => toggleOverlay('floodAreas') },
+                { key: 'inundation', label: 'Flood Inundation', color: '#2563EB', on: layers.inundation, onToggle: () => toggleLayer('inundation') },
+                { key: 'barangays', label: 'Barangay Risk', color: '#F97316', on: layers.barangays, onToggle: () => toggleLayer('barangays') },
+                { key: 'evac', label: 'Evacuation Centres', color: '#1A7A4A', on: overlays.evac, onToggle: () => toggleOverlay('evac') },
+                { key: 'incidents', label: 'Incidents', color: '#DC2626', on: overlays.incidents, onToggle: () => toggleOverlay('incidents') },
+                { key: 'roads', label: 'Flagged Roads', color: '#B45309', on: overlays.roads, onToggle: () => toggleOverlay('roads') },
+                { key: 'blindSpots', label: 'Cut-Off Areas', color: '#7F1D1D', on: overlays.blindSpots, onToggle: () => toggleOverlay('blindSpots') },
+              ]}
+            />
+
+            {/* Hazard detail, shown while the NOAH layer is on. The layer
+                paints three bands with no key on the map, so switching it on
+                used to leave the operator reading colours they had to guess
+                at. */}
+            {layers.noah && (
+              <div className="fm-hazard-panel">
+                <div className="fm-hz-head">
+                  <span className="fm-hz-title">Hazard</span>
+                  <button
+                    type="button"
+                    className="fm-hz-close"
+                    onClick={() => toggleLayer('noah')}
+                    title="Turn off the hazard layer"
+                    aria-label="Turn off the hazard layer"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="fm-hz-sub">Project NOAH · 100-year flood</div>
+                <ul className="fm-hz-bands">
+                  {[3, 2, 1].map((v) => (
+                    <li key={v}>
+                      <span className="fm-hz-sw" style={{ background: NOAH_STYLE[v].fillColor, borderColor: NOAH_STYLE[v].color }} />
+                      {NOAH_LABEL[v]}
+                    </li>
+                  ))}
+                </ul>
+                <dl className="fm-hz-stats">
+                  <div><dt>Inundated area</dt><dd>{hazard.inundatedAreaKm2} km²</dd></div>
+                  <div><dt>Avg. depth</dt><dd>{hazard.avgFloodDepth} m</dd></div>
+                  <div><dt>High-risk barangays</dt><dd>{hazard.highRiskZones}</dd></div>
+                  <div><dt>Flagged roads</dt><dd>{hazard.affectedRoads}</dd></div>
+                </dl>
+                <p className="fm-hz-note">
+                  Bands are surveyed susceptibility. The figures beside them are modelled from
+                  live rainfall and discharge.
+                </p>
+              </div>
+            )}
+            </div>
 
             {/* Flood-prone areas are managed here now, on the map that shows
                 them — click a pin to edit, or add one from scratch. */}
@@ -533,24 +607,6 @@ export default function FloodMap() {
                 <PlusIcon /> Add flood-prone area
               </button>
             )}
-
-            {/* On-map layer toggles + intensity. Same names the Hazard Layer
-                uses — verified reports / risk markers / routes live on their
-                own dedicated screens. */}
-            <MapLayerToggles
-              opacity={intensity}
-              onOpacity={setIntensity}
-              layers={[
-                { key: 'noah', label: 'NOAH hazard bands', color: '#c0181b', on: layers.noah, onToggle: () => toggleLayer('noah') },
-                { key: 'barangays', label: 'Barangay Risk', color: '#c0181b', on: layers.barangays, onToggle: () => toggleLayer('barangays') },
-                { key: 'inundation', label: 'Live Inundation', color: '#2563eb', on: layers.inundation, onToggle: () => toggleLayer('inundation') },
-                { key: 'incidents', label: 'Incidents', color: '#dc2626', on: overlays.incidents, onToggle: () => toggleOverlay('incidents') },
-                { key: 'roads', label: 'Flagged Roads', color: '#f97316', on: overlays.roads, onToggle: () => toggleOverlay('roads') },
-                { key: 'evac', label: 'Evacuation Centers', color: '#16a34a', on: overlays.evac, onToggle: () => toggleOverlay('evac') },
-                { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#0284c7', on: overlays.floodAreas, onToggle: () => toggleOverlay('floodAreas') },
-                { key: 'blindSpots', label: 'Cut-Off Areas', color: '#dc2626', on: overlays.blindSpots, onToggle: () => toggleOverlay('blindSpots') },
-              ]}
-            />
 
             {/* Focused barangay detail card */}
             {selectedSample && (

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import { ROUTE_TYPES, useCabuyaoRoads } from '../../components/admin/routingHelpers.jsx'
 import { useRouteGraph } from '../../components/admin/routeEngine.js'
+import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import { useFloodRiskAtScrub, NEUTRAL_FIELD, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import { useLiveWeather, hourlyAt } from '../../services/weather.js'
 import TimeScrubber, { ForecastBadge } from '../../components/admin/TimeScrubber.jsx'
@@ -51,6 +52,10 @@ const DEFAULT_TAB = 'generate'
 export default function Routing() {
   const [params, setParams] = useSearchParams()
   const [toast, setToast] = useState('')
+
+  /* Phone: the trip-type picker uses the short labels — the three full ones
+     need 399px of a 366px toolbar and pushed the page wider than the screen. */
+  const phone = useNarrowScreen('(max-width: 560px)')
 
   // Loaded once for the whole screen instead of once per former page.
   const { roads } = useCabuyaoRoads()
@@ -139,7 +144,7 @@ export default function Routing() {
                   onClick={() => setType(key)}
                 >
                   <span className="rt-type-dot" style={{ background: t.color }} />
-                  {t.label}
+                  {phone ? t.short : t.label}
                 </button>
               ))}
             </div>

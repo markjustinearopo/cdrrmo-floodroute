@@ -499,3 +499,76 @@
   margin-top: 6px;
   line-height: 1.5;
 }
+
+/* ============================================================
+   Responsive — phone / narrow tablet.
+
+   This screen had no media queries at all, so on a phone it kept its desktop
+   shape: .hz-body stayed a row, the 300px panel held its width, and the map
+   was left with 90px. The toolbar kept a fixed 44px height with no wrap and
+   ran 174px past the edge. Between them the page dragged its layout viewport
+   out to 573px, so the whole screen rendered zoomed out.
+
+   (.main--flush is already unwound at this width by FloodMap.css, which owns
+   that shared shell; only the parts inside .hazard are set here.)
+   ============================================================ */
+@media (max-width: 760px) {
+  /* The shell scrolls as a normal page here, so the screen grows with its
+     content instead of being pinned to the viewport and clipping the panel. */
+  .hazard {
+    height: auto;
+  }
+
+  /* Toolbar: wrap onto as many rows as it needs rather than squeezing five
+     groups into one 44px line. Nothing shrinks below its own text — the title
+     was down to 94px and the source line to 100px, both mid-word. */
+  .hazard .hz-toolbar {
+    height: auto;
+    min-height: 44px;
+    flex-wrap: wrap;
+    white-space: nowrap;
+    column-gap: 12px;
+    row-gap: 8px;
+    padding: 8px 12px;
+  }
+  .hazard .hz-toolbar > * {
+    flex-shrink: 0;
+  }
+  /* The source credit is the longest thing in the bar and is the map's ONLY
+     attribution (the Leaflet control is off), so it wraps rather than being
+     shortened away. */
+  .hazard .hz-source {
+    white-space: normal;
+    max-width: 100%;
+  }
+
+  /* Map above, panel below — the same stack the Flood Map and Road Status use. */
+  .hazard .hz-body {
+    flex-direction: column;
+  }
+  .hazard .hz-map-area {
+    height: 52vh;
+    flex: 0 0 auto;
+  }
+  .hazard .hz-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e5e2dd;
+    overflow-y: visible;
+  }
+
+  /* Wrapping alone left the bar four rows and 130px tall before the map even
+     began. One step down on type and controls packs the same content — all of
+     it still readable, none of it dropped — into three. */
+  .hazard .hz-title {
+    font-size: 0.8125rem;
+    gap: 6px;
+  }
+  .hazard .hz-title svg { width: 14px; height: 14px; }
+  .hazard .hz-source,
+  .hazard .hz-updated { font-size: 0.625rem; }
+  .hazard .map3d-viewtoggle button {
+    padding: 0.28rem 0.6rem;
+    font-size: 0.625rem;
+  }
+}

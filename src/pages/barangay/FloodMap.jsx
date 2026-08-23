@@ -148,7 +148,9 @@ export default function FloodMap() {
 
   return (
     <BarangayLayout mainClassName="main--flush">
-      <div className="floodmap">
+      {/* --nosearch: this is the only flood map without a MapSearchBar, and the
+          phone rules reserve the top strip for one. */}
+      <div className="floodmap floodmap--nosearch">
         <div className="subtab-bar">
           <button type="button" className="subtab active">
             <MapIcon />
@@ -246,7 +248,11 @@ export default function FloodMap() {
             )}
 
             {!use3D && (
+              /* Collapsible: the rail is ~190px tall and covered better than a
+                 fifth of a phone-sized map. It folds to a chip — shut by
+                 default on phone widths, open on desktop. */
               <MapLayerToggles
+                collapsible
                 layers={FLOOD_LAYERS.map((l) => ({
                   ...l,
                   on: layers[l.key],

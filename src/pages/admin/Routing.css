@@ -181,8 +181,60 @@
 .ov-inline-link:hover,
 .sr-inline-link:hover { color: #8b1416; }
 
+/* An empty toolbar-end still claimed a wrapped row (and its row-gap): the
+   2D/3D switch only renders on Generate, and only with a Mapbox token. */
+.rt-toolbar-end:empty { display: none; }
+
 @media (max-width: 900px) {
   .rt-toolbar { gap: 10px; padding: 6px 12px; }
   .rt-toolbar-end { margin-left: 0; }
   .rt-tabs { width: 100%; overflow-x: auto; }
+}
+
+/* ── Toolbar, phone ──
+   The trip-type control measured 399px against 366px of usable toolbar, and
+   nothing here shrank or scrolled, so it pushed the whole page out to 418px —
+   the layout viewport widened and the screen rendered zoomed out. Shorter
+   labels (ROUTE_TYPES.short) plus tighter type bring it inside the screen.
+
+   The padding also evens out the rhythm: the 900px block above sets 10px
+   between wrapped rows but only 6px above and below them. This block has to
+   come AFTER that one — same specificity, so source order decides. */
+@media (max-width: 560px) {
+  .rt-toolbar {
+    padding: 8px 12px;
+    row-gap: 8px;
+    column-gap: 10px;
+  }
+  .rt-title {
+    font-size: 0.8125rem;
+    padding: 0;
+    gap: 6px;
+  }
+  .rt-title svg { width: 15px; height: 15px; }
+  .rt-tab { font-size: 0.75rem; padding: 0 10px; }
+  .rt-type {
+    font-size: 0.6875rem;
+    padding: 5px 8px;
+    gap: 5px;
+  }
+  .rt-type-dot { width: 7px; height: 7px; }
+
+  /* Both groups own their whole row rather than bunching at the left: the tab
+     strip was leaving 101px dead to its right and the trip-type control 124px.
+     Equal shares (flex-basis 0) give each control the full width to breathe in
+     and make the two rows line up on the same left and right edges. */
+  .rt-tabs { width: 100%; }
+  .rt-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 6px;
+    text-align: center;
+  }
+  .rt-type-seg { width: 100%; }
+  .rt-type {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+  }
 }

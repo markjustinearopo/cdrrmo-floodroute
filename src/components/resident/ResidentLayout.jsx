@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import NotificationsPanel from '../admin/NotificationsPanel.jsx'
 import AccountModal from '../admin/AccountModal.jsx'
 import ConfirmDialog from '../ConfirmDialog.jsx'
 import { Avatar } from '../Avatar.jsx'
 import { residentBarangayLabel } from '../../data/resident.js'
+import { getOfficialBarangay } from '../../data/barangay.js'
 import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
+import { useFloodRisk, barangayRiskSamples } from '../admin/floodRisk.js'
+import { levelFromDepth } from '../../services/systemConfig.js'
 import '../admin/AdminLayout.css'
 import EmergencyAlert from '../EmergencyAlert.jsx'
 
@@ -58,8 +61,31 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
   const [menu, setMenu] = useState(null)
   const [accountTab, setAccountTab] = useState('profile')
   const [confirmSignout, setConfirmSignout] = useState(false)
+  // Mobile nav drawer. The sidebar is a permanent rail on desktop, so this only
+  // has any effect below the drawer breakpoint.
+  const [navOpen, setNavOpen] = useState(false)
+
+  // Escape closes the drawer, matching the topbar overlays.
+  useEffect(() => {
+    if (!navOpen) return undefined
+    function onKey(e) {
+      if (e.key === 'Escape') setNavOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navOpen])
 
   const brgyLabel = residentBarangayLabel()
+  const myBrgy = getOfficialBarangay()
+
+  // Live risk for the resident's own barangay, from the same field the resident
+  // dashboard reads, so the banner's colour and wording track real conditions.
+  const { field } = useFloodRisk()
+  const level = useMemo(() => {
+    const depth = barangayRiskSamples(field).find((b) => b.name === myBrgy)?.floodDepth ?? 0
+    return levelFromDepth(depth)
+  }, [field, myBrgy])
+  const elevated = level === 'moderate' || level === 'high'
 
   useEffect(() => {
     document.body.classList.add('admin-body')
@@ -106,14 +132,20 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
       <EmergencyAlert />
 
       {/* ── Alert banner ── */}
-      <div className="alert-banner">
+      <div className={`alert-banner lvl-${level}`}>
         <svg viewBox="0 0 24 24">
           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
           <line x1="12" y1="9" x2="12" y2="13" />
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
-        <span className="lbl">Flood Alert Active:</span>
-        <span>No active flood issue reported in Brgy. {brgyLabel}.</span>
+        <span className="lbl">{elevated ? 'Flood Alert Active:' : 'Flood Status:'}</span>
+        <span>
+          {level === 'high'
+            ? `High flood risk in Brgy. ${brgyLabel} — move to higher ground now.`
+            : level === 'moderate'
+              ? `Elevated flood risk in Brgy. ${brgyLabel} — stay alert and avoid flooded roads.`
+              : `No active flood issue reported in Brgy. ${brgyLabel}.`}
+        </span>
       </div>
 
       {/* ── Topbar ── */}
@@ -128,12 +160,22 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
           </div>
         </div>
 
-        <div className="flood-pill">
-          <div className="dot" />
-          <span>No elevated flood risk reported.</span>
-        </div>
-
         <div className="topbar-right">
+          {/* Nav drawer toggle. Leads the control cluster on mobile; hidden on
+              desktop, where the sidebar is a permanent rail. */}
+          <button
+            type="button"
+            className="nav-burger"
+            aria-label="Menu"
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((v) => !v)}
+          >
+            <svg viewBox="0 0 24 24">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
           <div className="stat-chip">
             <svg viewBox="0 0 24 24">
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
@@ -199,7 +241,18 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
 
       {/* ── Body: sidebar + page content ── */}
       <div className="body-wrap">
-        <aside className="sidebar">
+        {/* Tapping the scrim closes the drawer. Rendered only while open, and
+            display:none above the drawer breakpoint. */}
+        {navOpen && (
+          <button
+            type="button"
+            className="nav-backdrop"
+            aria-label="Close menu"
+            onClick={() => setNavOpen(false)}
+          />
+        )}
+
+        <aside className={`sidebar ${navOpen ? 'open' : ''}`.trim()}>
           {NAV.map((group) => (
             <div key={group.section}>
               <div className="sidebar-section">{group.section}</div>
@@ -208,6 +261,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
                   key={label}
                   to={to}
                   className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                  onClick={() => setNavOpen(false)}
                 >
                   <Icon />
                   {label}

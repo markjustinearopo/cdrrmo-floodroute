@@ -170,8 +170,11 @@ export default function EvacuationRouting() {
             <ShieldIcon />
             <span>Evacuation Routing</span>
           </div>
-          <div className="rp-type-seg" style={{ pointerEvents: 'none' }}>
-            <span className="rp-type-note" style={{ border: 'none', padding: 0 }}>
+          {/* Caption, not a control: there is only one routing mode here. The
+              --note modifier gives the pill the inner spacing the buttons
+              would normally have brought with them. */}
+          <div className="rp-type-seg rp-type-seg--note">
+            <span className="rp-type-note">
               <span className="rp-type-dot" style={{ background: '#16A34A' }} />
               Recommended safe routes to evacuation centres
             </span>

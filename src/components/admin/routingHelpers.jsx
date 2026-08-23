@@ -33,10 +33,13 @@ import './routingHelpers.css'
 export const CABUYAO_BBOX = { s: 14.205, w: 121.085, n: 14.315, e: 121.215 }
 
 /* ── Route + road vocabularies (single source of truth for the screens) ──── */
+/* `short` is for the trip-type picker on a phone, where the three full labels
+   need 399px of a 366px toolbar. Everything else — route names, the saved list,
+   the description line — keeps `label`. */
 export const ROUTE_TYPES = {
-  evacuation: { label: 'Evacuation', color: '#C0181B', desc: 'Residents → evacuation centre' },
-  relief: { label: 'Relief / Supply', color: '#1A3A7A', desc: 'Supplies → affected barangay' },
-  response: { label: 'Emergency Response', color: '#1A7A4A', desc: 'Responders → incident site' },
+  evacuation: { label: 'Evacuation', short: 'Evacuation', color: '#C0181B', desc: 'Residents → evacuation centre' },
+  relief: { label: 'Relief / Supply', short: 'Relief', color: '#1A3A7A', desc: 'Supplies → affected barangay' },
+  response: { label: 'Emergency Response', short: 'Response', color: '#1A7A4A', desc: 'Responders → incident site' },
 }
 
 export const ROAD_STATUS = {

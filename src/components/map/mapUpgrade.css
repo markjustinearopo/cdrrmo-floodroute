@@ -17,6 +17,30 @@
   z-index: 1200;
   width: min(420px, calc(100% - 240px));
 }
+/* Collapsed search (admin Flood Map): a round icon button in the map's top
+   right, matching the layer control and the FABs. */
+.msb-fab {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1200;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.msb-fab:hover { background: #fff; box-shadow: 0 8px 22px rgba(15, 23, 42, 0.24); }
+.msb-fab-icon { width: 18px; height: 18px; color: #3a3a3a; }
+
 .msb-bar {
   display: flex;
   align-items: center;
@@ -273,9 +297,16 @@
   top: 12px;
   right: 12px;
   z-index: 1150;
-  width: 236px;
+  /* Shrink-to-fit so the collapsed chip stops reserving the card's full width
+     — and stops intercepting taps — over the map. */
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 .fsc-card {
+  width: 236px;
+  box-sizing: border-box; /* keep the card's outer width at 236, padding included */
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(14px) saturate(1.4);
@@ -285,6 +316,47 @@
   padding: 11px 13px;
 }
 .fsc-head { display: flex; align-items: center; gap: 7px; }
+/* Same affordance as the weather card's minimise control. */
+.fsc-min {
+  margin-left: auto;
+  /* Negative margin keeps the glyph optically in the corner while the button
+     itself stays a comfortable touch target. */
+  margin-right: -4px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #bcbab7;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.fsc-min:hover { background: rgba(0, 0, 0, 0.06); }
+.fsc-min:hover { color: #3a3a3a; }
+
+/* Collapsed state: a status pill that still names the headline condition. */
+.fsc-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+.fsc-chip b { font-weight: 700; }
 .fsc-pulse {
   width: 8px;
   height: 8px;
@@ -344,6 +416,8 @@
 /* Status-change toast */
 .fsc-toast {
   margin-top: 8px;
+  width: 236px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -879,7 +953,10 @@
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .msb { width: min(380px, calc(100% - 200px)); }
-  .wxc, .fsc { width: 210px; }
+  /* .fsc is shrink-to-fit (so the collapsed chip doesn't cover the map) —
+     size the card, not the wrapper. */
+  .wxc { width: 210px; }
+  .fsc-card, .fsc-toast { width: 210px; }
   .wxc { top: 178px; }
 }
 @media (max-width: 760px) {
@@ -889,13 +966,15 @@
     transform: none;
     width: auto;
   }
-  /* The search bar spans the top edge on phones — push the layer panel down. */
-  .floodmap .map-toggles { top: 70px; }
+  /* The search bar spans the top edge on phones — push the layer panel down,
+     collapsed chip included, or it lands under the search bar. */
+  .floodmap .map-toggles,
+  .floodmap .map-toggles-chip { top: 70px; }
   .fsc {
     top: 70px;
     right: 12px;
-    width: min(210px, calc(100% - 24px));
   }
+  .fsc-card, .fsc-toast { width: min(210px, calc(100vw - 24px)); }
   .wxc { top: auto; bottom: 168px; right: 64px; width: auto; max-width: 220px; }
   .fabs { bottom: 96px; }
   .emg { bottom: 40px; width: min(260px, calc(100% - 90px)); }

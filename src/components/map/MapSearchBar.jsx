@@ -22,7 +22,17 @@ import './mapUpgrade.css'
 
 const DEBOUNCE_MS = 350
 
-export default function MapSearchBar({ localIndex, onSelect }) {
+/**
+ * `collapsible` is opt-in — only the admin Flood Map passes it. Collapsed, the
+ * bar is a round icon button matching the map's other controls; expanded, it is
+ * the same bar as everywhere else. The barangay and resident maps keep the
+ * always-visible bar they have today.
+ */
+export default function MapSearchBar({ localIndex, onSelect, collapsible = false }) {
+  // Collapsed by default when collapsible: the bar spans a big share of a
+  // phone-width map, and search is a deliberate act rather than something you
+  // need parked open.
+  const [expanded, setExpanded] = useState(!collapsible)
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -73,11 +83,16 @@ export default function MapSearchBar({ localIndex, onSelect }) {
   /* Close on outside click. */
   useEffect(() => {
     function onDown(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false)
+        // Tapping the map folds an empty collapsible bar back to its icon. A
+        // bar with a query in it stays, so the search isn't lost by a stray tap.
+        if (collapsible && !q) setExpanded(false)
+      }
     }
     document.addEventListener('pointerdown', onDown)
     return () => document.removeEventListener('pointerdown', onDown)
-  }, [])
+  }, [collapsible, q])
 
   const showHistory = open && !q.trim() && history.length > 0
   const rows = q.trim() ? results : history
@@ -101,6 +116,9 @@ export default function MapSearchBar({ localIndex, onSelect }) {
   function onKeyDown(e) {
     if (e.key === 'Escape') {
       setOpen(false)
+      // Escape on an empty collapsible bar folds it away; with a query it just
+      // closes the suggestion list, so one Escape never loses what was typed.
+      if (collapsible && !q) setExpanded(false)
       return
     }
     if (!rows.length) return
@@ -115,6 +133,25 @@ export default function MapSearchBar({ localIndex, onSelect }) {
       e.preventDefault()
       choose(rows[Math.max(hi, 0)])
     }
+  }
+
+  if (collapsible && !expanded) {
+    return (
+      <button
+        type="button"
+        className="msb-fab"
+        onClick={() => {
+          setExpanded(true)
+          // Focus after paint, so the field is ready to type into.
+          requestAnimationFrame(() => inputRef.current?.focus())
+        }}
+        title="Search the map"
+        aria-label="Search the map"
+        aria-expanded={false}
+      >
+        <SearchIcon className="msb-fab-icon" />
+      </button>
+    )
   }
 
   return (

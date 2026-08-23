@@ -244,7 +244,6 @@ export default function Reports() {
                 <div className="rd-org-name">City Disaster Risk Reduction &amp; Management Office</div>
                 <div className="rd-org-sub">City of Cabuyao, Province of Laguna · FloodRoute Command Center</div>
               </div>
-              <div className="rd-seal">CDRRMO</div>
             </header>
             <div className="rd-rule" />
 

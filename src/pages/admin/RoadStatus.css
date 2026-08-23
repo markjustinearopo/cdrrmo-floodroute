@@ -231,6 +231,14 @@
   transform: translateX(-50%);
   display: flex;
   align-items: center;
+  /* The sentence runs to 462px, so on a phone-width map the pill hung 36px off
+     BOTH edges and its ends were clipped. Cap it to the map; the text wraps
+     inside itself (see .rs-paint-hint-text) rather than the pill overflowing. */
+  /* max-content first, so a roomy map still gets the sentence on one line;
+     the cap then reins it in and the text wraps rather than the pill spilling.
+     Without the explicit width the box shrink-fits to ~195px and stacks up. */
+  width: max-content;
+  max-width: calc(100% - 24px);
   gap: 7px;
   padding: 7px 15px;
   background: rgba(255, 255, 255, 0.96);
@@ -241,9 +249,15 @@
   font-weight: 500;
   color: #5a5a5a;
   z-index: 1000;
-  white-space: nowrap;
+  /* Was nowrap, which is what forced the pill wider than the map. With the
+     max-width cap above, a wide map still holds the sentence on one line and a
+     narrow one wraps it instead of overflowing. */
+  white-space: normal;
   pointer-events: none;
 }
+/* min-width: 0 lets this shrink past its longest line so the sentence wraps;
+   a flex item defaults to min-width: auto and would push the pill wider. */
+.road-status .rs-paint-hint-text { min-width: 0; text-align: center; }
 .road-status .rs-paint-hint svg {
   width: 14px;
   height: 14px;
@@ -702,6 +716,52 @@
 .road-status .rs-req-by { font-size: 0.625rem; color: #9a9a9a; margin-top: 3px; }
 
 /* ── Responsive ── */
+/* ── Toolbar, wrapped ──
+   The toolbar needs ~913px for one line, and the screen is flush (no <main>
+   padding), so it gets viewport minus the 220px rail: measured, it wraps once
+   the viewport drops under ~1133px. Everything here applies only from there
+   down, so the single-line desktop toolbar keeps its 48px height exactly.
+
+   Wrapped, it had two problems. One `gap` set both axes, so rows sat 16px
+   apart inside only 6px of vertical padding — tight against the top and bottom
+   edges, loose in between. And the source line, alone on the last row, was
+   shoved to the right edge by its `margin-left: auto` while every row above it
+   started at the left. */
+@media (max-width: 1140px) {
+  .road-status .rs-toolbar {
+    row-gap: 10px;
+    padding: 10px 16px;
+  }
+  .road-status .rs-source { margin-left: 0; }
+}
+
+/* ── Toolbar, phone ──
+   Wrapped, the toolbar was three rows and 125px tall before the map even
+   started — a big bite out of a phone. Shrinking the controls alone barely
+   moved it (125px -> 123px): the height is the row COUNT, and each row was too
+   wide to pair with another.
+
+   Two rows is the floor at this width (the four groups need ~665px even
+   shrunk, against ~358px of usable row). Getting there takes the two widest
+   groups down: "Tag roads as" goes — the coloured chips say what they do, and
+   the hint on the map spells it out — and the source line drops its trailing
+   "— full city network" in the markup. "OpenStreetMap" itself stays: the map
+   runs with attributionControl={false}, so this line IS the tile attribution
+   and is not ours to shorten away. */
+@media (max-width: 560px) {
+  /* 8px, not 10: at 360px the second row needs 326px of the 328px it gets,
+     so the pairing survives the narrowest common Android rather than spilling
+     back to three rows. */
+  .road-status .rs-toolbar { column-gap: 8px; }
+  .road-status .rs-title { font-size: 0.8125rem; gap: 6px; }
+  .road-status .rs-title svg { width: 14px; height: 14px; }
+  .road-status .rs-mode { padding: 4px 11px; font-size: 0.6875rem; }
+  .road-status .rs-brush { padding: 5px 9px; font-size: 0.6875rem; gap: 6px; }
+  .road-status .rs-brush-dot { width: 9px; height: 9px; }
+  .road-status .rs-brush-label { display: none; }
+  .road-status .rs-source { font-size: 0.625rem; }
+}
+
 @media (max-width: 760px) {
   .road-status .rs-body {
     flex-direction: column;

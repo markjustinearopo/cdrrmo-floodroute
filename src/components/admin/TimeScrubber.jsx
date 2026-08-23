@@ -9,12 +9,12 @@ import './TimeScrubber.css'
  * Every hour on this strip is a real row of the Open-Meteo hourly series the
  * app was already fetching and discarding, so it costs no extra request.
  *
- * Treated as an INSTRUMENT rather than a form control. It sits on a dark panel
- * because it is not part of the page's content — it is the clock the content is
- * being read at, and it has to look like a different kind of object or an
- * operator will not notice they have moved it. The rainfall curve is the actual
- * forecast, drawn as an area so the shape of the storm is legible at a glance:
- * you can see the peak coming before you touch anything.
+ * Dressed in the admin UI's own vocabulary — white surface, hairline rules,
+ * display-face figures, the shared mini-button and pill shapes — so it reads as
+ * part of the screen rather than a separate console bolted underneath it. The
+ * rainfall curve is the actual forecast, drawn as an area so the shape of the
+ * storm is legible at a glance: you can see the peak coming before you touch
+ * anything.
  *
  * The readout answers "so what" as well as "how much": alongside the rainfall
  * it shows how many barangays the model puts at High for that hour, so
@@ -26,8 +26,9 @@ import './TimeScrubber.css'
  *
  * On honesty — a projection shown plainly IS a claim about the future:
  *   • Offset 0 is the live present and looks like it: green, calm.
- *   • Past 0 the panel turns amber and the map gets a tinted frame and badge,
- *     so a forecast cannot be glanced at — or screenshotted — as current.
+ *   • Past 0 the strip turns orange — the same severity language the alert
+ *     banner uses — and the map gets a tinted frame and badge, so a forecast
+ *     cannot be glanced at, or screenshotted, as current.
  *   • The source line is always visible; the caveats are one click away
  *     rather than a grey wall nobody reads.
  *   • The curve stops at the end of the real data. Nothing is extrapolated.
@@ -158,9 +159,11 @@ export default function TimeScrubber({ weather, projecting = false, highCount = 
       <div className="ts-plot" onMouseLeave={() => setHover(null)}>
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="ts-svg" aria-hidden="true">
           <defs>
+            {/* Tuned for a light surface — a heavy fill muddies the curve and
+                fights the page instead of sitting on it. */}
             <linearGradient id="tsFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--ts-accent)" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="var(--ts-accent)" stopOpacity="0.03" />
+              <stop offset="0%" stopColor="var(--ts-accent)" stopOpacity="0.20" />
+              <stop offset="100%" stopColor="var(--ts-accent)" stopOpacity="0.02" />
             </linearGradient>
           </defs>
 

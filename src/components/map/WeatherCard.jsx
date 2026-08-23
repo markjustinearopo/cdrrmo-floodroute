@@ -10,12 +10,15 @@
 import { useEffect, useState } from 'react'
 import { useLiveWeather, weatherInfo } from '../../services/weather.js'
 import { formatPHT } from '../admin/mapHelpers.jsx'
+import { useOverlayOpen } from '../../hooks/useNarrowScreen.js'
 import './mapUpgrade.css'
 
 export default function WeatherCard() {
   const { weather, loading } = useLiveWeather()
   const [now, setNow] = useState(formatPHT())
-  const [openState, setOpen] = useState(() => window.innerWidth > 760)
+  // Folds to a chip whenever the viewport is phone-width — including after a
+  // rotation, which a one-shot `window.innerWidth` read at mount missed.
+  const [openState, setOpen] = useOverlayOpen()
 
   useEffect(() => {
     const id = setInterval(() => setNow(formatPHT()), 30_000)

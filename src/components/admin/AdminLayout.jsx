@@ -99,7 +99,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   const syncTone = staleSecs > 60 ? 'stale' : staleSecs > 30 ? 'warn' : ''
 
   // Live flood picture (derived from the Open-Meteo flood × forecast risk field), shared
-  // by the alert banner + status pill on every admin screen. The hazard map
+  // by the alert banner on every admin screen. The hazard map
   // always shows inherent susceptibility, but an ACTIVE alert is only raised
   // when there is real wetness (rain / elevated discharge) — so a dry day reads
   // "no active flood issue" even though the lowland barangays stay coloured.
@@ -119,16 +119,25 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   const bannerText = hasAlert
     ? `${flood.elevated.slice(0, 4).join(', ')}${flood.elevated.length > 4 ? ` +${flood.elevated.length - 4} more` : ''} reporting elevated water levels.`
     : t('No active flood issue reported.')
-  const pillText = hasAlert
-    ? `Elevated flood risk: ${flood.elevated.slice(0, 3).join(', ')}${flood.elevated.length > 3 ? '…' : ''}`
-    : t('No elevated flood risk reported.')
-  const dotColor = flood.worst === 'high' ? '#ef4444' : flood.worst === 'moderate' ? '#f59e0b' : '#22c55e'
 
   const [clock, setClock] = useState('--:-- PHT')
   // Topbar overlays: 'notif' (notifications popup) | 'account' (profile/settings) | null
   const [menu, setMenu] = useState(null)
   const [accountTab, setAccountTab] = useState('profile')
   const [confirmSignout, setConfirmSignout] = useState(false)
+  // Mobile nav drawer. The sidebar is a permanent rail on desktop, so this only
+  // has any effect below the drawer breakpoint.
+  const [navOpen, setNavOpen] = useState(false)
+
+  // Escape closes the drawer, matching the topbar overlays.
+  useEffect(() => {
+    if (!navOpen) return undefined
+    function onKey(e) {
+      if (e.key === 'Escape') setNavOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navOpen])
 
   // Tint the page background only while an admin screen is mounted.
   useEffect(() => {
@@ -209,12 +218,22 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           </div>
         </div>
 
-        <div className={`flood-pill ${lvlClass}`}>
-          <div className="dot" style={{ background: dotColor }} />
-          <span>{pillText}</span>
-        </div>
-
         <div className="topbar-right">
+          {/* Nav drawer toggle. Leads the control cluster on mobile; hidden on
+              desktop, where the sidebar is a permanent rail. */}
+          <button
+            type="button"
+            className="nav-burger"
+            aria-label="Menu"
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((v) => !v)}
+          >
+            <svg viewBox="0 0 24 24">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
           <div className="stat-chip" title="Live rainfall (Open-Meteo)">
             <svg viewBox="0 0 24 24">
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
@@ -297,7 +316,18 @@ export default function AdminLayout({ children, mainClassName = '' }) {
 
       {/* ── Body: sidebar + page content ── */}
       <div className="body-wrap">
-        <aside className="sidebar">
+        {/* Tapping the scrim closes the drawer. Rendered only while open, and
+            display:none above the drawer breakpoint. */}
+        {navOpen && (
+          <button
+            type="button"
+            className="nav-backdrop"
+            aria-label="Close menu"
+            onClick={() => setNavOpen(false)}
+          />
+        )}
+
+        <aside className={`sidebar ${navOpen ? 'open' : ''}`.trim()}>
           {NAV.map((group) => (
             <div key={group.section}>
               <div className="sidebar-section">{t(group.section)}</div>
@@ -306,6 +336,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
                   key={label}
                   to={to}
                   className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                  onClick={() => setNavOpen(false)}
                 >
                   <Icon />
                   {t(label)}

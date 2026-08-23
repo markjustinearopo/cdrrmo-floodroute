@@ -148,6 +148,14 @@
   top: 18px;
   left: 50%;
   transform: translateX(-50%);
+  /* An absolutely positioned box with left:50% shrink-to-fits into what is LEFT
+     of that offset — half the map — and the translate only slides it back
+     afterwards. So this card was pinned to exactly 50% of the map at every
+     size: 180px on a 360px phone, which broke the heading over three lines and
+     made it 171px tall. Sizing to content and capping against the map is what
+     lets it actually use the width it has. */
+  width: max-content;
+  max-width: calc(100% - 32px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -744,3 +752,20 @@
   color: #92400e;
 }
 .auto-route .ar-forecast-note b { color: #78350f; }
+
+/* Phone: one step down. The card is a prompt, not the content — at full size it
+   was taking ~92% of a 390px map and 112px of its height. */
+@media (max-width: 560px) {
+  .auto-route .ar-hint,
+  .auto-route .ar-overlay {
+    padding: 10px 16px;
+    gap: 3px;
+    border-radius: 10px;
+  }
+  .auto-route .ar-hint svg { width: 19px; height: 19px; }
+  .auto-route .ar-overlay svg { width: 22px; height: 22px; }
+  .auto-route .ar-hint span,
+  .auto-route .ar-overlay span { font-size: 0.75rem; }
+  .auto-route .ar-hint small,
+  .auto-route .ar-overlay small { font-size: 0.625rem; }
+}

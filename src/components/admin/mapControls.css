@@ -12,13 +12,133 @@
   padding: 10px;
   width: 188px;
 }
+/* ── Compact variant (admin Flood Map) ────────────────────────────────────
+   Eight layers instead of six, so the default rail runs tall enough to crowd
+   the canvas. Everything shrinks together — width, type, switches, spacing —
+   rather than just clipping the box. */
+.map-toggles--compact {
+  width: 152px;
+  padding: 8px;
+}
+.map-toggles--compact .map-toggles-head { margin-bottom: 6px; }
+.map-toggles--compact .map-toggle {
+  gap: 7px;
+  padding: 3px 3px;
+}
+.map-toggles--compact .mt-sw { width: 24px; height: 14px; }
+.map-toggles--compact .mt-knob { width: 10px; height: 10px; }
+.map-toggles--compact .map-toggle.on .mt-knob { transform: translateX(10px); }
+.map-toggles--compact .mt-dot { width: 7px; height: 7px; }
+.map-toggles--compact .mt-label { font-size: 0.6875rem; }
+.map-toggles--compact .map-toggle-op {
+  margin-top: 6px;
+  padding: 6px 3px 0;
+}
+.map-toggles--compact .mt-op-head {
+  font-size: 0.6rem;
+  margin-bottom: 3px;
+}
+
+/* Left placement (admin Flood Map): the control sits IN FLOW inside
+   .fm-left-rail, which owns the positioning and stacks it above the hazard
+   panel. Static, so the two can never land on top of each other. */
+.map-toggles--rail,
+.map-toggles-chip.map-toggles--rail {
+  position: static;
+  box-sizing: border-box;
+}
+
+/* Right-hand placement (admin Flood Map). Parks the rail above Leaflet's
+   bottom-right zoom control — that bar is ~53px tall sitting on a 10px margin,
+   so 76px clears it with room to spare.
+
+   Deliberately (0,3,0): the phone rule in mapUpgrade.css that pushes the rail
+   clear of the search bar is `.floodmap .map-toggles { top: 70px }` at (0,2,0),
+   and if it won here the element would be pinned top AND bottom and stretch. */
+.floodmap .map-toggles.map-toggles--right,
+.floodmap .map-toggles-chip.map-toggles--right {
+  top: auto;
+  left: auto;
+  right: 12px;
+  bottom: 76px;
+}
+/* Hard ceiling so the rail can never grow past the canvas, whatever the layer
+   count: 76px of bottom offset plus a 12px breathing gap at the top. Past that
+   it scrolls inside itself rather than running off the map. */
+.floodmap .map-toggles.map-toggles--right {
+  /* border-box, or the padding and border ride on top of the cap and the rail
+     still clears the canvas top by ~18px. */
+  box-sizing: border-box;
+  max-height: calc(100% - 88px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.map-toggles-head {
+  display: flex;
+  align-items: center;
+  margin: 0 2px 8px;
+}
 .map-toggles-title {
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #7a7a7a;
+  /* Standalone (barangay / resident, where the rail has no minimise header)
+     the title carries its own spacing; inside the header the wrapper does. */
   margin: 0 2px 8px;
+}
+.map-toggles-head .map-toggles-title { margin: 0; }
+.map-toggles-min {
+  margin-left: auto;
+  margin-right: -4px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #bcbab7;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.map-toggles-min:hover { background: rgba(0, 0, 0, 0.06); color: #3a3a3a; }
+
+/* Collapsed state: an icon button, sized and shaped like the map's other
+   round controls. The layer count lives in the tooltip and the accessible
+   name rather than on the face. */
+.map-toggles-chip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1100;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid #e7e3da;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.16);
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.map-toggles-chip:hover { background: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.22); }
+.mtc-icon {
+  width: 18px;
+  height: 18px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .map-toggle {
   display: flex;

@@ -17,9 +17,18 @@
   min-height: 0;
 }
 
-/* ── Sub-tab bar ── */
+/* ── Sub-tab bar ──
+   One row, always. The labels in here are long — "Incident Reports",
+   "Cabuyao City · Live Map", "Report Flood Status" — and the flex items used
+   to shrink below their own text, so on a narrow screen every label broke onto
+   a second line inside a bar only tall enough for one, and the overflow was
+   clipped. That is what made the tabs read as the wrong size.
+
+   So: nothing in the bar wraps, nothing shrinks below its text, and when a
+   phone genuinely cannot hold the whole row it scrolls sideways rather than
+   folding — the tabs past the edge stay reachable instead of being cut off. */
 .floodmap .subtab-bar {
-  height: 44px;
+  min-height: 44px;
   flex-shrink: 0;
   background: #fff;
   border-bottom: 1px solid #e5e2dd;
@@ -27,7 +36,23 @@
   align-items: center;
   padding: 0 16px;
   gap: 4px;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* The bar is 44px tall; a scrollbar track inside it would eat the tabs. */
+  scrollbar-width: none;
 }
+.floodmap .subtab-bar::-webkit-scrollbar { display: none; }
+/* Tabs, badges, the report button and the 2D/3D switch alike. */
+.floodmap .subtab-bar > * { flex-shrink: 0; }
+
+/* The 2D/3D switch carries its own `margin-left: auto` for the other page
+   toolbars, where it is the only right-aligned thing. In this bar it is not:
+   the System Modules link is already pushed right, and two auto margins SPLIT
+   the free space rather than pooling it, which stranded "System Modules" in
+   the middle of the bar with a gap on either side. Here the link owns the
+   push and the switch simply follows it. */
+.floodmap .subtab-bar .map3d-viewtoggle { margin-left: 10px; }
 /* Resident "Report Flood Status" call-to-action in the map sub-tab bar. */
 .floodmap .report-flood-btn {
   display: inline-flex;
@@ -82,6 +107,7 @@
 .floodmap .subtab svg {
   width: 13px;
   height: 13px;
+  flex-shrink: 0;
   stroke: currentColor;
   fill: none;
   stroke-width: 1.8;
@@ -564,6 +590,61 @@
   border: 0;
 }
 
+/* ── Sub-tab bar, narrow ──
+   Two steps, because the bar runs out of room before the *viewport* looks
+   narrow: the sidebar is still in flow at 220px until 760px, so on a 780px
+   window the bar only has ~560px to work with.
+
+   Step one, from 900px: tighter gutters and tab padding. Nothing else — the
+   labels are the screen’s primary navigation and stay full size. */
+@media (max-width: 900px) {
+  .floodmap .subtab-bar {
+    padding: 0 10px;
+    gap: 2px;
+  }
+  .floodmap .subtab {
+    padding: 6px 9px;
+  }
+}
+
+/* Step two, from 560px: shrink the row until it fits on one line.
+
+   The bar has ~360px of phone to work with. Type drops to 11px, icons to 12px
+   and the padding tightens, which brings the three labels down to ~353px — one
+   row, every label whole, nothing hidden and nothing to scroll to.
+
+   `flex-wrap` stays on as the safety valve rather than the layout: the 2D/3D
+   switch only renders where a Mapbox token is configured, and where it does it
+   pushes the row past the edge. Then it drops to a second line on its own
+   instead of squeezing the labels or clipping them. Same for a ~320px screen,
+   where even the three labels do not fit. */
+@media (max-width: 560px) {
+  .floodmap .subtab-bar {
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    gap: 2px;
+    row-gap: 4px;
+  }
+  .floodmap .subtab {
+    padding: 6px 7px;
+    gap: 4px;
+    font-size: 0.6875rem;
+  }
+  .floodmap .subtab svg {
+    width: 12px;
+    height: 12px;
+  }
+  .floodmap .subtab-ext {
+    width: 10px;
+    height: 10px;
+  }
+  .floodmap .subtab-bar .map3d-viewtoggle { margin-left: 6px; }
+  .floodmap .subtab-bar .map3d-viewtoggle button {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.625rem;
+  }
+}
+
 /* ── Responsive: stack the panel under the map on narrow screens ── */
 @media (max-width: 760px) {
   .main--flush {
@@ -749,7 +830,8 @@
   color: #9a9a9a;
 }
 .subtab-bar .subtab--link:hover { color: #c0181b; }
-.subtab-ext { width: 11px; height: 11px; opacity: 0.7; }
+.subtab-ext { width: 11px; height: 11px; opacity: 0.7; flex-shrink: 0; }
+
 
 /* Embedded Incidents (Flood Map -> Incident Reports subtab): the real page,
    without the page-level padding it gets when it owns the screen. */
@@ -798,19 +880,21 @@
 
 
 
-/* The coordinate readout lives bottom-RIGHT. Bottom-left belongs to the
-   cut-off card and bottom-centre to the legend; three things competing for the
-   same corner is what made this area read as clutter. */
+/* The coordinate readout sits bottom-LEFT (its base position), not bottom-right:
+   Leaflet's zoom control is anchored bottom-right and was landing on top of it.
+   Bottom-centre stays with the legend.
 
-/* Coordinate readout sits bottom-right; bottom-centre belongs to the legend. */
-.floodmap .map-coords { left: auto; right: 12px; }
+   The cut-off card shares this corner, so it is lifted clear of the readout and
+   the two stack instead of overlapping (see its `bottom` below). The readout is
+   always rendered, so that offset is a constant, not a conditional. */
 
 /* Cut-off headline on the map — just the number, with the control in the
    Hazard panel. Clicking it opens that panel. */
 .floodmap .cutoff-chip {
   position: absolute;
   left: 16px;
-  bottom: 12px;
+  /* Clears the coordinate readout, which now owns the bottom-left corner. */
+  bottom: 48px;
   z-index: 620;
   display: flex;
   flex-direction: column;
@@ -919,10 +1003,212 @@
 
 /* The Map Layers rail owns the left 200px of the canvas, so the search bar
    centres in what is LEFT of the canvas rather than on the canvas — otherwise
-   it sits on top of the rail at narrow widths. */
-.floodmap .map-canvas .msb {
-  left: calc(50% + 106px);
-  width: min(420px, calc(100% - 460px));
+   it sits on top of the rail at narrow widths.
+
+   Only above the phone breakpoint. Below it the rail drops beneath the search
+   bar (mapUpgrade.css puts .map-toggles at top:70px), so no width needs
+   reserving — and reserving it there computed `min(420px, 100% - 460px)`,
+   which on a 375px canvas is -85px, i.e. a zero-width, invisible search bar.
+   This rule is (0,3,0) so it also outranked the responsive rules meant to take
+   over on phones. */
+@media (min-width: 761px) {
+  .floodmap .map-canvas .msb {
+    left: calc(50% + 106px);
+    width: min(420px, calc(100% - 460px));
+  }
+}
+
+/* ── Zoom control ─────────────────────────────────────────────────────────
+   Stock Leaflet is a 30px square pair with hairline borders on a 10px margin,
+   which reads as a different kit from the round, blurred controls around it.
+   Same surface and shadow as those, joined into one pill; scoped to
+   .map-canvas, which only the admin map has.
+
+   34px square, matching the locate control — the established size for a small
+   round map control here — and sitting on the same bottom/side gutter as the
+   coordinate readout in the opposite corner. */
+.floodmap .map-canvas .leaflet-control-zoom {
+  /* Side gutter matches the coordinate readout in the opposite corner (16px),
+     and the stack is lifted to the same 48px clearance row as the cut-off chip.
+     The legend is centred on the 12px row and is 286px wide, so on a phone-width
+     canvas its right edge reached under this control — they overlapped by 5px at
+     375px and worsened below that. Both bottom corners now sit above that row. */
+  margin: 0 16px 48px 0;
+  border: none;
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+}
+.floodmap .map-canvas .leaflet-control-zoom a {
+  width: 34px;
+  height: 34px;
+  /* Leaflet centres the glyph with line-height plus its own `text-indent: 1px`,
+     which left the + and − a pixel right of centre and a pixel off vertically
+     (the + rode high, the − rode low). Centring the box directly is exact. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  text-indent: 0;
+  /* Leaflet’s `font:` shorthand also sets Lucida Console, so the glyphs were
+     coming out in a monospace face that matches nothing else on the map. */
+  font-family: var(--font-body);
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #3a3a3a;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+/* Hairline between the pair, not around each. */
+.floodmap .map-canvas .leaflet-control-zoom a + a { border-top: 1px solid #e7e3da; }
+.floodmap .map-canvas .leaflet-control-zoom a:hover {
+  background: #fff;
+  color: #c0181b;
+}
+.floodmap .map-canvas .leaflet-control-zoom a.leaflet-disabled {
+  background: rgba(255, 255, 255, 0.75);
+  color: #c8c8c8;
+  cursor: default;
+}
+
+/* ── Left rail ────────────────────────────────────────────────────────────
+   One positioned column holding the layer control and, beneath it, the hazard
+   panel. Stacking them in flow means neither can land on the other however
+   tall it grows; the rail itself is capped to the canvas and scrolls past it. */
+.floodmap .fm-left-rail {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  /* Stops clear of the bottom-left corner, which the coordinate readout (12px)
+     and the cut-off chip (48px) already own — 12px in at the top, ~92px of
+     clearance at the bottom. Past that the rail scrolls inside itself. */
+  max-height: calc(100% - 104px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* The column is only as wide as its cards — the map stays clickable beside
+     it rather than under an invisible full-width box. */
+  width: max-content;
+}
+
+/* Hazard detail, shown while the NOAH layer is on. Same card vocabulary as the
+   rest of the admin UI; positioning comes from the rail. */
+.floodmap .fm-hazard-panel {
+  width: 170px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid #e7e3da;
+  border-radius: 12px;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.16);
+}
+.fm-hz-head { display: flex; align-items: center; }
+.fm-hz-title {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7a7a7a;
+}
+.fm-hz-close {
+  margin-left: auto;
+  margin-right: -4px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #bcbab7;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.fm-hz-close:hover { background: rgba(0, 0, 0, 0.06); color: #c0181b; }
+.fm-hz-sub {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  margin: 1px 0 9px;
+}
+.fm-hz-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.fm-hz-bands li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+.fm-hz-sw {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1.5px solid;
+  flex-shrink: 0;
+}
+.fm-hz-stats {
+  margin: 0;
+  padding-top: 9px;
+  border-top: 1px solid #e5e2dd;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.fm-hz-stats > div { display: flex; align-items: baseline; gap: 8px; }
+.fm-hz-stats dt {
+  font-size: 0.6875rem;
+  color: #9a9a9a;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fm-hz-stats dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+.fm-hz-note {
+  margin: 9px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid #e5e2dd;
+  font-size: 0.625rem;
+  line-height: 1.5;
+  color: #9a9a9a;
+}
+
+/* On phones the search bar spans the top edge, so mapUpgrade.css pushes the
+   layer rail — and its collapsed chip — down to top:70px to clear it. The
+   barangay flood map is the only .floodmap that renders no search bar, so for
+   it that reservation is just 58px of dead space above the control.
+
+   (0,3,0) on purpose: the rule it overrides is (0,2,0) in a different file, and
+   this way it wins whichever order the bundle emits them in. */
+@media (max-width: 760px) {
+  .floodmap.floodmap--nosearch .map-toggles,
+  .floodmap.floodmap--nosearch .map-toggles-chip {
+    top: 12px;
+  }
 }
 
 /* States the vertical exaggeration on the 3D water columns. Without it the

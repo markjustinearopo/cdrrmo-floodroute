@@ -10,7 +10,14 @@
 
 /* ── Builder panel (screen only) ── */
 .report-builder {
-  width: 320px;
+  /* The document stops growing at its 850px page-width cap, so on a wide screen
+     everything past that sat empty while this panel stayed pinned at 320px —
+     cramped enough that "Office of the City Mayor" truncated in its input and
+     the 19 barangay chips wrapped to six rows. It now takes up that slack.
+
+     460px is where the gain stops: the chips settle at four rows there and a
+     wider panel only eats the preview. */
+  width: clamp(320px, 30vw, 460px);
   flex-shrink: 0;
   position: sticky;
   top: 12px;
@@ -34,8 +41,11 @@
   margin: 2px 0 14px;
 }
 .rb-group { margin-bottom: 14px; }
-.rb-row { display: flex; gap: 10px; }
-.rb-row .rb-group { flex: 1 1 0; min-width: 0; }
+/* Prepared by / Prepared for sit two-up. At `flex: 1 1 0` they split whatever
+   is there and truncated their own values; given a real basis they stack
+   instead of clipping once the pair no longer fits. */
+.rb-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.rb-row .rb-group { flex: 1 1 180px; min-width: 0; }
 .rb-label {
   display: block;
   font-size: 0.6875rem;
@@ -140,20 +150,6 @@
   line-height: 1.15;
 }
 .rd-org-sub { font-size: 0.75rem; color: #6a6a6a; margin-top: 3px; }
-.rd-seal {
-  flex-shrink: 0;
-  width: 54px; height: 54px;
-  border: 2px solid #c0181b;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 0.6875rem;
-  color: #c0181b;
-  letter-spacing: 0.03em;
-}
 .rd-rule { height: 3px; background: linear-gradient(90deg, #c0181b 0 60%, #1a2a4a 60% 100%); border-radius: 2px; margin: 12px 0 18px; }
 
 /* Title block */
@@ -271,6 +267,77 @@
   gap: 2px;
   font-size: 0.625rem;
   color: #9a9a9a;
+}
+
+/* ============================================================
+   Responsive — phone / narrow tablet.
+
+   The screen is a two-column flex: a fixed 320px builder beside the document.
+   Below ~760px there is no room for both, and because the builder is
+   `flex-shrink: 0` it kept its full width while the document absorbed every
+   pixel of the shortfall — measured at 78px wide on a 375px screen, with the
+   page force-expanding its layout viewport to 770px so the whole thing
+   rendered zoomed out.
+
+   So the two stack: builder first (it is the control surface), document below.
+
+   Everything here is scoped to the media query on purpose. The document is a
+   printable/PDF artefact, and the @media print rules below own how it renders
+   on paper. Note the `screen and` qualifier: an A4 page area is ~703px wide,
+   which is UNDER this breakpoint, so a bare max-width query would also match
+   while printing — the table sections’ overflow-x would then clip columns off
+   the PDF. Restricting to screen keeps paper output exactly as it was.
+   ============================================================ */
+@media screen and (max-width: 760px) {
+  .reports {
+    flex-direction: column;
+    gap: 12px;
+    /* The base rule is align-items: flex-start, which in a COLUMN makes each
+       child shrink-wrap its own content width instead of filling the page.
+       The document then sized to the widest table max-content (691px) and
+       dragged the layout viewport out with it. */
+    align-items: stretch;
+  }
+
+  /* Full width, and no longer pinned: sticky positioning with a viewport-height
+     cap made sense beside the document, but stacked above it the builder would
+     scroll its own inner scrollbar while the page scrolled behind it. */
+  .report-builder {
+    width: 100%;
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  /* 34px/38px of document padding costs 76px of a 351px content width. */
+  .report-doc {
+    padding: 20px 16px;
+    border-radius: 10px;
+  }
+
+  /* Six stat tiles across gave ~47px each — the 1.4rem figures barely fit and
+     the labels wrapped to three lines. Two across, and the tiles can breathe. */
+  .rd-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  /* Two columns of "Prepared by: …" pairs cut each to ~57px. */
+  .rd-meta {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .rd-title { font-size: 1.25rem; }
+
+  /* Tables run to six columns. Rather than crush them, let each section scroll
+     its own table sideways: `max-content` sizes the table to what it actually
+     needs, `min-width: 100%` keeps the narrow ones filling the page. */
+  .rd-section { overflow-x: auto; }
+  .rd-table {
+    width: max-content;
+    min-width: 100%;
+  }
 }
 
 /* ============================================================
