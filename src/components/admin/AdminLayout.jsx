@@ -6,7 +6,9 @@ import ConfirmDialog from '../ConfirmDialog.jsx'
 import { Avatar } from '../Avatar.jsx'
 import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
-import { useFloodRisk, barangayRiskSamples } from './floodRisk.js'
+import { useFloodRisk } from './floodRisk.js'
+import { floodStatus, floodBannerText } from '../../services/floodBanner.js'
+import { useAlerts } from '../../context/AdminDataContext.jsx'
 import { useRealTimeSync } from '../../hooks/useRealTimeSync.js'
 import { useSystemConfig, loadSystemConfigRemote } from '../../services/systemConfig.js'
 import { useT } from '../../services/i18n.js'
@@ -103,21 +105,13 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   // always shows inherent susceptibility, but an ACTIVE alert is only raised
   // when there is real wetness (rain / elevated discharge) — so a dry day reads
   // "no active flood issue" even though the lowland barangays stay coloured.
-  const flood = useMemo(() => {
-    const wet = (field?.meta?.wetness ?? 0) >= 0.15
-    const samples = barangayRiskSamples(field)
-    const elevated = wet ? samples.filter((s) => s.level === 'high' || s.level === 'moderate') : []
-    const high = wet ? samples.filter((s) => s.level === 'high') : []
-    return {
-      elevated: elevated.map((s) => s.name),
-      worst: high.length ? 'high' : elevated.length ? 'moderate' : 'safe',
-    }
-  }, [field])
+  const { alerts } = useAlerts()
+  const status = useMemo(() => floodStatus(alerts, field, null), [alerts, field])
 
-  const hasAlert = flood.elevated.length > 0
-  const lvlClass = `lvl-${flood.worst}`
+  const hasAlert = status.active
+  const lvlClass = `lvl-${status.tone}`
   const bannerText = hasAlert
-    ? `${flood.elevated.slice(0, 4).join(', ')}${flood.elevated.length > 4 ? ` +${flood.elevated.length - 4} more` : ''} reporting elevated water levels.`
+    ? floodBannerText(status, { audience: 'admin' })
     : t('No active flood issue reported.')
 
   const [clock, setClock] = useState('--:-- PHT')

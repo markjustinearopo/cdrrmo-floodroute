@@ -20,10 +20,17 @@ import { BarangayRiskLayer, InundationGrid } from '../../components/admin/Barang
 import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import { useBarangayLayers } from '../../components/admin/mapbox3dHelpers.js'
 import { useEvacCentres3D } from '../../components/admin/routing3d.js'
+import { useRoadStatus, getCabuyaoRoads } from '../../components/admin/routingHelpers.jsx'
 import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
 import { FloodAreaMarkers } from '../../components/admin/FloodAreasLayer.jsx'
 import { FloodReportMarkers } from '../../components/admin/FloodReportsLayer.jsx'
-import { useEvacCenters, useFloodAreas, useFloodReports } from '../../context/AdminDataContext.jsx'
+import {
+  FlaggedRoadsLayer,
+  IncidentMarkers,
+  useRoadConditionSummary,
+} from '../../components/map/RoadConditionsLayer.jsx'
+import MapStatusLine from '../../components/map/MapStatusLine.jsx'
+import { useEvacCenters, useFloodAreas, useFloodReports, useIncidents } from '../../context/AdminDataContext.jsx'
 import { useLiveWeather } from '../../services/weather.js'
 import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/FloodMap.css'
@@ -51,6 +58,14 @@ const NOAH_LABEL = { 1: 'Low', 2: 'Moderate', 3: 'High' }
 // Toggleable map overlays so an official can isolate one picture (e.g. just the
 // flood inundation, or just the evacuation centres). Default on — it's the flood
 // map — but each remembers its state across pages (usePersistedState).
+//
+// The first six are the hazard layers every portal shares, in the command
+// center's order, labels and swatches, so the three read as one system. The
+// last two are the OPERATIONAL layers a barangay official needs and a resident
+// does not get: which roads are flooded or closed in their jurisdiction, and
+// what incidents are still open on the ground. (Cut-Off Areas stays admin-only
+// — it is a hypothetical driven by an operator's water-level slider, not a
+// statement about the barangay right now.)
 const FLOOD_LAYERS = [
   { key: 'noah', label: 'Project NOAH Hazard', color: '#C0181B' },
   { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#B91C1C' },
@@ -58,7 +73,15 @@ const FLOOD_LAYERS = [
   { key: 'inundation', label: 'Flood Inundation', color: '#2563EB' },
   { key: 'barangays', label: 'Barangay Risk', color: '#F97316' },
   { key: 'evac', label: 'Evacuation Centres', color: '#1A7A4A' },
+  { key: 'roads', label: 'Flooded / Closed Roads', color: '#B45309' },
+  { key: 'incidents', label: 'Open Incidents', color: '#DC2626' },
 ]
+
+/* Which of those the Mapbox 3D view can actually draw. The toggle rail is
+   filtered to this set in 3D so no switch is ever offered for a layer that
+   would not appear. (Flood-prone areas, verified reports and incident pins are
+   Leaflet marker layers with popups — 2D only.) */
+const LAYERS_IN_3D = new Set(['noah', 'inundation', 'barangays', 'evac', 'roads'])
 
 export default function FloodMap() {
   const brgyLabel = officialBarangayLabel()
@@ -75,7 +98,10 @@ export default function FloodMap() {
 
   const [view, setView] = useJurisdictionView()
   const [use3D, setUse3D] = use3DPreference()
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-brgy-floodmap-v3', { noah: true, floodAreas: true, reports: true, inundation: true, barangays: true, evac: true })
+  // v4: adds the two operational layers. A new key rather than a migration, so
+  // an official who already has v3 stored gets them switched ON rather than
+  // inheriting an object with the new keys missing (which reads as "off").
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-brgy-floodmap-v4', { noah: true, floodAreas: true, reports: true, inundation: true, barangays: true, evac: true, roads: true, incidents: true })
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-brgy-floodmap-intensity', 70)
   const locked = view === 'mine' && Boolean(myBrgy)
 
@@ -93,13 +119,30 @@ export default function FloodMap() {
   const { evacuationCenters } = useEvacCenters()
   const { floodAreas } = useFloodAreas()
   const { floodReports } = useFloodReports()
+  const { incidents } = useIncidents()
   const evacMarkers = useMemo(
     () => evacuationCenters.filter((c) => Array.isArray(c.coords)),
     [evacuationCenters],
   )
-  const evacuationOpen = useMemo(
-    () => evacuationCenters.filter((c) => c.status !== 'closed').length,
-    [evacuationCenters],
+  /* "Open" has to mean ACCEPTING. Counting every non-closed centre reported
+     centres that are at capacity as open, which is the one number an official
+     acts on when deciding where to send families. */
+  const evacCounts = useMemo(() => {
+    let open = 0
+    let full = 0
+    for (const c of evacuationCenters) {
+      if (c.status === 'closed') continue
+      if (c.status === 'full' || (c.capacity > 0 && (c.occupancy || 0) >= c.capacity)) full++
+      else open++
+    }
+    return { open, full }
+  }, [evacuationCenters])
+  // Road conditions in the panel's current scope, so the Overview tab reports
+  // the same picture the map is painting.
+  const roadSummary = useRoadConditionSummary(locked ? myBrgy : null)
+  const openIncidents = useMemo(
+    () => incidents.filter((i) => i.status !== 'resolved' && (!locked || i.barangay === myBrgy)).length,
+    [incidents, locked, myBrgy],
   )
 
   const [panelTab, setPanelTab] = useState('Overview')
@@ -237,41 +280,49 @@ export default function FloodMap() {
                 <Marker key={`evac-${c.id}`} position={c.coords} icon={evacPinIcon(c.status)}>
                   <Popup>
                     <strong>{c.name}</strong>
-                    <div style={{ fontSize: '0.6875rem', color: '#7a7a7a' }}>{c.barangay} · {c.status}</div>
+                    <div style={{ fontSize: '0.6875rem', color: '#7a7a7a' }}>
+                      {c.barangay} · {c.status}
+                      {c.capacity ? ` · ${(c.occupancy || 0).toLocaleString()} / ${c.capacity.toLocaleString()}` : ''}
+                    </div>
                   </Popup>
                 </Marker>
               ))}
+
+              {/* ── Operational overlays (read-only, jurisdiction-scoped) ──
+                  Drawn last so a closure sits ON TOP of the hazard shading —
+                  an impassable road is the most actionable thing here. */}
+              {layers.roads && <FlaggedRoadsLayer only={locked ? myBrgy : null} />}
+              {layers.incidents && (
+                <IncidentMarkers incidents={incidents} only={locked ? myBrgy : null} />
+              )}
 
               <CoordReadout onChange={setCoords} />
               <LocateControl />
             </MapContainer>
             )}
 
-            {!use3D && (
-              /* Collapsible: the rail is ~190px tall and covered better than a
-                 fifth of a phone-sized map. It folds to a chip — shut by
-                 default on phone widths, open on desktop. */
-              <MapLayerToggles
-                collapsible
-                layers={FLOOD_LAYERS.map((l) => ({
-                  ...l,
-                  on: layers[l.key],
-                  onToggle: () => setLayers((v) => ({ ...v, [l.key]: !v[l.key] })),
-                }))}
-                opacity={intensity}
-                onOpacity={setIntensity}
-              />
-            )}
+            {/* The layer control is available in BOTH views. It used to be
+                2D-only, which meant switching to 3D silently took away every
+                toggle — including Flood Inundation, the one an official most
+                often wants to isolate. The 3D view renders a subset of the
+                layers, so it is offered the subset it can actually draw: a
+                switch that does nothing is worse than no switch.
 
-            <div className="map-legend">
-              <span className="legend-live">Live | Updated {updated} PHT</span>
-            </div>
+                Collapsible: the rail is ~190px tall and covered better than a
+                fifth of a phone-sized map. It folds to a chip — shut by
+                default on phone widths, open on desktop. */}
+            <MapLayerToggles
+              collapsible
+              layers={(use3D ? FLOOD_LAYERS.filter((l) => LAYERS_IN_3D.has(l.key)) : FLOOD_LAYERS).map((l) => ({
+                ...l,
+                on: layers[l.key],
+                onToggle: () => setLayers((v) => ({ ...v, [l.key]: !v[l.key] })),
+              }))}
+              opacity={intensity}
+              onOpacity={setIntensity}
+            />
 
-            <div className="map-coords">
-              {coords
-                ? `${coords.lat.toFixed(4)} N, ${coords.lng.toFixed(4)} E | Zoom: ${coords.zoom}`
-                : 'No map data'}
-            </div>
+            <MapStatusLine updated={updated} coords={coords} />
           </div>
 
           <div className="right-panel">
@@ -290,7 +341,7 @@ export default function FloodMap() {
             <div className="panel-content">
               {panelTab === 'Overview' && (
                 <OverviewTab
-                  stats={{ evacuationOpen }}
+                  stats={{ evacCounts, roadSummary, openIncidents }}
                   risk={risk}
                   rainfall={rainfall}
                   rainHistory={rainHistory}
@@ -326,6 +377,10 @@ export default function FloodMap() {
 
 /* ── 3D map view (Mapbox GL) — same hazard layers, locked to the barangay ─── */
 function FloodMap3DView({ barangays, field, weather, evac = [], layers = { inundation: true, barangays: true, evac: true }, intensity = 70, jurisdiction, onViewChange }) {
+  // The painted road conditions, so the 3D view answers the same "which roads
+  // are flooded or closed" question the 2D view does.
+  const [roadStatus] = useRoadStatus()
+  const roadNetwork = useMemo(() => getCabuyaoRoads(), [])
   const { onMapLoad, mapRef, ready } = useBarangayLayers({
     samples: barangays,
     field,
@@ -335,6 +390,9 @@ function FloodMap3DView({ barangays, field, weather, evac = [], layers = { inund
     markers: layers.barangays,
     baseOpacity: intensity / 100,
     jurisdiction,
+    roads: roadNetwork,
+    roadStatus,
+    roadsVisible: layers.roads,
   })
   // Shared evacuation centres (city-wide) — same dots the 2D map shows.
   useEvacCentres3D(mapRef, ready, layers.evac ? evac : [])
@@ -359,9 +417,24 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
   return (
     <>
       <div className="stats-grid">
-        <StatCard color="blue" icon={<HomeIcon />} value={stats.evacuationOpen} label="Evacuation Open" />
+        <StatCard
+          color="green"
+          icon={<HomeIcon />}
+          value={stats.evacCounts?.open ?? 0}
+          label="Centres Accepting"
+          note={stats.evacCounts?.full ? `${stats.evacCounts.full} full` : null}
+        />
         <StatCard color="orange" icon={<DropIcon />} value={`${rainfall.toFixed(1)}`} label="Rainfall mm/hr" />
+        <StatCard color="red" icon={<BarrierIcon />} value={stats.roadSummary?.closed ?? 0} label="Roads Closed" />
+        <StatCard color="amber" icon={<WaveIcon />} value={stats.roadSummary?.flooded ?? 0} label="Roads Flooded" />
       </div>
+
+      {stats.openIncidents > 0 && (
+        <div className="bq-open-incidents">
+          <span className="bq-oi-dot" aria-hidden="true" />
+          {stats.openIncidents} open incident{stats.openIncidents === 1 ? '' : 's'} in this area
+        </div>
+      )}
 
       <div className="divider" />
 
@@ -478,12 +551,13 @@ function RiskDonut({ risk }) {
 }
 
 /* ── Small building blocks ───────────────────────────────────────────────── */
-function StatCard({ color, icon, value, label }) {
+function StatCard({ color, icon, value, label, note = null }) {
   return (
     <div className={`stat-card ${color}`}>
       {icon}
       <div className="stat-num">{value}</div>
       <div className="stat-lbl">{label}</div>
+      {note && <div className="stat-note">{note}</div>}
     </div>
   )
 }
@@ -509,6 +583,25 @@ function DropIcon() {
   return (
     <svg viewBox="0 0 24 24">
       <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+    </svg>
+  )
+}
+/* Road barrier — closures. */
+function BarrierIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <rect x="2" y="7" width="20" height="7" rx="1" />
+      <line x1="5" y1="14" x2="5" y2="21" />
+      <line x1="19" y1="14" x2="19" y2="21" />
+    </svg>
+  )
+}
+/* Water line — flooded but still passable. */
+function WaveIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M2 8c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2" />
+      <path d="M2 14c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2" />
     </svg>
   )
 }

@@ -13,7 +13,6 @@ import {
   formatPHT,
   CabuyaoLock,
   CoordReadout,
-  LocateControl,
 } from '../../components/admin/mapHelpers.jsx'
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import { BarangayRiskLayer, InundationGrid } from '../../components/admin/BarangayRiskLayer.jsx'
@@ -32,6 +31,8 @@ import FloodStatusPanel from '../../components/map/FloodStatusPanel.jsx'
 import NearbyFloodAlert from '../../components/map/NearbyFloodAlert.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
 import FloodStatusCard from '../../components/map/FloodStatusCard.jsx'
+import MapStatusLine from '../../components/map/MapStatusLine.jsx'
+import { FlaggedRoadsLayer, useRoadConditionSummary } from '../../components/map/RoadConditionsLayer.jsx'
 import WeatherCard from '../../components/map/WeatherCard.jsx'
 import MapFabs from '../../components/map/MapFabs.jsx'
 import EmergencyPanel from '../../components/map/EmergencyPanel.jsx'
@@ -73,6 +74,15 @@ const RAIN_TICKS = ['-8h', '-7', '-6', '-5', '-4', '-3', '-2', 'Now']
 
 // Toggleable overlays so a resident can isolate one layer (e.g. just flood
 // inundation, or just evacuation centres). On by default; state persists.
+//
+// "Flooded / Closed Roads" is the one operational layer a resident DOES get:
+// which streets are impassable is public safety information — the same thing
+// the Road Status screen already tells them — and knowing it is what keeps
+// someone from driving into moving water. What a resident does NOT get is the
+// rest of the command-center picture: incident records (they name the reporter,
+// the responding team and the response state) and the cut-off analysis (an
+// operator's hypothetical, which read as fact would cause panic). Those stay in
+// the admin and barangay portals.
 const FLOOD_LAYERS = [
   { key: 'noah', label: 'Project NOAH Hazard', color: '#C0181B' },
   { key: 'floodAreas', label: 'Flood-Prone Areas', color: '#B91C1C' },
@@ -80,6 +90,7 @@ const FLOOD_LAYERS = [
   { key: 'inundation', label: 'Flood Inundation', color: '#2563EB' },
   { key: 'barangays', label: 'Barangay Risk', color: '#F97316' },
   { key: 'evac', label: 'Evacuation Centres', color: '#1A7A4A' },
+  { key: 'roads', label: 'Flooded / Closed Roads', color: '#B45309' },
 ]
 
 export default function FloodMap() {
@@ -105,16 +116,29 @@ export default function FloodMap() {
     () => evacuationCenters.filter((c) => Array.isArray(c.coords)),
     [evacuationCenters],
   )
-  const evacuationOpen = useMemo(
-    () => evacuationCenters.filter((c) => c.status !== 'closed').length,
-    [evacuationCenters],
-  )
+  /* "Open" has to mean ACCEPTING — a resident reading "28 open" and walking to
+     a centre that is at capacity has been misled by the one screen that was
+     supposed to keep them safe. Full centres are counted separately. */
+  const evacCounts = useMemo(() => {
+    let open = 0
+    let full = 0
+    for (const c of evacuationCenters) {
+      if (c.status === 'closed') continue
+      if (c.status === 'full' || (c.capacity > 0 && (c.occupancy || 0) >= c.capacity)) full++
+      else open++
+    }
+    return { open, full }
+  }, [evacuationCenters])
+  // City-wide road conditions — the same figures the map is painting.
+  const roadSummary = useRoadConditionSummary()
 
   const [panelTab, setPanelTab] = useState('Overview')
   const [coords, setCoords] = useState(null)
   const [updated, setUpdated] = useState(formatPHT())
   const [showReport, setShowReport] = useState(false)
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-res-floodmap-v3', { noah: true, floodAreas: true, reports: true, inundation: true, barangays: true, evac: true })
+  // v4 adds the road-conditions layer; a new key so an existing reader gets it
+  // switched ON rather than inheriting a stored object that lacks the field.
+  const [layers, setLayers] = usePersistedState('cdrrmo-layers-res-floodmap-v4', { noah: true, floodAreas: true, reports: true, inundation: true, barangays: true, evac: true, roads: true })
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-res-floodmap-intensity', 70)
 
   /* ── Modern GIS chrome: search, dark mode, FABs, skeleton, emergency ── */
@@ -163,7 +187,7 @@ export default function FloodMap() {
         map.setMinZoom(0)
         map.flyTo([c.lat, c.lng], 16, { duration: 1.3 })
       })
-      .catch(() => {}) // denial already surfaced by the hook / LocateControl
+      .catch(() => {}) // denial already surfaced by the useGeolocation hook
   }, [locate])
 
   const handleReset = useCallback(() => {
@@ -324,15 +348,30 @@ export default function FloodMap() {
                 )
               })}
 
-              {/* Shared evacuation centres (city-wide) — where residents can go */}
+              {/* Shared evacuation centres (city-wide) — where residents can go.
+                  The occupancy line matters most to the person deciding where
+                  to go: a centre marked FULL will turn them away at the gate. */}
               {layers.evac && evacMarkers.map((c) => (
                 <Marker key={`evac-${c.id}`} position={c.coords} icon={evacPinIcon(c.status)}>
                   <Popup>
                     <strong>{c.name}</strong>
-                    <div style={{ fontSize: '0.6875rem', color: '#7a7a7a' }}>{c.barangay} · {c.status}</div>
+                    <div style={{ fontSize: '0.6875rem', color: '#7a7a7a' }}>
+                      {c.barangay} · {c.status === 'full' ? 'FULL — not accepting' : c.status === 'closed' ? 'Closed' : 'Open'}
+                    </div>
+                    {c.capacity > 0 && (
+                      <div style={{ fontSize: '0.6875rem', color: '#7a7a7a', marginTop: 2 }}>
+                        {(c.occupancy || 0).toLocaleString()} / {c.capacity.toLocaleString()} evacuees
+                        {c.status !== 'full' && c.status !== 'closed'
+                          && ` · ${Math.max(0, c.capacity - (c.occupancy || 0)).toLocaleString()} slots left`}
+                      </div>
+                    )}
                   </Popup>
                 </Marker>
               ))}
+
+              {/* Flooded / closed roads — read-only. Painted last so a closure
+                  is never hidden under the hazard shading. */}
+              {layers.roads && <FlaggedRoadsLayer />}
 
               {/* Searched location: smooth flyTo + pin + glow highlight + popup */}
               <SearchResultLayer result={searchResult} barangays={barangays} />
@@ -349,7 +388,11 @@ export default function FloodMap() {
               )}
 
               <CoordReadout onChange={setCoords} />
-              <LocateControl />
+              {/* No <LocateControl> here: the FAB rail already carries a "My
+                  Location" button that does the same thing, and Leaflet anchors
+                  its control top-right — directly on top of the Current Flood
+                  Status card. Two controls for one action, one of them sitting
+                  on the card a resident is meant to read. */}
             </MapContainer>
 
             {/* Skeleton shimmer while the basemap boots, then fades out. */}
@@ -403,15 +446,7 @@ export default function FloodMap() {
               />
             )}
 
-            <div className="map-legend">
-              <span className="legend-live">Live | Updated {updated} PHT</span>
-            </div>
-
-            <div className="map-coords">
-              {coords
-                ? `${coords.lat.toFixed(4)} N, ${coords.lng.toFixed(4)} E | Zoom: ${coords.zoom}`
-                : 'No map data'}
-            </div>
+            <MapStatusLine updated={updated} coords={coords} />
           </div>
 
           <div className="right-panel">
@@ -430,7 +465,7 @@ export default function FloodMap() {
             <div className="panel-content">
               {panelTab === 'Overview' && (
                 <OverviewTab
-                  stats={{ evacuationOpen }}
+                  stats={{ evacCounts, roadSummary }}
                   risk={risk}
                   rainfall={rainfall}
                   rainHistory={rainHistory}
@@ -475,8 +510,16 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
   return (
     <>
       <div className="stats-grid">
-        <StatCard color="blue" icon={<HomeIcon />} value={stats.evacuationOpen} label="Evacuation Open" />
+        <StatCard
+          color="green"
+          icon={<HomeIcon />}
+          value={stats.evacCounts?.open ?? 0}
+          label="Centres Accepting"
+          note={stats.evacCounts?.full ? `${stats.evacCounts.full} full` : null}
+        />
         <StatCard color="orange" icon={<DropIcon />} value={`${rainfall.toFixed(1)}`} label="Rainfall mm/hr" />
+        <StatCard color="red" icon={<BarrierIcon />} value={stats.roadSummary?.closed ?? 0} label="Roads Closed" />
+        <StatCard color="amber" icon={<WaveIcon />} value={stats.roadSummary?.flooded ?? 0} label="Roads Flooded" />
       </div>
 
       <div className="divider" />
@@ -592,13 +635,34 @@ function RiskDonut({ risk }) {
   )
 }
 
-function StatCard({ color, icon, value, label }) {
+function StatCard({ color, icon, value, label, note = null }) {
   return (
     <div className={`stat-card ${color}`}>
       {icon}
       <div className="stat-num">{value}</div>
       <div className="stat-lbl">{label}</div>
+      {note && <div className="stat-note">{note}</div>}
     </div>
+  )
+}
+
+/* Road barrier — closures. */
+function BarrierIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <rect x="2" y="7" width="20" height="7" rx="1" />
+      <line x1="5" y1="14" x2="5" y2="21" />
+      <line x1="19" y1="14" x2="19" y2="21" />
+    </svg>
+  )
+}
+/* Water line — flooded but still passable. */
+function WaveIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M2 8c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2" />
+      <path d="M2 14c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2" />
+    </svg>
   )
 }
 

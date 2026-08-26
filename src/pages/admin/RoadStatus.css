@@ -460,6 +460,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* "5 stretches" — how much of a street is affected, on the resident list where
+   the rows are grouped by street name rather than by OSM way. */
+.road-status .rs-flagged-count {
+  display: block;
+  font-style: normal;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #9a9a9a;
+  letter-spacing: 0.01em;
+}
 .road-status .rs-badge {
   font-size: 0.5625rem;
   font-weight: 800;

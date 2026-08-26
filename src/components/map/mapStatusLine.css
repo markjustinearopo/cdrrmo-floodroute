@@ -1,0 +1,125 @@
+/* MapStatusLine — one bottom-left strip carrying the live stamp and the
+   coordinate readout. Replaces the old `.map-legend` + `.map-coords` pair,
+   which overlapped each other below ~700px. */
+
+.map-statusline {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #e5e2dd;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: #7a7a7a;
+  /* Stop short of Leaflet's bottom-right zoom control (34px + its 12–16px
+     gutter) so the strip can never grow into it, however long the coordinate
+     string gets. */
+  max-width: calc(100% - 84px);
+  pointer-events: none;
+}
+
+.msl-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #9a9a9a;
+  white-space: nowrap;
+}
+
+/* Slow pulse — the same "this is live" signal the status cards use. */
+.msl-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+  flex: none;
+  animation: msl-pulse 2.4s ease-in-out infinite;
+}
+@keyframes msl-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.78); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msl-dot { animation: none; }
+}
+
+.msl-coords {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #7a7a7a;
+}
+
+/* Forecast frame: the strip has to say, unmistakably, that the map is showing
+   a PROJECTION — a screenshot of a projected hour must never read as now. */
+.map-statusline--forecast {
+  background: rgba(255, 251, 235, 0.96);
+  border-color: #fcd34d;
+}
+.msl-live--forecast { color: #b45309; font-weight: 700; }
+.msl-live--forecast .msl-dot { background: #f59e0b; }
+
+/* Extras the host map passes as children (risk ramp, scale note). */
+.map-statusline .legend-ramp {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.map-statusline .legend-ramp i {
+  width: 14px;
+  height: 8px;
+  display: inline-block;
+}
+.map-statusline .legend-ramp i:first-of-type { border-radius: 3px 0 0 3px; }
+.map-statusline .legend-ramp i:last-of-type { border-radius: 0 3px 3px 0; }
+.map-statusline .legend-ramp small {
+  margin-left: 5px;
+  font-size: 0.5625rem;
+  color: #9a9a9a;
+}
+.map-statusline .legend-vert {
+  padding-left: 10px;
+  border-left: 1px solid #e5e2dd;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #9a9a9a;
+  white-space: nowrap;
+}
+
+/* Narrow: shrink the type and drop the optional extras rather than let the
+   strip wrap into two lines and push up under the emergency panel / layer
+   chip. The live stamp and the coordinates are the parts that must survive. */
+@media (max-width: 560px) {
+  .map-statusline {
+    gap: 2px 8px;
+    padding: 4px 10px;
+    font-size: 0.625rem;
+    max-width: calc(100% - 72px);
+  }
+  .msl-live { font-size: 0.5625rem; }
+  .msl-coords { font-size: 0.5625rem; }
+  .map-statusline .legend-ramp,
+  .map-statusline .legend-vert { display: none; }
+}
+
+/* Dark basemap (resident night mode) — the light pill glares on dark tiles. */
+.floodmap--dark .map-statusline {
+  background: rgba(23, 30, 42, 0.88);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+}
+.floodmap--dark .msl-live,
+.floodmap--dark .msl-coords { color: #cbd5e1; }

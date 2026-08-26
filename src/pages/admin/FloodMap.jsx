@@ -42,6 +42,7 @@ import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Ma
 import { useBarangayLayers, WATER_EXAGGERATION } from '../../components/admin/mapbox3dHelpers.js'
 import { useEvacCentres3D } from '../../components/admin/routing3d.js'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import MapStatusLine from '../../components/map/MapStatusLine.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
 import { pinIcon, PIN_SIZE } from '../../components/map/pinIcons.js'
@@ -148,10 +149,19 @@ export default function FloodMap() {
   const rainfall = weather.current.rain ?? 0 // mm/hr
   const rainHistory = weather.rainHistory
   const activeAlertList = useMemo(() => alerts.filter((a) => a.status === 'active'), [alerts])
-  const evacuationOpen = useMemo(
-    () => evacuationCenters.filter((c) => c.status !== 'closed').length,
-    [evacuationCenters],
-  )
+  /* "Open" has to mean ACCEPTING. Counting every non-closed centre reported
+     centres already at capacity as open — the one figure an operator reads
+     before deciding a barangay has somewhere to send people. */
+  const evacCounts = useMemo(() => {
+    let open = 0
+    let full = 0
+    for (const c of evacuationCenters) {
+      if (c.status === 'closed') continue
+      if (c.status === 'full' || (c.capacity > 0 && (c.occupancy || 0) >= c.capacity)) full++
+      else open++
+    }
+    return { open, full }
+  }, [evacuationCenters])
 
   // ── UI state ──
   const [subtab, setSubtab] = useState('live')
@@ -559,6 +569,18 @@ export default function FloodMap() {
               ]}
             />
 
+            {/* Flood-prone areas are managed here now, on the map that shows
+                them — click a pin to edit, or add one from scratch. It sits
+                directly under the toggle that reveals the pins, and ABOVE the
+                hazard panel: the hazard card is tall enough to push an action
+                below the rail's scroll fold, and the primary way to add a
+                record must not need scrolling to find. */}
+            {overlays.floodAreas && (
+              <button type="button" className="fm-add-area" onClick={() => setEditingArea('new')}>
+                <PlusIcon /> Add flood-prone area
+              </button>
+            )}
+
             {/* Hazard detail, shown while the NOAH layer is on. The layer
                 paints three bands with no key on the map, so switching it on
                 used to leave the operator reading colours they had to guess
@@ -600,14 +622,6 @@ export default function FloodMap() {
             )}
             </div>
 
-            {/* Flood-prone areas are managed here now, on the map that shows
-                them — click a pin to edit, or add one from scratch. */}
-            {overlays.floodAreas && (
-              <button type="button" className="fm-add-area" onClick={() => setEditingArea('new')}>
-                <PlusIcon /> Add flood-prone area
-              </button>
-            )}
-
             {/* Focused barangay detail card */}
             {selectedSample && (
               <BarangayDetailCard sample={selectedSample} onClose={() => setSelected(null)} />
@@ -635,13 +649,14 @@ export default function FloodMap() {
               </button>
             )}
 
-            {/* Legend (timestamp + risk ramp) */}
-            <div className="map-legend">
-              <span className={`legend-live ${isForecast ? 'legend-live--forecast' : ''}`}>
-                {isForecast
-                  ? `Forecast | +${hourOffset}h from ${updated} PHT`
-                  : `Live | Updated ${updated} PHT`}
-              </span>
+            {/* One bottom strip: live/forecast stamp, coordinates, risk ramp.
+                These were three separately-positioned boxes and the first two
+                overlapped each other from ~700px down — see MapStatusLine. */}
+            <MapStatusLine
+              updated={updated}
+              coords={coords}
+              forecast={isForecast ? `+${hourOffset}h from ${updated} PHT` : null}
+            >
               <span className="legend-ramp" aria-hidden="true">
                 <i style={{ background: RISK_META.safe.color }} />
                 <i style={{ background: RISK_META.low.color }} />
@@ -657,13 +672,7 @@ export default function FloodMap() {
                   height = modelled depth ×{WATER_EXAGGERATION}
                 </span>
               )}
-            </div>
-
-            <div className="map-coords">
-              {coords
-                ? `${coords.lat.toFixed(4)} N, ${coords.lng.toFixed(4)} E | Zoom: ${coords.zoom}`
-                : 'No map data'}
-            </div>
+            </MapStatusLine>
           </div>
 
             {/* The clock this whole screen is being read at. Outside the canvas
@@ -692,7 +701,7 @@ export default function FloodMap() {
             <div className="panel-content">
               {panelTab === 'Overview' && (
                 <OverviewTab
-                  stats={{ activeAlerts, flaggedRoads: flaggedRoadCount, highRisk: risk.counts.high, evacuationOpen }}
+                  stats={{ activeAlerts, flaggedRoads: flaggedRoadCount, highRisk: risk.counts.high, evacCounts }}
                   risk={risk}
                   rainfall={rainfall}
                   rainHistory={rainHistory}
@@ -906,7 +915,13 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast, riskSummary
         <StatCard color="red" icon={<AlertTriangleIcon />} value={stats.activeAlerts} label="Active Flood Alerts" />
         <StatCard color="orange" icon={<BarIcon />} value={stats.flaggedRoads} label="Flagged Roads" />
         <StatCard color="green" icon={<TargetIcon />} value={stats.highRisk} label="High-Risk Brgys" />
-        <StatCard color="blue" icon={<HomeIcon />} value={stats.evacuationOpen} label="Evacuation Open" />
+        <StatCard
+          color="blue"
+          icon={<HomeIcon />}
+          value={stats.evacCounts?.open ?? 0}
+          label="Centres Accepting"
+          note={stats.evacCounts?.full ? `${stats.evacCounts.full} full` : null}
+        />
       </div>
 
       <div className="divider" />
@@ -1031,12 +1046,13 @@ function RiskDonut({ risk }) {
 }
 
 /* ── Small building blocks ───────────────────────────────────────────────── */
-function StatCard({ color, icon, value, label }) {
+function StatCard({ color, icon, value, label, note = null }) {
   return (
     <div className={`stat-card ${color}`}>
       {icon}
       <div className="stat-num">{value}</div>
       <div className="stat-lbl">{label}</div>
+      {note && <div className="stat-note">{note}</div>}
     </div>
   )
 }

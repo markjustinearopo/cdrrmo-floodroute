@@ -835,6 +835,12 @@ export function useBarangayLayers({
   selected = null,
   onSelect,
   jurisdiction = null,
+  /* Flooded / closed road segments, so the 3D view honours the same "Flooded /
+     Closed Roads" toggle the 2D view does instead of showing a dead switch.
+     Pass the road network + the painted status map; omit either to skip it. */
+  roads = null,
+  roadStatus = null,
+  roadsVisible = false,
 }) {
   const mapRef = useRef(null)
   const [ready, setReady] = useState(false)
@@ -849,6 +855,9 @@ export function useBarangayLayers({
   const opacityRef = useRef(baseOpacity)
   const onSelectRef = useRef(onSelect)
   const jurisdictionRef = useRef(jurisdiction)
+  const roadsRef = useRef(roads)
+  const roadStatusRef = useRef(roadStatus)
+  const roadsVisibleRef = useRef(roadsVisible)
   samplesRef.current = samples
   fieldRef.current = field
   inundationRef.current = inundation
@@ -856,6 +865,9 @@ export function useBarangayLayers({
   opacityRef.current = baseOpacity
   onSelectRef.current = onSelect
   jurisdictionRef.current = jurisdiction
+  roadsRef.current = roads
+  roadStatusRef.current = roadStatus
+  roadsVisibleRef.current = roadsVisible
 
   const onMapLoad = useCallback((map) => {
     mapRef.current = map
@@ -863,6 +875,9 @@ export function useBarangayLayers({
     addNoahHazardLayer(map, { visible: noahRef.current })
     addInundationLayer(map, fieldRef.current, opacityRef.current, inundationRef.current, juris)
     addBarangayLayers(map, samplesRef.current, opacityRef.current, juris)
+    if (roadsRef.current) {
+      addHazardRoadsLayer(map, roadsRef.current, roadStatusRef.current || {}, roadsVisibleRef.current)
+    }
     // "My Barangay" view locks to the own border; "City" keeps the city boundary.
     if (juris) lockMapToBarangay(map, juris)
     else addCityBoundary(map)
@@ -903,6 +918,13 @@ export function useBarangayLayers({
   useEffect(() => {
     if (ready && mapRef.current) setNoahVisible(mapRef.current, noah)
   }, [noah, ready])
+  // Flagged roads: re-feed on a new report, show/hide on the toggle.
+  useEffect(() => {
+    if (ready && mapRef.current && roads) updateHazardRoadsData(mapRef.current, roads, roadStatus || {})
+  }, [roads, roadStatus, ready])
+  useEffect(() => {
+    if (ready && mapRef.current && roads) setMapLayerVisible(mapRef.current, 'hazard-roads', roadsVisible)
+  }, [roadsVisible, roads, ready])
   useEffect(() => {
     if (ready && mapRef.current) {
       applyBarangayOpacity(mapRef.current, baseOpacity)

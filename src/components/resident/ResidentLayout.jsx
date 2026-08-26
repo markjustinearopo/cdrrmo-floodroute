@@ -8,8 +8,10 @@ import { residentBarangayLabel } from '../../data/resident.js'
 import { getOfficialBarangay } from '../../data/barangay.js'
 import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
-import { useFloodRisk, barangayRiskSamples } from '../admin/floodRisk.js'
-import { levelFromDepth } from '../../services/systemConfig.js'
+import { useFloodRisk } from '../admin/floodRisk.js'
+import { floodStatus, floodBannerText } from '../../services/floodBanner.js'
+import { useAlerts } from '../../context/AdminDataContext.jsx'
+import ResidentTabBar from './ResidentTabBar.jsx'
 import '../admin/AdminLayout.css'
 import EmergencyAlert from '../EmergencyAlert.jsx'
 
@@ -78,14 +80,13 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
   const brgyLabel = residentBarangayLabel()
   const myBrgy = getOfficialBarangay()
 
-  // Live risk for the resident's own barangay, from the same field the resident
-  // dashboard reads, so the banner's colour and wording track real conditions.
+  // Flood status for the resident's own barangay. An alert CDRRMO issued for it
+  // outranks the model — see services/floodBanner.js for why that matters.
   const { field } = useFloodRisk()
-  const level = useMemo(() => {
-    const depth = barangayRiskSamples(field).find((b) => b.name === myBrgy)?.floodDepth ?? 0
-    return levelFromDepth(depth)
-  }, [field, myBrgy])
-  const elevated = level === 'moderate' || level === 'high'
+  const { alerts } = useAlerts()
+  const status = useMemo(() => floodStatus(alerts, field, myBrgy), [alerts, field, myBrgy])
+  const level = status.tone
+  const elevated = status.active
 
   useEffect(() => {
     document.body.classList.add('admin-body')
@@ -139,13 +140,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
         <span className="lbl">{elevated ? 'Flood Alert Active:' : 'Flood Status:'}</span>
-        <span>
-          {level === 'high'
-            ? `High flood risk in Brgy. ${brgyLabel} — move to higher ground now.`
-            : level === 'moderate'
-              ? `Elevated flood risk in Brgy. ${brgyLabel} — stay alert and avoid flooded roads.`
-              : `No active flood issue reported in Brgy. ${brgyLabel}.`}
-        </span>
+        <span>{floodBannerText(status, { barangay: brgyLabel, audience: 'resident' })}</span>
       </div>
 
       {/* ── Topbar ── */}
@@ -282,8 +277,12 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
           </div>
         </aside>
 
-        <main className={`main ${mainClassName}`.trim()}>{children}</main>
+        {/* `main--restabs` reserves the height the bottom tab bar occupies, so
+            content is never parked underneath it (see residentTabBar.css). */}
+        <main className={`main ${mainClassName} main--restabs`.trim()}>{children}</main>
       </div>
+
+      <ResidentTabBar />
 
       {confirmSignout && (
         <ConfirmDialog

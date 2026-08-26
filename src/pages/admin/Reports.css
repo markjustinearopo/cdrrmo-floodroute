@@ -383,3 +383,13 @@
 
   @page { size: A4; margin: 12mm; }
 }
+
+/* Report-builder fields: 13px triggers the iOS Safari focus-zoom, which on a
+   page this tall leaves the reader scrolled sideways mid-form. Same opt-in as
+   .mng-search — the class rule outranks the global mobile input rule. */
+@media (max-width: 760px) {
+  .rb-input {
+    font-size: 16px;
+    min-height: 44px;
+  }
+}

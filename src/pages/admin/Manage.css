@@ -747,3 +747,21 @@
   stroke: currentColor; fill: none; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round;
 }
+
+/* The scoped search rule below outranks the global 16px mobile input rule in
+   index.css ((0,1,2) vs (0,1,1)), so it has to opt in explicitly — otherwise
+   focusing this field zooms the page on iOS Safari and leaves the record list
+   scrolled sideways. Every Manage screen and the barangay portal share it. */
+@media (max-width: 760px) {
+  .mng-search input[type="search"] {
+    font-size: 16px;
+    padding: 11px 12px 11px 34px;
+  }
+  /* Status dropdowns inside table rows (barangay Incidents). A <select> opens
+     a native picker rather than zooming, so this is about legibility and hit
+     area: 12px inside a table row is the smallest control in the portal. */
+  .mng-inline-select {
+    font-size: 0.875rem;
+    min-height: 40px;
+  }
+}

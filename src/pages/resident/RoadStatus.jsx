@@ -36,12 +36,37 @@ export default function RoadStatus() {
     return { ...c, total, open: Math.max(total - c.flooded - c.blocked, 0) }
   }, [statusMap, roads])
 
+  /* Grouped by STREET, not by OSM way.
+     A street is split into however many ways OSM happened to draw it, so the
+     raw list repeated "Crimson Street" five times in a row — which reads as a
+     broken list, not as five flooded stretches. A resident scanning "which
+     roads do I avoid" wants street names; the segment count carries the extent.
+     Where one street has both flooded and closed stretches the WORSE status
+     wins, because that is the one that changes what they do.
+     Unnamed local roads have no name to scan for, so they collapse into a
+     single honest row per status instead of pages of "Road #240385". */
   const flagged = useMemo(() => {
     if (!roads) return []
     const byId = new Map(roads.features.map((f) => [String(f.properties.id), f.properties]))
-    return Object.entries(statusMap)
-      .map(([id, status]) => ({ id, status, name: byId.get(String(id))?.name || `Road #${id}` }))
-      .sort((a, b) => a.name.localeCompare(b.name))
+    // Keyed by name AND status, never by name alone: a street with two flooded
+    // stretches and one closed one is two facts, and folding them into one row
+    // would have to overstate one of them.
+    const groups = new Map()
+    for (const [id, status] of Object.entries(statusMap)) {
+      const props = byId.get(String(id))
+      if (!props) continue
+      const named = props.named === true
+      const key = named ? `${props.name} ${status}` : ` unnamed ${status}`
+      const prev = groups.get(key)
+      if (prev) prev.count++
+      else groups.set(key, { id: key, status, count: 1, named, name: named ? props.name : 'Unnamed local roads' })
+    }
+    return [...groups.values()].sort((a, b) =>
+      // Closed first — those are the ones with no way through at all — then
+      // named streets before the unnamed catch-all, then alphabetical.
+      (a.status === b.status ? 0 : a.status === 'blocked' ? -1 : 1)
+      || (b.named - a.named)
+      || a.name.localeCompare(b.name))
   }, [statusMap, roads])
 
   return (
@@ -130,7 +155,12 @@ export default function RoadStatus() {
               <div className="rs-flagged-head">
                 <h3 className="rs-section-title">
                   Roads to Avoid
-                  {flagged.length > 0 && <span className="rs-pill">{flagged.length}</span>}
+                  {/* Segments, not rows — so this agrees with the 64 CLOSED /
+                      163 FLOODED figures beside the map instead of quietly
+                      reporting a different, smaller number for the same thing. */}
+                  {flagged.length > 0 && (
+                    <span className="rs-pill">{flagged.reduce((n, r) => n + r.count, 0)}</span>
+                  )}
                 </h3>
               </div>
               {flagged.length === 0 ? (
@@ -140,7 +170,10 @@ export default function RoadStatus() {
                   {flagged.map((r) => (
                     <li className="rs-flagged-row" key={r.id}>
                       <span className="rs-flagged-line" style={{ background: ROAD_STATUS[r.status].swatch }} />
-                      <span className="rs-flagged-name" title={r.name}>{r.name}</span>
+                      <span className="rs-flagged-name" title={r.name}>
+                        {r.name}
+                        {r.count > 1 && <em className="rs-flagged-count">{r.count} stretches</em>}
+                      </span>
                       <span className={`rs-badge ${r.status}`}>{ROAD_STATUS[r.status].label}</span>
                     </li>
                   ))}

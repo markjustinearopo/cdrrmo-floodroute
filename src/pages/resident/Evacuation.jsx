@@ -4,6 +4,7 @@ import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
 import { EVAC_STATUSES } from '../../data/cabuyao.js'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import { useEvacCenters } from '../../context/AdminDataContext.jsx'
+import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import './Resident.css'
 
 /**
@@ -34,6 +35,8 @@ export default function Evacuation() {
   const { evacuationCenters: centers } = useEvacCenters()
   const [filter, setFilter] = useState('open')
   const [query, setQuery] = useState('')
+  const [showAll, setShowAll] = useState(false)
+  const narrow = useNarrowScreen()
 
   const FILTERS = [
     { key: 'open', label: 'Open Now' },
@@ -50,9 +53,26 @@ export default function Evacuation() {
         if (q && !(`${c.name} ${c.barangay}`.toLowerCase().includes(q))) return false
         return true
       })
-      // Open centres first, then by how much room is left.
-      .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1))
+      // Open centres first, then a resident's own barangay, then by how much
+      // room is left — the order someone actually choosing a shelter wants.
+      .sort((a, b) => {
+        const open = (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1)
+        if (open) return open
+        const mine = (a.barangay === myBrgy ? 0 : 1) - (b.barangay === myBrgy ? 0 : 1)
+        if (mine) return mine
+        const room = (c) => Number(c.capacity || 0) - Number(c.occupancy || 0)
+        return room(b) - room(a)
+      })
   }, [centers, filter, query, myBrgy])
+
+  /* The city has 29 centres, and on a phone that rendered as 4,300px of
+     identical cards — a scroll nobody finishes, in the one situation where
+     finishing matters. The list is sorted best-first, so the first few are the
+     answer; the rest stay one tap away. Desktop lays these out in a grid where
+     the full set costs nothing, so it is not capped there. */
+  const PHONE_CAP = 6
+  const capped = narrow && !showAll && visible.length > PHONE_CAP
+  const shown = capped ? visible.slice(0, PHONE_CAP) : visible
 
   return (
     <ResidentLayout>
@@ -67,23 +87,28 @@ export default function Evacuation() {
           </div>
         </div>
 
+        {/* Pills and search are separate rows so the search keeps a usable
+            width on a phone instead of being squeezed to the end of the pill
+            row — the pills scroll sideways, the search never does. */}
         <div className="res-filter-bar">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              className={`res-filter-tab ${filter === f.key ? 'active' : ''}`}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </button>
-          ))}
+          <div className="res-filter-tabs">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                className={`res-filter-tab ${filter === f.key ? 'active' : ''}`}
+                onClick={() => { setFilter(f.key); setShowAll(false) }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
           <input
+            className="res-search"
             type="search"
             placeholder="Search shelter…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{ marginLeft: 'auto', maxWidth: 220, padding: '7px 12px', border: '1px solid #e5e2dd', borderRadius: 8, fontSize: '0.8125rem' }}
+            onChange={(e) => { setQuery(e.target.value); setShowAll(false) }}
           />
         </div>
 
@@ -103,7 +128,7 @@ export default function Evacuation() {
           </div>
         ) : (
           <div className="res-shelter-grid">
-            {visible.map((c) => {
+            {shown.map((c) => {
               const capacity = Number(c.capacity || 0)
               const occupancy = Number(c.occupancy || 0)
               const pct = capacity ? Math.min(100, (occupancy / capacity) * 100) : 0
@@ -133,6 +158,13 @@ export default function Evacuation() {
               )
             })}
           </div>
+        )}
+
+        {capped && (
+          <button type="button" className="res-see-all as-button" onClick={() => setShowAll(true)}>
+            Show all {visible.length} centres
+            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
         )}
 
         <div className="res-note">

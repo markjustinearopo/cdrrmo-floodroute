@@ -452,3 +452,77 @@ input[type="checkbox"] {
   height: 100%;
   background: #aad3df;
 }
+
+/* ============================================================
+   Map controls on touch screens.
+
+   Leaflet ships 30px zoom buttons and the app's locate control is 34px —
+   both sized for a mouse pointer. On a phone they are the primary way to
+   work the map and they sit under a thumb, so below the drawer breakpoint
+   every on-map control is brought up to a 40px target.
+
+   Scoped by width rather than `pointer: coarse` on purpose: a narrow window
+   on a laptop gets the same layout, and the size costs nothing there.
+   ============================================================ */
+@media (max-width: 760px) {
+  .leaflet-touch .leaflet-bar a,
+  .leaflet-control-zoom a,
+  .locate-btn {
+    width: 40px !important;
+    height: 40px !important;
+    line-height: 40px;
+  }
+  .leaflet-touch .leaflet-bar a svg,
+  .locate-btn svg {
+    width: 19px;
+    height: 19px;
+  }
+  /* Leaflet's attribution/scale strip competes with the app's own coordinate
+     readout for the bottom gutter; it is reference text, not a control. */
+  .leaflet-control-attribution {
+    font-size: 9px;
+    max-width: 58vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* ============================================================
+   iOS focus-zoom guard.
+
+   Mobile Safari zooms the whole page in whenever a focused form control has a
+   font smaller than 16px — and then leaves the viewport scrolled sideways with
+   no obvious way back, which is most of why the phone layout felt broken. The
+   app's base control font is 15px, so this hit every input, select and
+   textarea in all three portals.
+
+   16px only below the drawer breakpoint: desktop keeps the tighter 15px it was
+   designed around.
+   ============================================================ */
+@media (max-width: 760px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  /* Controls are also thumb targets here, not pointer targets. */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="date"],
+  select {
+    min-height: 44px;
+  }
+}

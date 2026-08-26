@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, ZoomControl } from 'react-leaflet'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
 import FloodReportModal from '../../components/resident/FloodReportModal.jsx'
@@ -15,6 +15,7 @@ import {
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import { useLiveWeather } from '../../services/weather.js'
 import { usePersistedState } from '../../utils/usePersistedState.js'
+import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import { useAlerts, useEvacCenters, useBarangayAssignments } from '../../context/AdminDataContext.jsx'
 import './Resident.css'
@@ -112,6 +113,16 @@ export default function Dashboard() {
   const prepDone = PREP_ITEMS.filter((i) => prep[i.key]).length
   const [showReport, setShowReport] = useState(false)
 
+  /* On a phone this page was 2,690px tall — more than three screens — and the
+     alert card alone accounted for 900px of it. Five full alerts is a digest,
+     not a dashboard: it buries the forecast, the checklist and the hotlines
+     below a wall of text nobody scrolls to. Phones get the newest two and a
+     link into the full feed; desktop, which shows this in a side column beside
+     the map, keeps all five. */
+  const narrow = useNarrowScreen()
+  const alertLimit = narrow ? 2 : 5
+  const hiddenAlerts = Math.max(0, alerts.length - alertLimit)
+
   const forecast = useMemo(() => {
     if (weather.forecast.length) {
       return weather.forecast.slice(0, 4).map((f) => ({ day: f.day, icon: f.emoji, temp: f.tmax }))
@@ -202,7 +213,7 @@ export default function Dashboard() {
 
         {/* ── Right: side panel ── */}
         <div className="res-side">
-          <div className="res-side-card">
+          <div className="res-side-card res-alerts-card">
             <div className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
               Active Alerts Near You
@@ -215,7 +226,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="res-alert-list">
-                {alerts.slice(0, 5).map((a) => (
+                {alerts.slice(0, alertLimit).map((a) => (
                   <div className="res-alert-row" key={a.id}>
                     <span className={`res-alert-stripe ${a.level || 'safe'}`} />
                     <div>
@@ -227,9 +238,15 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
+            {hiddenAlerts > 0 && (
+              <Link className="res-see-all" to="/resident/alerts">
+                View all {alerts.length} alerts
+                <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg>
+              </Link>
+            )}
           </div>
 
-          <div className="res-side-card">
+          <div className="res-side-card res-forecast-card">
             <div className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" /><line x1="8" y1="19" x2="8" y2="21" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="16" y1="19" x2="16" y2="21" /></svg>
               3-Day Forecast
@@ -245,7 +262,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="res-side-card">
+          <div className="res-side-card res-prep-card">
             <div className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
               Preparedness Checklist
@@ -269,26 +286,17 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="res-side-card">
+          <div className="res-side-card res-contacts-card">
             <div className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 21.5 16z" /></svg>
               Emergency Contacts
             </div>
-            <div className="res-contact-row">
-              <span className="res-contact-name">{NATIONAL_HOTLINE.name}</span>
-              <span className="res-contact-num">{NATIONAL_HOTLINE.number}</span>
-            </div>
+            <ContactRow name={NATIONAL_HOTLINE.name} number={NATIONAL_HOTLINE.number} />
             {contacts.map((c) => (
-              <div className="res-contact-row" key={c.id}>
-                <span className="res-contact-name">{c.role || c.name}</span>
-                <span className="res-contact-num">{c.contact || '—'}</span>
-              </div>
+              <ContactRow key={c.id} name={c.role || c.name} number={c.contact} />
             ))}
             {contacts.length === 0 && (
-              <div className="res-contact-row">
-                <span className="res-contact-name">Brgy. {brgyLabel} Hotline</span>
-                <span className="res-contact-num">—</span>
-              </div>
+              <ContactRow name={`Brgy. ${brgyLabel} Hotline`} number={null} />
             )}
           </div>
         </div>
@@ -296,5 +304,34 @@ export default function Dashboard() {
 
       {showReport && <FloodReportModal onClose={() => setShowReport(false)} />}
     </ResidentLayout>
+  )
+}
+
+/**
+ * One emergency-contact row. When a number is on file the whole row is a
+ * `tel:` link — this page is read on a phone during a flood, and making the
+ * reader memorise a hotline and retype it into the dialler is the wrong ask.
+ * Rows with no number stay inert text rather than becoming a dead link.
+ */
+function ContactRow({ name, number }) {
+  const dial = number && String(number).replace(/[^\d+]/g, '')
+  if (!dial) {
+    return (
+      <div className="res-contact-row">
+        <span className="res-contact-name">{name}</span>
+        <span className="res-contact-num muted">—</span>
+      </div>
+    )
+  }
+  return (
+    <a className="res-contact-row is-link" href={`tel:${dial}`}>
+      <span className="res-contact-name">{name}</span>
+      <span className="res-contact-num">
+        {number}
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 21.5 16z" />
+        </svg>
+      </span>
+    </a>
   )
 }

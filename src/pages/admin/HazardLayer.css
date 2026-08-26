@@ -567,8 +567,26 @@
   .hazard .hz-title svg { width: 14px; height: 14px; }
   .hazard .hz-source,
   .hazard .hz-updated { font-size: 0.625rem; }
+  /* Sideways only — the switch keeps a thumb-sized height. */
   .hazard .map3d-viewtoggle button {
-    padding: 0.28rem 0.6rem;
-    font-size: 0.625rem;
+    padding: 0.28rem 0.7rem;
+    font-size: 0.6875rem;
+    min-height: 40px;
   }
+
+  /* The opacity slider is a 4px track with a 16px thumb: a 16px target that
+     has to be hit on the first try while standing over a map. Both grow, and
+     the track gets an invisible 40px band around it so the finger only has to
+     land near the line, not on it. */
+  .hazard .hz-range {
+    /* box-sizing is border-box app-wide, so the 44px is the whole target and
+       the padding leaves a 6px painted track inside it. `background-clip`
+       keeps the paint on the content box, so the line looks unchanged while
+       the finger gets a full-height band to land in. */
+    height: 44px;
+    padding: 19px 0;
+    background-clip: content-box;
+  }
+  .hazard .hz-range::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .hazard .hz-range::-moz-range-thumb { width: 24px; height: 24px; }
 }

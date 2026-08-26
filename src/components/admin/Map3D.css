@@ -64,3 +64,14 @@
   background: #c0181b;
   color: #fff;
 }
+
+/* The 2D/3D switch is 22px tall — fine beside a cursor, too small for a thumb.
+   On a phone it sits in a crowded toolbar with the map sub-tabs, which is
+   exactly where a mis-tap costs the most (it swaps the whole renderer). */
+@media (max-width: 760px) {
+  .map3d-viewtoggle button {
+    padding: 0.6rem 0.95rem;
+    font-size: 0.75rem;
+    min-height: 40px;
+  }
+}

@@ -1,0 +1,119 @@
+/* ============================================================
+   Resident bottom tab bar — mobile only.
+
+   Fixed to the bottom edge, above every map layer but below the modals and
+   the emergency takeover (see the z-index ladder documented on .sidebar in
+   AdminLayout.css: map cards top out at 1300, the nav drawer sits at 1410).
+   This sits at 1405 — over the maps, under the open drawer and its scrim, so
+   opening the drawer covers it rather than leaving two navigations competing.
+   ============================================================ */
+
+.res-tabbar {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .res-tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1405;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: stretch;
+    background: rgba(255, 255, 255, 0.97);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid #e5e2dd;
+    /* Clears the iOS home indicator / Android gesture bar so the last row of
+       pixels is not a dead zone. Falls back to 0 where the env var is unknown. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -2px 14px rgba(0, 0, 0, 0.07);
+  }
+
+  .res-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    /* 52px + label keeps every tab past the 44px minimum touch target. */
+    min-height: 54px;
+    padding: 7px 2px 6px;
+    text-decoration: none;
+    color: #7a7a7a;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s, background 0.15s;
+  }
+  .res-tab svg {
+    width: 21px;
+    height: 21px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .res-tab span {
+    line-height: 1;
+  }
+  .res-tab:hover,
+  .res-tab:focus-visible {
+    color: #c0181b;
+    text-decoration: none;
+  }
+  .res-tab:active {
+    background: #f7f5f2;
+  }
+  .res-tab.active {
+    color: #c0181b;
+  }
+  /* Active tab gets a top rule rather than a filled pill — the bar sits over a
+     map often enough that a solid block would read as another map control. */
+  .res-tab.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 30px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: #c0181b;
+  }
+  .res-tab {
+    position: relative;
+  }
+
+  /* "Route" is the evacuation action — the one tab that is an emergency
+     control rather than a place to look at. It stays tinted even when
+     inactive so it is findable without reading the labels. */
+  .res-tab.accent:not(.active) {
+    color: #c0181b;
+  }
+  .res-tab.accent svg {
+    stroke-width: 2.2;
+  }
+
+  /* Content must clear the bar, INCLUDING the flush map screens.
+
+     Below 760px the app-shell is unwound (see the responsive block in
+     AdminLayout.css): <main> becomes height:auto and the document scrolls. A
+     height reservation therefore resolves against an auto-height parent and
+     does nothing — the last ~60px of every map page would sit under the bar
+     with no way to scroll past it. Padding is what actually reserves the space
+     once the shell is a normal page, and it behaves the same for both kinds of
+     screen, so both get it.
+
+     `.main--flush` zeroes padding at (0,1,0); this is (0,2,0) and wins. */
+  .main--restabs,
+  .main--flush.main--restabs {
+    padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* No rule is needed for the emergency takeover: EmergencyAlert's `.ea` overlay
+   is a full-screen fixed layer at z-index 100000, so it already covers this
+   bar — a resident cannot tap past an evacuation order into the nav. */

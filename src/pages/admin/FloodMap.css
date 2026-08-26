@@ -295,6 +295,7 @@
 .floodmap .stat-card.orange { background: #fff7ed; }
 .floodmap .stat-card.green { background: #f0fdf4; }
 .floodmap .stat-card.blue { background: #eff6ff; }
+.floodmap .stat-card.amber { background: #fefce8; }
 .floodmap .stat-card svg {
   width: 14px;
   height: 14px;
@@ -307,6 +308,49 @@
 .floodmap .stat-card.orange svg { stroke: #ea580c; }
 .floodmap .stat-card.green svg { stroke: #16a34a; }
 .floodmap .stat-card.blue svg { stroke: #2563eb; }
+.floodmap .stat-card.amber svg { stroke: #a16207; }
+.floodmap .stat-card.amber .stat-num { color: #a16207; }
+
+/* Secondary figure under a stat — e.g. "5 full" beside the centres accepting,
+   so the headline number never has to carry two meanings. */
+.floodmap .stat-note {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #c2410c;
+  text-transform: uppercase;
+}
+
+/* "N open incidents in this area" — the barangay Overview tab's one-line
+   pointer to the incident pins now drawn on its map. */
+.floodmap .bq-open-incidents {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #b91c1c;
+}
+.floodmap .bq-oi-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #dc2626;
+  flex: none;
+  animation: bq-oi-pulse 1.8s ease-in-out infinite;
+}
+@keyframes bq-oi-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .floodmap .bq-oi-dot { animation: none; }
+}
 .floodmap .stat-num {
   font-family: var(--font-display);
   font-size: 1.3rem;
@@ -639,34 +683,21 @@
     height: 10px;
   }
   .floodmap .subtab-bar .map3d-viewtoggle { margin-left: 6px; }
+  /* Padding is trimmed sideways only. The switch changes the whole renderer,
+     so it keeps a 40px height even where the row is tightest — the bar scrolls
+     sideways if the result does not fit, which costs nothing. */
   .floodmap .subtab-bar .map3d-viewtoggle button {
-    padding: 0.3rem 0.55rem;
-    font-size: 0.625rem;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.6875rem;
+    min-height: 40px;
   }
 }
 
-/* ── Responsive: stack the panel under the map on narrow screens ── */
-@media (max-width: 760px) {
-  .main--flush {
-    height: auto;
-    overflow: visible;
-  }
-  .floodmap {
-    height: auto;
-  }
-  .floodmap .map-panel-wrap {
-    flex-direction: column;
-  }
-  .floodmap .map-area {
-    height: 60vh;
-    flex: 0 0 auto;
-  }
-  .floodmap .right-panel {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid #e5e2dd;
-  }
-}
+/* NOTE: the narrow-screen block for this page lives at the END of this file,
+   not here. `.floodmap .map-area` is redefined further down (the map+scrubber
+   column rule) with `min-height: 0`, and at equal specificity the later rule
+   wins regardless of the media query — which silently zeroed the phone map
+   height from here. See the responsive block at the bottom. */
 
 /* ── Operational overlays: popups, evac pins & the Alerts panel rows ── */
 .fm-popup { font-family: var(--font-body); min-width: 160px; }
@@ -837,14 +868,20 @@
    without the page-level padding it gets when it owns the screen. */
 .mng--embedded { padding: 16px; overflow-y: auto; height: 100%; }
 
-/* Add-a-flood-area button beside the map layer toggles. */
+/* Add-a-flood-area button — a card in the left rail, under the layer control
+   and the hazard panel. `flex-shrink: 0` keeps it from being squeezed to
+   nothing when the rail is scrolling. */
 .fm-add-area {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
   padding: 7px 11px;
   border: 1px solid #e5e2dd;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.16);
   border-radius: 8px;
   font: inherit;
   font-size: 0.75rem;
@@ -1222,4 +1259,66 @@
   letter-spacing: 0.03em;
   color: #9a9a9a;
   white-space: nowrap;
+}
+
+/* ============================================================
+   Responsive — narrow screens. MUST STAY LAST IN THIS FILE.
+
+   This block was originally up beside the desktop map-column rules, where it
+   did nothing: `.floodmap .map-area` is redefined lower down (the map+scrubber
+   flex column) with `min-height: 0`, and equal-specificity selectors are
+   resolved by source order, not by whether one sits inside a media query. The
+   phone map therefore collapsed to the Leaflet canvas' own 360px floor —
+   barely more than a third of a phone screen for the thing the page is for,
+   with five floating overlay cards stacked on top of it.
+
+   Anything added here that also has a plain (non-media) rule elsewhere in the
+   file has to stay below that rule to take effect.
+   ============================================================ */
+@media (max-width: 760px) {
+  .main--flush {
+    height: auto;
+    overflow: visible;
+  }
+  .floodmap {
+    height: auto;
+  }
+  .floodmap .map-panel-wrap {
+    flex-direction: column;
+  }
+  .floodmap .map-area {
+    /* min-height, not height: the time scrubber stacks BELOW the canvas inside
+       this box, so the area has to be free to grow past the floor rather than
+       clip it (.map-canvas is overflow:hidden and used to cut the bottom of
+       the map off, taking half the zoom control with it). */
+    height: auto;
+    min-height: 62vh;
+    flex: 0 0 auto;
+  }
+  .floodmap .map-canvas {
+    min-height: 420px;
+  }
+  /* The resident/barangay flood maps put the Leaflet container straight into
+     .map-area with `height: 100%` — which resolves to `auto` against a parent
+     sized by min-height, so the canvas fell back to its 360px floor and left a
+     dead strip under it. Leaflet's own control corners anchor to the CANVAS,
+     so the zoom buttons floated 83px up into the middle of the map. An explicit
+     height (not a percentage) makes the canvas and the area the same box again. */
+  .floodmap .map-area > .leaflet-container {
+    height: max(62vh, 420px);
+    min-height: 420px;
+  }
+  /* Sub-tab bar: the tabs and the report CTA are the page's primary controls
+     and were 29px / 34px tall. The bar already scrolls sideways, so height
+     costs nothing here. */
+  .floodmap .subtab-bar { min-height: 52px; }
+  .floodmap .subtab { min-height: 40px; }
+  .floodmap .report-flood-btn { min-height: 42px; padding: 9px 16px; }
+  /* Panel tabs in the stacked right panel — six of them across a phone. */
+  .floodmap .panel-tab { padding: 12px 4px; font-size: 0.75rem; }
+  .floodmap .right-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #e5e2dd;
+  }
 }

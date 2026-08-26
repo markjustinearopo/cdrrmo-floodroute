@@ -644,6 +644,10 @@
   background: #22c55e;
 }
 .emg-row-dot[data-status='full'] { background: #f97316; }
+/* A shelter that cannot take you is still listed — ranked last and dimmed, so
+   it reads as information rather than as an option. */
+.emg-row--full { opacity: 0.72; }
+.emg-row--full .emg-row-txt small { color: #c2410c; font-weight: 700; }
 .emg-row-txt { flex: 1; min-width: 0; }
 .emg-row-txt b {
   display: block;
@@ -976,8 +980,51 @@
   }
   .fsc-card, .fsc-toast { width: min(210px, calc(100vw - 24px)); }
   .wxc { top: auto; bottom: 168px; right: 64px; width: auto; max-width: 220px; }
-  .fabs { bottom: 96px; }
+  /* Seven 42px buttons stacked in one column need ~330px of height. A phone
+     map canvas is ~490px tall and already spends 70px on the top chrome and
+     ~110px on the bottom, so the rail ran up UNDER the flood-status chip
+     (40×34px of overlap at 375px). Laid along the bottom instead it is the
+     conventional phone action bar, fits the width exactly at 375px, and wraps
+     upward on anything narrower. */
+  .fabs {
+    bottom: 100px;
+    left: 12px;
+    right: 12px;
+    flex-direction: row;
+    flex-wrap: wrap-reverse;
+    justify-content: flex-end;
+    align-items: flex-end;
+    /* 7 × 40px + 6 × 6px = 316px — one row at 375px, wrapping upward below
+       that rather than being clipped. */
+    gap: 6px;
+    pointer-events: none; /* the gaps stay map, only the buttons take taps */
+  }
+  .fabs .fab { pointer-events: auto; }
   .emg { bottom: 40px; width: min(260px, calc(100% - 90px)); }
   .fab { width: 40px; height: 40px; }
   .fab-label { display: none; }
+
+  /* ── Touch targets on the floating map chrome ──
+     These are all thumb targets on a phone, and every one of them was under
+     40px: the search field itself was a 20px strip inside its 46px bar, the
+     submit button 34px, the status chip 34px. */
+  .msb-bar input {
+    /* Fills the bar's height so the whole pill is the tap area, not a 20px
+       band through the middle of it. 16px also stops iOS Safari zooming the
+       page in the moment the field takes focus. */
+    align-self: stretch;
+    font-size: 16px;
+  }
+  .msb-go {
+    width: 40px;
+    height: 40px;
+  }
+  .msb-go svg { width: 17px; height: 17px; }
+  .msb-icon-btn { width: 34px; height: 34px; }
+  .fsc-chip {
+    padding: 10px 15px;
+    min-height: 42px;
+    font-size: 0.8125rem;
+  }
+  .emg-toggle { min-height: 42px; }
 }

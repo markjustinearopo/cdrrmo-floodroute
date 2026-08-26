@@ -190,3 +190,22 @@
 }
 .mt-op-val { color: #c0181b; }
 .map-toggle-op input[type='range'] { width: 100%; accent-color: #c0181b; }
+
+/* ── Phone: the open panel must not swallow the map ───────────────────────
+   Eight toggles plus the intensity slider run ~344px tall. On a phone the map
+   canvas is roughly 490px, so an open rail covered 70% of it — and, worse, sat
+   ON TOP of the bottom action rail, hiding buttons that still looked tappable.
+   Capped and scrollable instead: the panel ends above the bottom chrome and
+   narrows enough to clear the status card on the opposite edge. */
+@media (max-width: 760px) {
+  .map-toggles {
+    width: 170px;
+    /* Leaves the bottom ~215px — action rail, emergency toggle, status strip. */
+    max-height: calc(100% - 215px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .map-toggles--compact { width: 152px; }
+  /* The slider is sticky-adjacent content; keep it reachable while scrolling. */
+  .map-toggle-op { position: sticky; bottom: 0; background: inherit; }
+}

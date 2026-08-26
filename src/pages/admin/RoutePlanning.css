@@ -758,6 +758,13 @@
     border-left: none;
     border-top: 1px solid #f0eee9;
   }
+  /* Saved-route rows are the panel's main list and were 27px tall — two of
+     them inside one fingertip, with a delete button next to each. */
+  .route-plan .rp-saved-main {
+    min-height: 44px;
+    justify-content: center;
+    padding: 4px 0;
+  }
 }
 
 /* Phone: one step down. The card is a prompt, not the content — at full size it

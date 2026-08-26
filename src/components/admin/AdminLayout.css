@@ -1114,6 +1114,41 @@
   .nav-backdrop {
     display: block;
   }
+  /* Touch targets. On desktop these are 32px squares driven by a cursor; on a
+     phone they are thumbs, and 32px is under every platform's minimum (44px
+     iOS / 48dp Android). With the stat, time and sync chips already hidden at
+     this width there is room to give the three that remain a real target. */
+  .nav-burger,
+  .icon-btn,
+  .avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .nav-burger svg {
+    width: 19px;
+    height: 19px;
+  }
+  .icon-btn svg {
+    width: 17px;
+    height: 17px;
+  }
+  .topbar-right {
+    gap: 6px;
+  }
+  /* Drawer rows were 33px tall — two of them fit inside one fingertip. */
+  .nav-item {
+    padding: 12px 12px;
+    font-size: 0.875rem;
+    gap: 12px;
+  }
+  .nav-item svg {
+    width: 18px;
+    height: 18px;
+  }
+  .sidebar-section {
+    font-size: 0.6875rem;
+    padding: 14px 8px 6px;
+  }
   .body-wrap {
     flex-direction: column;
     min-height: 0;
@@ -1169,9 +1204,19 @@
     width: auto;
     justify-content: flex-end;
   }
-  .icon-btn,
-  .avatar {
-    width: 30px;
-    height: 30px;
+  /* The buttons keep their 40px target here. The brand block pays for the row
+     instead: it is already flex-shrink:1 with both text lines truncating, so
+     narrowing the gutters and the gap buys the space without any control
+     dropping below what a thumb can reliably hit. */
+  .topbar {
+    gap: 6px;
+    padding: 6px 10px;
+  }
+  .topbar-right {
+    gap: 4px;
+  }
+  .logo-text span {
+    /* 10px was the smallest text in the whole shell. */
+    font-size: 0.6875rem;
   }
 }
