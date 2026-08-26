@@ -120,3 +120,33 @@
   .stats-row { gap: 8px; }
   .stat-box .stat-number { font-size: 1.25rem; }
 }
+
+/* ============================================================
+   Mobile-number field.
+
+   Marked optional in the label rather than left ambiguous, and explained
+   underneath — a phone number is the most sensitive thing this form asks for,
+   and "why do you want this?" deserves an answer at the point of asking rather
+   than in a privacy policy.
+   ============================================================ */
+
+.label-hint {
+  margin-left: 6px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-muted, #94a3b8);
+}
+
+.field-note {
+  margin: 7px 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  color: var(--color-muted, #94a3b8);
+}
+
+.field-note-ok {
+  color: #15803d;
+  font-weight: 600;
+}

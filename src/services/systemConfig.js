@@ -39,6 +39,14 @@ export const SYSTEM_CONFIG_DEFAULTS = {
   autoRefresh: true,
   maintenance: false,
   allowRegistration: true,
+  /* What happens when a verification code cannot be delivered on ANY channel.
+     true  — activate the account anyway, tell the resident, and notify CDRRMO.
+     false — refuse the registration.
+     Defaults to true because the alternative, as this system found out, is a
+     real resident with a correct password and no way into their own account,
+     failing silently for weeks. Turn it off once a verified email domain or
+     an SMS provider key is actually in place. */
+  verificationFallback: true,
   debugLogging: false,
 }
 

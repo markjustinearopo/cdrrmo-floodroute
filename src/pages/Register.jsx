@@ -16,6 +16,7 @@ import { EyeIcon, EyeOffIcon } from './Login.jsx'
 import { authApi } from '../services/api.js'
 import { OFFICIAL_BRGY_KEY } from '../data/barangay.js'
 import { getSystemConfig, loadSystemConfigRemote } from '../services/systemConfig.js'
+import { normalisePhone, formatPhone } from '../services/smsAlert.js'
 import './auth.css'
 import './Register.css'
 
@@ -66,6 +67,12 @@ export default function Register() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  // Optional, and the most useful field on this form. It is how the
+  // verification code reaches a resident whose email we cannot deliver to,
+  // and how an emergency alert reaches them at 2 a.m. when nobody is on a
+  // website. Optional because requiring it would exclude anyone without a
+  // mobile from having an account at all.
+  const [mobile, setMobile] = useState('')
   const [barangay, setBarangay] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
@@ -79,8 +86,16 @@ export default function Register() {
   // New-account creation can be closed by an admin on System Configuration.
   const [registrationOpen, setRegistrationOpen] = useState(getSystemConfig().allowRegistration)
 
-  /* ── Step 2: email verification ── */
+  /* ── Step 2: verification ── */
   const [step, setStep] = useState('form') // 'form' | 'verify'
+  // Which channel carried the code, so the screen can point at the right
+  // inbox — telling someone to "check your email" when it went to their
+  // phone is how a verification step becomes a dead end.
+  const [channel, setChannel] = useState(null) // 'sms' | 'email' | null
+  const [maskedPhone, setMaskedPhone] = useState(null)
+  // Set when the server could deliver on neither channel and activated the
+  // account anyway. The reader is told, in as many words.
+  const [fallbackNotice, setFallbackNotice] = useState('')
 
   /* ── Human check ──
      `human.state` is 'pending' while the proof-of-work runs, 'ok' once solved,
@@ -150,6 +165,10 @@ export default function Register() {
       setError('Please select your barangay.')
       return
     }
+    if (mobile.trim() && !normalisePhone(mobile)) {
+      setError('Enter your mobile number as 0917 123 4567, or leave it blank.')
+      return
+    }
     if (password.length < 8) {
       setError('Password must be at least 8 characters long.')
       return
@@ -179,6 +198,7 @@ export default function Register() {
         password,
         fullName,
         barangay,
+        phone: mobile.trim() ? normalisePhone(mobile) : null,
         challenge: human.challenge,
         solution: human.solution,
         elapsedMs: Date.now() - startedAt.current,
@@ -192,8 +212,22 @@ export default function Register() {
         setTimeout(() => navigate('/login'), 1800)
         return
       }
+      if (res?.unverifiedFallback) {
+        /* No channel could carry a code, so the server activated the account
+           and signed us in rather than creating another resident who can
+           never open their own account. Say what happened — a silent
+           success here is how the previous failure went unnoticed. */
+        localStorage.setItem(OFFICIAL_BRGY_KEY, barangay)
+        setFallbackNotice(res.notice || 'Your account was activated without a verification code.')
+        setSuccess(true)
+        setTimeout(() => navigate(res.user ? '/resident/dashboard' : '/login'), 3200)
+        return
+      }
       // The account exists but is PENDING. It cannot sign in until the code
-      // mailed to this address is entered, so nothing is scoped or stored yet.
+      // sent to this address (or phone) is entered, so nothing is scoped or
+      // stored yet.
+      setChannel(res?.channel || 'email')
+      setMaskedPhone(res?.phone || null)
       setStep('verify')
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.')
@@ -228,14 +262,16 @@ export default function Register() {
           {step === 'verify' ? (
             <>
               <CodeVerification
-                email={email}
-                title="Confirm your email"
-                blurb={<>Your account is created but not active yet. Enter the 6-digit code we sent to</>}
+                email={channel === 'sms' && maskedPhone ? maskedPhone : email}
+                title={channel === 'sms' ? 'Confirm your mobile number' : 'Confirm your email'}
+                blurb={channel === 'sms'
+                  ? <>Your account is created but not active yet. Enter the 6-digit code we <b>texted</b> to</>
+                  : <>Your account is created but not active yet. Enter the 6-digit code we sent to</>}
                 submitLabel="Verify & continue"
                 onSubmit={handleVerify}
                 onResend={() => authApi.resendCode(email, 'verify_email')}
                 onBack={() => { setStep('form'); setError(''); runHumanCheck() }}
-                backLabel="Use a different email"
+                backLabel={channel === 'sms' ? 'Use different details' : 'Use a different email'}
               />
               {success && (
                 <div className="success-msg show" style={{ marginTop: 14 }}>
@@ -313,6 +349,32 @@ export default function Register() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+            </div>
+
+            {/* Mobile number — optional, and doing real work: it carries the
+                verification code when email cannot, and it is the address an
+                emergency alert is sent to. */}
+            <div className="field-group">
+              <label htmlFor="mobile">
+                Mobile Number <span className="label-hint">optional, recommended</span>
+              </label>
+              <input
+                type="tel"
+                id="mobile"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="0917 123 4567"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+              />
+              <p className="field-note">
+                Used to text you emergency flood alerts for your barangay, and to
+                send your verification code. Emergencies only — never advertising,
+                and you can stop them any time from your Alerts screen.
+                {normalisePhone(mobile) && (
+                  <span className="field-note-ok"> Reads as {formatPhone(normalisePhone(mobile))}.</span>
+                )}
+              </p>
             </div>
 
             {/* Barangay */}
@@ -465,7 +527,7 @@ export default function Register() {
 
             {success && (
               <div className="success-msg show" style={{ marginBottom: 12 }}>
-                Account created. Taking you to the sign-in page…
+                {fallbackNotice || 'Account created. Taking you to the sign-in page…'}
               </div>
             )}
 

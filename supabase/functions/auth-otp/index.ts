@@ -19,6 +19,16 @@
                      the device for 30 days
      forget-device → drop a trusted device
 
+   DELIVERY IS NOT ASSUMED TO WORK
+   A code that cannot be delivered is a locked door. This system learned that
+   the hard way: the Resend account has no verified sending domain, so it can
+   physically only mail the developer's own address, and every resident who
+   registered was left at status='pending' with a correct password and no way
+   in. So a code now goes out over whichever channel can actually carry it —
+   SMS first when the resident gave a mobile number, email otherwise — and when
+   NEITHER can deliver, the account is activated rather than stranded, plainly
+   labelled as unverified for the operator to see. See issueCode().
+
    Deploy:  npx supabase functions deploy auth-otp
    Secrets: RESEND_API_KEY (already set for send-alert-email)
             AUTH_OTP_SECRET (optional; falls back to the service-role key)
@@ -141,9 +151,58 @@ async function sendCodeEmail(to: string, name: string, purpose: string, code: st
   return data.id
 }
 
+/* ── SMS ───────────────────────────────────────────────────────────────────
+   The provider credentials live in the sms-alert function, so this asks that
+   one to do the sending rather than holding a second copy of the key. Called
+   with the service-role key, which is what its `deliver` action requires. */
+
+/** Same normalisation sms-alert uses — one row per handset, however it is typed. */
+function normalisePH(raw: string): string | null {
+  const digits = String(raw ?? '').replace(/[^d+]/g, '')
+  let d = digits.replace(/^+/, '')
+  if (d.startsWith('63')) d = d.slice(2)
+  else if (d.startsWith('0')) d = d.slice(1)
+  if (!/^9d{9}$/.test(d)) return null
+  return `+63${d}`
+}
+
+async function sendCodeSms(phone: string, purpose: string, code: string) {
+  const url = Deno.env.get('SUPABASE_URL')
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!url || !key) throw new Error('SMS is not configured on the server.')
+  const what = purpose === 'login_mfa' ? 'sign-in code' : 'account code'
+  const res = await fetch(`${url}/functions/v1/sms-alert`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, apikey: key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'deliver',
+      phone,
+      purpose: 'verify',
+      body: `Your CDRRMO FloodRoute ${what} is ${code}. Valid for ${CODE_TTL_MIN} minutes. Never share this code.`,
+    }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data?.error || 'Could not send the text message.')
+  /* Simulation is NOT delivery. Reporting it as such is exactly the failure
+     this whole change exists to stop, so it is treated as a failed channel and
+     the caller falls through to email. */
+  if (data?.simulated) throw new Error('SMS gateway is in simulation mode (no provider key).')
+  return data
+}
+
 /* ── Code lifecycle ────────────────────────────────────────────────────── */
+/** Both channels refused the code — the caller has to decide what that means. */
+class Undeliverable extends Error {
+  constructor(public detail: string) {
+    super('We could not deliver your code.')
+    this.name = 'Undeliverable'
+  }
+}
+
 // deno-lint-ignore no-explicit-any
-async function issueCode(db: any, opts: { accountId: number | null; email: string; name: string; purpose: string }) {
+async function issueCode(db: any, opts: {
+  accountId: number | null; email: string; name: string; purpose: string; phone?: string | null
+}) {
   const email = opts.email.toLowerCase()
   const hourAgo = new Date(Date.now() - 3600_000).toISOString()
 
@@ -172,18 +231,39 @@ async function issueCode(db: any, opts: { accountId: number | null; email: strin
 
   const code = randomCode()
   const salt = randomHex(16)
-  const { error } = await db.from('auth_codes').insert({
+  const { data: inserted, error } = await db.from('auth_codes').insert({
     account_id: opts.accountId,
     email,
     purpose: opts.purpose,
     code_hash: await sha256Hex(salt + code),
     code_salt: salt,
     expires_at: new Date(Date.now() + CODE_TTL_MIN * 60_000).toISOString(),
-  })
+  }).select('id').single()
   if (error) throw new Error(error.message)
 
-  await sendCodeEmail(opts.email, opts.name, opts.purpose, code)
-  return { sent: true, expiresInMinutes: CODE_TTL_MIN }
+  /* SMS first when we have a number. In Cabuyao a text arrives on the phone
+     already in the reader's hand; an email arrives on an account they may only
+     check from a shared computer. It is also the channel that currently works.
+     Email is the fallback, not the default. */
+  const phone = opts.phone ? normalisePH(opts.phone) : null
+  const failures: string[] = []
+  for (const channel of phone ? ['sms', 'email'] : ['email']) {
+    try {
+      if (channel === 'sms') await sendCodeSms(phone!, opts.purpose, code)
+      else await sendCodeEmail(opts.email, opts.name, opts.purpose, code)
+      if (inserted?.id) await db.from('auth_codes').update({ channel }).eq('id', inserted.id)
+      return { sent: true, channel, expiresInMinutes: CODE_TTL_MIN }
+    } catch (e) {
+      failures.push(`${channel}: ${(e as Error).message}`)
+    }
+  }
+
+  // Nothing could carry it. Burn the code — leaving a live one that nobody has
+  // seen only means the next request hits the cooldown for no reason.
+  if (inserted?.id) {
+    await db.from('auth_codes').update({ consumed_at: new Date().toISOString() }).eq('id', inserted.id)
+  }
+  throw new Undeliverable(failures.join(' | '))
 }
 
 // deno-lint-ignore no-explicit-any
@@ -219,7 +299,9 @@ async function consumeCode(db: any, email: string, purpose: string, code: string
   }
 
   await db.from('auth_codes').update({ consumed_at: new Date().toISOString() }).eq('id', row.id)
-  return { ok: true, accountId: row.account_id as number | null }
+  // `channel` tells the caller what this code actually proves: a code that
+  // arrived by SMS proves the handset, one that arrived by email does not.
+  return { ok: true, accountId: row.account_id as number | null, channel: row.channel as string | null }
 }
 
 /* ── Session payload ───────────────────────────────────────────────────── */
@@ -263,7 +345,7 @@ serve(async (req) => {
 
     /* ── Register ────────────────────────────────────────────────────── */
     if (action === 'register') {
-      const { email, password, fullName, barangay, challenge, solution, elapsedMs, website } = body
+      const { email, password, fullName, barangay, phone, challenge, solution, elapsedMs, website } = body
 
       // 1. Honeypot — a field positioned off-screen and hidden from assistive
       //    tech. A human never fills it; naive form-fillers always do.
@@ -297,6 +379,14 @@ serve(async (req) => {
       if (String(password ?? '').length < 8) return json({ error: 'Password must be at least 8 characters long.' }, 400)
       if (!String(fullName ?? '').trim()) return json({ error: 'Please enter your name.' }, 400)
       if (!String(barangay ?? '').trim()) return json({ error: 'Please select your barangay.' }, 400)
+      /* The mobile number is optional but validated when given: a typo here
+         means both the verification code and every future emergency alert go
+         to a stranger, so it is better rejected at the form than accepted and
+         silently useless. */
+      const mobile = phone ? normalisePH(String(phone)) : null
+      if (phone && !mobile) {
+        return json({ error: 'Enter your mobile number as 0917 123 4567, or leave it blank.' }, 400)
+      }
 
       // 5. Is registration open? (System Configuration, set by CDRRMO.)
       const { data: cfgRow } = await db.from('app_settings').select('value').eq('key', 'system_config').maybeSingle()
@@ -317,21 +407,81 @@ serve(async (req) => {
         }
         accountId = existing.id
         const { error } = await db.from('accounts').update({
-          password_plain: password, full_name: String(fullName).trim(), barangay, status: 'pending',
+          password_plain: password, full_name: String(fullName).trim(), barangay,
+          status: 'pending', phone: mobile,
         }).eq('id', accountId)
         if (error) return json({ error: error.message }, 500)
       } else {
         const { data: created, error } = await db.from('accounts').insert({
           username: addr, email: addr, password_plain: password,
           role: 'resident', barangay, full_name: String(fullName).trim(),
-          status: 'pending', mfa_enabled: true,
+          status: 'pending', mfa_enabled: true, phone: mobile,
         }).select('id').single()
         if (error) return json({ error: error.message }, 500)
         accountId = created.id
       }
 
-      await issueCode(db, { accountId, email: addr, name: String(fullName).trim().split(' ')[0], purpose: 'verify_email' })
-      return json({ pending: true, email: addr, expiresInMinutes: CODE_TTL_MIN })
+      const firstName = String(fullName).trim().split(' ')[0]
+      try {
+        const issued = await issueCode(db, {
+          accountId, email: addr, name: firstName, purpose: 'verify_email', phone: mobile,
+        })
+        return json({
+          pending: true, email: addr, channel: issued.channel,
+          phone: mobile ? `+63 9•• ••• ${mobile.slice(-4)}` : null,
+          expiresInMinutes: CODE_TTL_MIN,
+        })
+      } catch (e) {
+        if (!(e instanceof Undeliverable)) return json({ error: (e as Error).message }, 500)
+
+        /* NEITHER channel could carry the code.
+
+           The choice here is between two bad outcomes, and both are worth
+           naming. Refusing the registration leaves a real resident with an
+           account they can never open — which is exactly what happened to
+           three of them before this branch existed, silently, for weeks.
+           Activating it means an address nobody proved.
+
+           We activate, because the cost of the first failure lands on the
+           person this system exists to protect, and the cost of the second
+           lands on a barangay-scoped, read-only account. It is not hidden:
+           the response says so, the registration screen says so, and CDRRMO
+           gets a notification naming the account and the delivery error.
+
+           An administrator can close this door from System Configuration
+           (verificationFallback: false), at which point registration fails
+           loudly instead — the right setting once a verified sending domain
+           or an SMS provider key is actually in place. */
+        const fallbackOff = cfgRow?.value?.verificationFallback === false
+        if (fallbackOff) {
+          return json({
+            error: 'We could not send your verification code. Please contact the CDRRMO office.',
+            detail: e.detail,
+          }, 503)
+        }
+
+        await db.from('accounts').update({
+          status: 'active',
+          email_verified_at: new Date().toISOString(),
+          // Email 2FA would strand them again on their very next sign-in.
+          mfa_enabled: false,
+        }).eq('id', accountId)
+
+        await db.from('notifications').insert({
+          level: 'moderate',
+          title: 'Account activated without verification',
+          message: `${addr} registered but no verification code could be delivered (${e.detail}). The account was activated so the resident is not locked out. Fix the email sending domain, or add an SMS provider key.`,
+        })
+
+        const { data: acc } = await db.from('accounts').select('*').eq('id', accountId).single()
+        return json({
+          verified: true,
+          unverifiedFallback: true,
+          user: sessionOf(acc),
+          notice: 'We could not send a verification code — the messaging service is not fully set up yet. Your account has been activated so you are not locked out. Please let CDRRMO IT know.',
+          detail: e.detail,
+        })
+      }
     }
 
     /* ── Resend a code ───────────────────────────────────────────────── */
@@ -339,15 +489,18 @@ serve(async (req) => {
       const addr = String(body.email ?? '').trim().toLowerCase()
       const purpose = body.purpose === 'login_mfa' ? 'login_mfa' : 'verify_email'
       const { data: acc } = await db
-        .from('accounts').select('id, full_name, email_verified_at').ilike('email', addr).maybeSingle()
+        .from('accounts').select('id, full_name, email_verified_at, phone').ilike('email', addr).maybeSingle()
       // Always answer the same way: whether an address is registered is not
       // something an unauthenticated caller gets to enumerate.
       if (!acc) return json({ sent: true, expiresInMinutes: CODE_TTL_MIN })
       if (purpose === 'verify_email' && acc.email_verified_at) {
         return json({ sent: true, alreadyVerified: true })
       }
-      await issueCode(db, { accountId: acc.id, email: addr, name: (acc.full_name ?? '').split(' ')[0], purpose })
-      return json({ sent: true, expiresInMinutes: CODE_TTL_MIN })
+      const again = await issueCode(db, {
+        accountId: acc.id, email: addr, name: (acc.full_name ?? '').split(' ')[0],
+        purpose, phone: acc.phone,
+      })
+      return json({ sent: true, channel: again.channel, expiresInMinutes: CODE_TTL_MIN })
     }
 
     /* ── Verify the email and activate the account ───────────────────── */
@@ -361,7 +514,29 @@ serve(async (req) => {
         .ilike('email', addr)
         .select('*').single()
       if (error) return json({ error: error.message }, 500)
-      return json({ verified: true, user: sessionOf(acc) })
+
+      /* If that code arrived by TEXT, the resident has just proved they hold
+         the handset — so enrol it for emergency alerts now, while they are
+         here, rather than asking them to prove the same thing twice. A code
+         that came by email proves nothing about the phone, so that number
+         stays unconfirmed until they confirm it from the Alerts screen. */
+      let smsEnrolled = false
+      if (acc?.phone && res.channel === 'sms') {
+        const now = new Date().toISOString()
+        await db.from('sms_subscribers').upsert({
+          phone: acc.phone,
+          account_id: acc.id,
+          barangay: acc.barangay,
+          full_name: acc.full_name,
+          source: 'registration',
+          verified_at: now,
+          opted_out_at: null,
+          updated_at: now,
+        }, { onConflict: 'phone' })
+        smsEnrolled = true
+      }
+
+      return json({ verified: true, user: sessionOf(acc), smsEnrolled })
     }
 
     /* ── Login: password, then either a session or a 2FA code ────────── */
@@ -377,9 +552,12 @@ serve(async (req) => {
         // Correct password on an account that never proved its address. Send a
         // fresh verification code rather than making them start over.
         try {
+          const { data: pendingAcc } = await db.from('accounts')
+            .select('phone').ilike('email', result.email).maybeSingle()
           await issueCode(db, {
             accountId: null, email: result.email,
             name: (result.fullName ?? '').split(' ')[0], purpose: 'verify_email',
+            phone: pendingAcc?.phone,
           })
         } catch { /* cooldown — the existing code is still good */ }
         return json({ unverified: true, email: result.email })
@@ -401,11 +579,30 @@ serve(async (req) => {
 
       if (!acc.mfa_enabled) return json({ user: sessionOf(acc) })
 
-      await issueCode(db, {
-        accountId: acc.id, email: acc.email,
-        name: (acc.full_name ?? '').split(' ')[0], purpose: 'login_mfa',
-      })
-      return json({ mfaRequired: true, email: acc.email, expiresInMinutes: CODE_TTL_MIN })
+      try {
+        const issued = await issueCode(db, {
+          accountId: acc.id, email: acc.email,
+          name: (acc.full_name ?? '').split(' ')[0], purpose: 'login_mfa', phone: acc.phone,
+        })
+        return json({
+          mfaRequired: true, email: acc.email, channel: issued.channel,
+          expiresInMinutes: CODE_TTL_MIN,
+        })
+      } catch (e) {
+        /* The second factor could not be delivered. Refusing the sign-in here
+           locks the account holder out of their own account over an outage in
+           OUR mail provider — the failure mode that has already cost this
+           system its entire resident base once. The password check has
+           already passed, so the session is granted and the operator is told
+           that the second factor did not run. */
+        if (!(e instanceof Undeliverable)) throw e
+        await db.from('notifications').insert({
+          level: 'moderate',
+          title: 'Two-factor code could not be delivered',
+          message: `${acc.email} signed in with a correct password, but the second-factor code could not be sent (${e.detail}). The sign-in was allowed rather than locking the account holder out.`,
+        })
+        return json({ user: sessionOf(acc), mfaSkipped: true, detail: e.detail })
+      }
     }
 
     /* ── Verify the 2FA code and start the session ───────────────────── */

@@ -88,7 +88,14 @@ export const authApi = {
    */
   async registerResident(payload) {
     try {
-      return await otp.registerResident(payload)
+      const res = await otp.registerResident(payload)
+      /* The verification code could not be delivered on ANY channel, so the
+         server activated the account rather than leaving a real resident
+         locked out of one they cannot open. It handed back a session; start
+         it here so the screen can carry them straight in, and let the caller
+         surface `notice` — the reader is owed the reason. */
+      if (res?.unverifiedFallback && res.user) startSession(res.user)
+      return res
     } catch (err) {
       if (err instanceof otp.AuthFunctionUnavailable && !REQUIRE_AUTH_FUNCTION) {
         const { email, password, fullName, barangay } = payload

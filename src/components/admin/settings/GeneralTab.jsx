@@ -182,6 +182,12 @@ export default function GeneralTab({ onToast }) {
               onChange={(v) => set('allowRegistration', v)}
             />
             <Toggle
+              label="Activate accounts when no code can be sent"
+              sub="If neither SMS nor email can deliver a verification code, create the account anyway and flag it here, rather than leaving the resident locked out. Turn this off once a verified sending domain or an SMS provider key is in place."
+              checked={cfg.verificationFallback !== false}
+              onChange={(v) => set('verificationFallback', v)}
+            />
+            <Toggle
               label="Verbose diagnostic logging"
               sub="Record detailed system logs. Useful for debugging; increases storage use."
               checked={cfg.debugLogging}

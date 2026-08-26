@@ -152,12 +152,22 @@ export async function solveChallenge(challenge, bits = 16, onProgress) {
  * Create a resident account. The account is created PENDING and a six-digit
  * code is mailed to the address; it is not usable until `verifyEmail` succeeds.
  *
- * @returns {Promise<{pending:true,email:string,expiresInMinutes:number}>}
+ * The code goes out by SMS when a mobile number was given and the gateway can
+ * carry it, by email otherwise; `channel` in the reply says which, so the
+ * screen can tell the resident where to look for it.
+ *
+ * When NEITHER channel can deliver, the server activates the account instead
+ * of stranding it and answers { verified, unverifiedFallback, user, notice }.
+ *
+ * @returns {Promise<{pending?:true,email:string,channel?:string,expiresInMinutes?:number,
+ *                    verified?:true,unverifiedFallback?:true,user?:object,notice?:string}>}
  */
 export async function registerResident({
-  email, password, fullName, barangay, challenge, solution, elapsedMs, website,
+  email, password, fullName, barangay, phone, challenge, solution, elapsedMs, website,
 }) {
-  return call('register', { email, password, fullName, barangay, challenge, solution, elapsedMs, website })
+  return call('register', {
+    email, password, fullName, barangay, phone, challenge, solution, elapsedMs, website,
+  })
 }
 
 /** Activate a pending account with the code from the verification email. */
