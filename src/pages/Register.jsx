@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import BrandPanel from '../components/BrandPanel.jsx'
 import Modal from '../components/Modal.jsx'
+import CodeVerification from '../components/auth/CodeVerification.jsx'
+import '../components/auth/codeVerification.css'
 import {
   DocIcon,
   ShieldIcon,
@@ -18,8 +20,22 @@ import './auth.css'
 import './Register.css'
 
 /**
- * Create Account — React port of the original register.html.
- * Residents self-register; includes a live password-strength meter.
+ * Create Account — resident self-registration.
+ *
+ * Two steps, because an address nobody proved is not an identity:
+ *   1. the form (with a live password-strength meter and a silent human check)
+ *   2. a six-digit code mailed to the address, which activates the account
+ *
+ * The human check has three parts and none of them ask the reader to do
+ * anything: a honeypot field, how long the form took to fill, and a
+ * proof-of-work puzzle solved in the background while they type. A hosted
+ * CAPTCHA was rejected on purpose — it needs a third-party script and key, it
+ * ships the visitor's data to that third party, and image puzzles routinely
+ * lock out exactly the residents this system exists for.
+ *
+ * Everything here is a convenience for a real person; every one of these
+ * controls is re-checked server-side in the auth-otp Edge Function, which is
+ * where they are actually enforced.
  */
 
 // The 18 barangays of Cabuyao City (same list as the Barangay login dropdown).
@@ -63,10 +79,44 @@ export default function Register() {
   // New-account creation can be closed by an admin on System Configuration.
   const [registrationOpen, setRegistrationOpen] = useState(getSystemConfig().allowRegistration)
 
+  /* ── Step 2: email verification ── */
+  const [step, setStep] = useState('form') // 'form' | 'verify'
+
+  /* ── Human check ──
+     `human.state` is 'pending' while the proof-of-work runs, 'ok' once solved,
+     'failed' if the challenge could not be fetched. The honeypot and the
+     elapsed-time reading are collected silently alongside it. */
+  const [human, setHuman] = useState({ state: 'pending', challenge: null, solution: null, bits: 16 })
+  const [honeypot, setHoneypot] = useState('')
+  const startedAt = useRef(Date.now())
+
   useEffect(() => {
     document.body.classList.add('auth-body')
     return () => document.body.classList.remove('auth-body')
   }, [])
+
+  /* Fetch and solve the proof-of-work as soon as the form mounts, so it is
+     long finished by the time anyone has typed a password. Solving is chunked
+     (see solveChallenge) so the form never stops responding. */
+  const runHumanCheck = useCallback(async () => {
+    setHuman({ state: 'pending', challenge: null, solution: null, bits: 16 })
+    try {
+      const { challenge, bits } = await authApi.requestChallenge()
+      const solution = await authApi.solveChallenge(challenge, bits)
+      setHuman({ state: 'ok', challenge, solution, bits })
+    } catch (err) {
+      // 'unavailable' = the auth-otp function is not deployed yet. Sign-up
+      // still works (api.js falls back to the legacy RPC) but without the
+      // human check or the email gate, so the form says so plainly rather
+      // than either blocking everyone or pretending it verified something.
+      const unavailable = err?.name === 'AuthFunctionUnavailable'
+      setHuman({ state: unavailable ? 'unavailable' : 'failed', challenge: null, solution: null, bits: 16 })
+    }
+  }, [])
+
+  useEffect(() => {
+    runHumanCheck()
+  }, [runHumanCheck])
 
   // Confirm against the shared backend whether self-registration is open.
   useEffect(() => {
@@ -112,20 +162,58 @@ export default function Register() {
       setError('Please accept the Terms of Service and Privacy Policy.')
       return
     }
+    if (human.state === 'failed') {
+      setError('Human verification could not run. Check your connection and reload the page.')
+      return
+    }
+    if (human.state === 'pending') {
+      setError('Still running the security check — this takes a moment. Please try again.')
+      return
+    }
 
     setSubmitting(true)
     const fullName = `${firstName.trim()} ${lastName.trim()}`
     try {
-      await authApi.registerResident({ email, password, fullName, barangay })
-      // Scope the resident portal to the barangay chosen at sign-up (the
-      // backend also stores it on the user record for when auth is live).
-      localStorage.setItem(OFFICIAL_BRGY_KEY, barangay)
-      setSuccess(true)
-      setTimeout(() => navigate('/login'), 2500)
+      const res = await authApi.registerResident({
+        email,
+        password,
+        fullName,
+        barangay,
+        challenge: human.challenge,
+        solution: human.solution,
+        elapsedMs: Date.now() - startedAt.current,
+        website: honeypot, // honeypot — a real person leaves this empty
+      })
+      if (res?.degraded) {
+        // The verification service is not deployed, so no code was sent —
+        // asking for one would strand the user on a screen they cannot pass.
+        localStorage.setItem(OFFICIAL_BRGY_KEY, barangay)
+        setSuccess(true)
+        setTimeout(() => navigate('/login'), 1800)
+        return
+      }
+      // The account exists but is PENDING. It cannot sign in until the code
+      // mailed to this address is entered, so nothing is scoped or stored yet.
+      setStep('verify')
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.')
+      // A challenge is single-use on the server side, so a retry needs a new
+      // one — otherwise the second attempt fails the check rather than the
+      // reason the first one failed.
+      runHumanCheck()
+    } finally {
       setSubmitting(false)
     }
+  }
+
+  /** Code entered — activates the account and signs the resident straight in. */
+  async function handleVerify(code) {
+    const res = await authApi.verifyEmail(email, code)
+    // Scope the resident portal to the barangay chosen at sign-up. Only now,
+    // once the address is proven and a session exists.
+    localStorage.setItem(OFFICIAL_BRGY_KEY, barangay)
+    setSuccess(true)
+    setTimeout(() => navigate(res?.user ? '/resident/dashboard' : '/login'), 900)
   }
 
   return (
@@ -137,6 +225,26 @@ export default function Register() {
 
         {/* ── Right: Register Card ── */}
         <div className="register-card">
+          {step === 'verify' ? (
+            <>
+              <CodeVerification
+                email={email}
+                title="Confirm your email"
+                blurb={<>Your account is created but not active yet. Enter the 6-digit code we sent to</>}
+                submitLabel="Verify & continue"
+                onSubmit={handleVerify}
+                onResend={() => authApi.resendCode(email, 'verify_email')}
+                onBack={() => { setStep('form'); setError(''); runHumanCheck() }}
+                backLabel="Use a different email"
+              />
+              {success && (
+                <div className="success-msg show" style={{ marginTop: 14 }}>
+                  Email verified — taking you to your dashboard…
+                </div>
+              )}
+            </>
+          ) : (
+          <>
           <div className="card-header-row">
             <div className="header-icon">
               <svg viewBox="0 0 24 24">
@@ -154,24 +262,23 @@ export default function Register() {
 
           {/* Error / Success messages */}
           <div className={`error-msg ${error ? 'show' : ''}`}>{error}</div>
-          <div className={`success-msg ${success ? 'show' : ''}`}>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-            Account registered successfully! Redirecting to login...
-          </div>
-
           <form onSubmit={handleRegister}>
+            {/* Honeypot. Off-screen and hidden from assistive tech, so no real
+                person is ever shown it; automated fillers populate every field
+                they find and give themselves away. */}
+            <div className="hp-field" aria-hidden="true">
+              <label htmlFor="website">Website</label>
+              <input
+                type="text"
+                id="website"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+              />
+            </div>
+
             {/* Name row */}
             <div className="name-row">
               <div className="field-group" style={{ marginBottom: 0 }}>
@@ -288,31 +395,79 @@ export default function Register() {
             </div>
 
             {/* Terms */}
+            {/* The sentence is one <span>, not loose text nodes: .terms-row is
+                a flex container, so bare text and buttons became separate flex
+                items on a single non-wrapping line — which ran "Privacy Policy"
+                off the right edge of the card on a phone. As one child it wraps
+                like the sentence it is. */}
             <label className="terms-row">
               <input
                 type="checkbox"
                 checked={terms}
                 onChange={(e) => setTerms(e.target.checked)}
               />
-              I accept the{' '}
-              <button
-                type="button"
-                className="link-inline"
-                style={{ margin: '0 3px' }}
-                onClick={() => setModal('terms')}
-              >
-                Terms of Service
-              </button>{' '}
-              and{' '}
-              <button
-                type="button"
-                className="link-inline"
-                style={{ margin: '0 3px' }}
-                onClick={() => setModal('privacy')}
-              >
-                Privacy Policy
-              </button>
+              <span className="terms-text">
+                I accept the{' '}
+                <button
+                  type="button"
+                  className="link-inline"
+                  onClick={() => setModal('terms')}
+                >
+                  Terms of Service
+                </button>{' '}
+                and{' '}
+                <button
+                  type="button"
+                  className="link-inline"
+                  onClick={() => setModal('privacy')}
+                >
+                  Privacy Policy
+                </button>
+              </span>
             </label>
+
+            {/* Human check. Nothing to solve — this only reports what already
+                ran in the background, so the reader knows why the button was
+                briefly unavailable rather than thinking the form is broken. */}
+            <div className={`human-check ${human.state === 'ok' ? 'ok' : ''} ${human.state === 'failed' ? 'failed' : ''}`.replace(/\s+/g, ' ').trim()}>
+              <span className="human-check-icon">
+                {human.state === 'pending' && <span className="human-spinner" />}
+                {human.state === 'ok' && (
+                  <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+                )}
+                {(human.state === 'failed' || human.state === 'unavailable') && (
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                )}
+              </span>
+              <span>
+                {human.state === 'pending' && <><b>Running security check…</b><small>No puzzle to solve — keep filling in the form.</small></>}
+                {human.state === 'ok' && <><b>Security check passed</b><small>Verified without a CAPTCHA.</small></>}
+                {human.state === 'unavailable' && (
+                  <>
+                    <b>Verification service is offline</b>
+                    <small>
+                      Account creation may be unavailable until CDRRMO IT deploys
+                      it. Existing accounts can still sign in normally.
+                    </small>
+                  </>
+                )}
+                {human.state === 'failed' && (
+                  <>
+                    <b>Security check could not run</b>
+                    <small>
+                      Check your connection, then{' '}
+                      <button type="button" className="link-inline" onClick={runHumanCheck}>try again</button>.
+                    </small>
+                  </>
+                )}
+              </span>
+            </div>
+
+            {success && (
+              <div className="success-msg show" style={{ marginBottom: 12 }}>
+                Account created. Taking you to the sign-in page…
+              </div>
+            )}
 
             {!registrationOpen && (
               <div className="error-msg show" style={{ marginBottom: 12 }}>
@@ -324,7 +479,7 @@ export default function Register() {
             <button
               type="submit"
               className="btn btn-navy btn-full"
-              disabled={submitting || !registrationOpen}
+              disabled={submitting || !registrationOpen || human.state === 'pending'}
             >
               <svg
                 width="16"
@@ -341,7 +496,10 @@ export default function Register() {
                 <line x1="19" y1="8" x2="19" y2="14" />
                 <line x1="22" y1="11" x2="16" y2="11" />
               </svg>
-              {submitting ? 'Registering...' : !registrationOpen ? 'Registration Closed' : 'Register Account'}
+              {submitting ? 'Creating account…'
+                : !registrationOpen ? 'Registration Closed'
+                : human.state === 'pending' ? 'Security check…'
+                : 'Create Account'}
             </button>
           </form>
 
@@ -363,6 +521,8 @@ export default function Register() {
             </p>
             <p className="system-version">Cabuyao City DRRMO © 2026 · v1</p>
           </div>
+          </>
+          )}
         </div>
       </div>
 

@@ -9,15 +9,26 @@ import {
   PrivacyContent,
   ContactContent,
 } from '../components/policyContent.jsx'
+import CodeVerification from '../components/auth/CodeVerification.jsx'
 import { authApi, getRoleForRedirect } from '../services/api.js'
 import { OFFICIAL_BRGY_KEY } from '../data/barangay.js'
 import './auth.css'
 import './Login.css'
+import '../components/auth/codeVerification.css'
 
 /**
- * Login / System Access — React port of the original login.html.
- * Three role panels (CDRRMO Admin, Brgy. Officials, Resident) with a
- * password-visibility toggle and credential validation.
+ * Login / System Access. Three role panels (CDRRMO Admin, Brgy. Officials,
+ * Resident) with a password-visibility toggle and credential validation.
+ *
+ * The password is only the first factor. `authApi.login` can come back three
+ * ways and this screen has a state for each:
+ *   · signed in            — 2FA is off for the account, or this device is
+ *                            already trusted
+ *   · `mfaRequired`        — a code has been mailed; show the code step
+ *   · `unverified`         — the address was never confirmed (a resident who
+ *                            abandoned sign-up). A fresh code goes out and the
+ *                            same code step finishes the job, rather than
+ *                            dead-ending them on an error.
  */
 
 const BARANGAYS = [
@@ -43,6 +54,11 @@ export default function Login() {
   const [resPw, setResPw] = useState('')
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [modal, setModal] = useState(null) // active popup, or null
+
+  /* Second-factor / verification step. `challenge.kind` is 'mfa' or 'verify';
+     `pendingBrgy` carries the barangay selection across the code step so the
+     jurisdiction check still runs once the session actually starts. */
+  const [challenge, setChallenge] = useState(null)
 
   // keep the dark red backdrop only while this page is mounted
   useEffect(() => {
@@ -89,23 +105,56 @@ export default function Login() {
     setError('')
     setSubmitting(true)
     try {
-      const user = await authApi.login(email, password)
-      // Jurisdiction is server-authoritative: an official is scoped to the
-      // barangay on their account, not the one chosen in the dropdown.
-      if (role === 'barangay') {
-        if (brgy && user.barangay && user.barangay !== brgy) {
-          authApi.logout()
-          setError(`This Staff ID belongs to Barangay ${user.barangay}. Select that barangay to sign in.`)
-          return
-        }
-        localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay || brgy)
+      const res = await authApi.login(email, password)
+
+      if (res.mfaRequired) {
+        setChallenge({ kind: 'mfa', email: res.email, role, brgy })
+        return
       }
-      navigate(getRoleForRedirect(user.role))
+      if (res.unverified) {
+        setChallenge({ kind: 'verify', email: res.email, role, brgy })
+        return
+      }
+      finishLogin(res.user, role, brgy)
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  /**
+   * Common tail for every route into a session — password-only, after the
+   * second factor, or after a late email verification. Jurisdiction is
+   * server-authoritative: an official is scoped to the barangay on their
+   * account, not the one chosen in the dropdown.
+   */
+  function finishLogin(user, forRole, chosenBrgy) {
+    if (forRole === 'barangay') {
+      if (chosenBrgy && user.barangay && user.barangay !== chosenBrgy) {
+        authApi.logout()
+        setChallenge(null)
+        setError(`This Staff ID belongs to Barangay ${user.barangay}. Select that barangay to sign in.`)
+        return
+      }
+      localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay || chosenBrgy)
+    }
+    if (user.role === 'resident' && user.barangay) {
+      localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay)
+    }
+    navigate(getRoleForRedirect(user.role))
+  }
+
+  /** Second factor: the emailed code, plus the optional trusted-device tick. */
+  async function handleMfa(code, trustDevice) {
+    const user = await authApi.completeMfa(challenge.email, code, trustDevice)
+    finishLogin(user, challenge.role, challenge.brgy)
+  }
+
+  /** Late email verification for an account that never finished sign-up. */
+  async function handleVerify(code) {
+    const res = await authApi.verifyEmail(challenge.email, code)
+    if (res?.user) finishLogin(res.user, challenge.role, challenge.brgy)
   }
 
   return (
@@ -117,6 +166,33 @@ export default function Login() {
 
         {/* ── Right: Login Card ── */}
         <div className="login-card">
+          {challenge ? (
+            challenge.kind === 'mfa' ? (
+              <CodeVerification
+                email={challenge.email}
+                title="Two-step verification"
+                blurb={<>Your password was correct. Enter the 6-digit code we sent to</>}
+                submitLabel="Sign in"
+                offerTrust
+                onSubmit={handleMfa}
+                onResend={() => authApi.resendCode(challenge.email, 'login_mfa')}
+                onBack={() => { setChallenge(null); setError('') }}
+                backLabel="Cancel"
+              />
+            ) : (
+              <CodeVerification
+                email={challenge.email}
+                title="Confirm your email"
+                blurb={<>This account was never activated. Enter the 6-digit code we just sent to</>}
+                submitLabel="Verify & sign in"
+                onSubmit={handleVerify}
+                onResend={() => authApi.resendCode(challenge.email, 'verify_email')}
+                onBack={() => { setChallenge(null); setError('') }}
+                backLabel="Cancel"
+              />
+            )
+          ) : (
+          <>
           <div className="card-header-row">
             <div className="header-icon">
               <svg viewBox="0 0 24 24">
@@ -228,21 +304,25 @@ export default function Login() {
                   value={resPw}
                   onChange={setResPw}
                 />
+                {/* One <span> for the sentence — see the note on the same row
+                    in Register.jsx: .terms-row is flex, so loose text nodes
+                    become non-wrapping flex items and overflow on a phone. */}
                 <label className="terms-row">
                   <input
                     type="checkbox"
                     checked={acceptTerms}
                     onChange={(e) => setAcceptTerms(e.target.checked)}
                   />
-                  Accept{' '}
-                  <button
-                    type="button"
-                    className="link-inline"
-                    style={{ margin: '0 3px' }}
-                    onClick={() => setModal('legal')}
-                  >
-                    Terms &amp; Privacy Policy
-                  </button>
+                  <span className="terms-text">
+                    Accept{' '}
+                    <button
+                      type="button"
+                      className="link-inline"
+                      onClick={() => setModal('legal')}
+                    >
+                      Terms &amp; Privacy Policy
+                    </button>
+                  </span>
                 </label>
                 <LoginButton submitting={submitting} />
                 <div className="card-footer mt-4">
@@ -276,6 +356,8 @@ export default function Login() {
             </p>
             <p className="system-version">Cabuyao City DRRMO © 2026 · v1</p>
           </div>
+          </>
+          )}
         </div>
       </div>
 

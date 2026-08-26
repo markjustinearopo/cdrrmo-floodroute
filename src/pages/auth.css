@@ -213,11 +213,19 @@ select {
   cursor: pointer;
 }
 
+/* The sentence beside the checkbox. One flex child that wraps internally, so
+   the row is [box][sentence] rather than [box][word][link][word][link] on a
+   single line that cannot break (see the markup note in Register.jsx). */
+.terms-text { min-width: 0; }
+
 /* Keep the link on the same baseline / sentence as the "Accept" text */
-.terms-row a {
+.terms-row a,
+.terms-row .link-inline {
   text-transform: none;
   letter-spacing: normal;
   font-weight: 600;
+  /* The phrase stays whole; it moves to the next line intact when it will not
+     fit, instead of breaking mid-name. */
   white-space: nowrap;
 }
 
@@ -320,4 +328,78 @@ select {
   .stats-row { justify-content: center; }
   .brand-logo { margin: 0 auto 20px; }
   .brand-subtitle { margin: 0 auto 28px; }
+}
+
+/* ── Phone ───────────────────────────────────────────────────────────────
+   The sign-in and sign-up screens are the first thing a resident touches, and
+   every control on them was sized for a mouse: the show/hide-password toggle
+   was a 26px square, and the Terms / Privacy / Sign-in / Support links were
+   19-22px lines of text sitting inside sentences.
+   ──────────────────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  /* The eye toggle sits inside the field, so it grows to the field's height
+     rather than pushing anything around. */
+  .toggle-pw {
+    width: 40px;
+    height: 40px;
+    right: 6px;
+    padding: 0;
+  }
+  .toggle-pw svg { width: 20px; height: 20px; }
+  /* Leave room for it so a long password never runs under the icon. */
+  .input-wrapper input { padding-right: 48px; }
+
+  /* Hit area, not line box. For an INLINE element the clickable region is the
+     content box plus padding — `line-height` moves the text but leaves the
+     target the height of the glyphs, so padding is the thing that works.
+     inline-block so the padding also reserves layout space and adjacent lines
+     do not collide.
+
+     Links inside a running sentence (Terms / Privacy in the accept row) are
+     deliberately left alone: WCAG exempts inline text links from the target
+     minimum, and stretching them would break the sentence they read as. It is
+     the STANDALONE links — the ones that are the only thing on their line —
+     that have to be hittable. */
+  .footer-link a,
+  .support-link a,
+  .support-link .link-inline,
+  .card-footer .link-inline {
+    display: inline-block;
+    padding: 12px 6px;
+    margin: -4px 0;
+  }
+
+  /* The accept-terms row is the one control people miss on a phone; the
+     checkbox was 16px. */
+  .terms-row {
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.6;
+  }
+  .terms-row input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    min-height: 0;
+    flex-shrink: 0;
+    margin-top: 2px;
+    accent-color: var(--cdrrmo-red);
+  }
+
+  .role-tabs button { min-height: 44px; }
+  .btn { min-height: 48px; }
+
+  /* Cards get the width back that desktop spends on gutters. */
+  .page-wrapper { padding: 24px 14px 32px; }
+}
+
+/* Entrance slides translate 32px sideways. `.auth-body` clips overflow-x so
+   they cannot scroll the page, but on a phone the motion is large relative to
+   the viewport and reads as a layout glitch rather than a flourish. */
+@media (max-width: 760px) {
+  .brand-panel,
+  .login-card,
+  .register-card {
+    animation-name: fadeUp;
+    animation-duration: 0.45s;
+  }
 }

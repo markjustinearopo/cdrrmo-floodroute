@@ -1,0 +1,265 @@
+/* ============================================================
+   One-time-code entry (CodeVerification.jsx) and the registration form's
+   human-verification strip.
+
+   Lives inside the auth cards, so it inherits their light surface, the
+   `.btn` family and `.link-inline` from auth.css.
+   ============================================================ */
+
+.otp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.otp-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #fef2f2;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+}
+.otp-icon svg {
+  width: 25px;
+  height: 25px;
+  stroke: #c0181b;
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.otp-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0 0 6px;
+}
+.otp-blurb {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  margin: 0 0 18px;
+}
+/* Long addresses must not widen the card past the viewport on a phone. */
+.otp-email {
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.otp-error,
+.otp-notice {
+  width: 100%;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.45;
+  padding: 10px 12px;
+  border-radius: 9px;
+  margin-bottom: 14px;
+  text-align: left;
+}
+.otp-error {
+  background: #fef2f2;
+  border: 1px solid #fbcaca;
+  color: #b91c1c;
+}
+.otp-notice {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+/* ── The six boxes ──────────────────────────────────────────────────────
+   A grid, not a flex row: equal columns mean the boxes shrink together on a
+   narrow phone instead of the last one being pushed out of the card. */
+.otp-boxes {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: 18px;
+}
+.otp-box {
+  /* Overrides the global input base rule, which is styled for labelled
+     text fields rather than single characters. */
+  width: 100%;
+  min-width: 0;
+  height: 54px;
+  padding: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  /* 1.35rem ≈ 21.6px: comfortably past the 16px below which iOS Safari zooms
+     the page on focus — which on this screen would leave the six boxes
+     scrolled half out of view mid-entry. */
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+  border: 1.5px solid var(--color-border);
+  border-radius: 11px;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.otp-box.filled {
+  background: #fff;
+  border-color: #cbb26b;
+}
+.otp-box:focus {
+  border-color: var(--cdrrmo-red);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(192, 24, 27, 0.12);
+  outline: none;
+}
+.otp-box:disabled { opacity: 0.6; }
+
+/* ── Trust this device ── */
+.otp-trust {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+.otp-trust input {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin-top: 1px;
+  flex-shrink: 0;
+  accent-color: var(--cdrrmo-red);
+  cursor: pointer;
+}
+.otp-trust small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+.otp-submit { margin-bottom: 14px; }
+
+.otp-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-bottom: 14px;
+}
+.otp-actions .link-inline {
+  font-size: 0.8125rem;
+  /* A 44px row so these are real targets on a phone, not 19px of text. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.otp-actions .link-inline:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+  text-decoration: none;
+}
+.otp-back { color: var(--color-text-secondary); }
+
+.otp-foot {
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ============================================================
+   Registration human-verification strip
+   ============================================================ */
+
+/* The honeypot. Off-screen rather than display:none — some form-fillers skip
+   hidden fields but happily fill positioned ones — and hidden from assistive
+   tech so no real user is ever offered it. */
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.human-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-tertiary);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+.human-check.ok {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+.human-check.failed {
+  border-color: #fbcaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.human-check-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+.human-check-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.human-check b { color: inherit; font-weight: 700; }
+.human-check small {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  margin-top: 1px;
+}
+.human-check.ok small { color: #16a34a; }
+
+/* Indeterminate progress while the proof-of-work runs. */
+.human-spinner {
+  width: 17px;
+  height: 17px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--cdrrmo-red);
+  border-radius: 50%;
+  animation: human-spin 0.7s linear infinite;
+}
+@keyframes human-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .human-spinner { animation-duration: 2.4s; }
+}
+
+/* ── Phone ── */
+@media (max-width: 480px) {
+  .otp-title { font-size: 1.15rem; }
+  .otp-boxes { gap: 6px; }
+  .otp-box { height: 50px; font-size: 1.2rem; border-radius: 10px; }
+  .otp-icon { width: 46px; height: 46px; }
+}
