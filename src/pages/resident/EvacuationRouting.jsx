@@ -17,7 +17,7 @@ import {
   formatWalkEta,
   activeRouteGeometry,
 } from '../../components/admin/routingHelpers.jsx'
-import { useRouteGraph, planToNearestSafe, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
+import { useRouteGraph, planRoute, planToNearestSafe, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import '../../components/map/mapUpgrade.css'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
@@ -27,6 +27,9 @@ import { useGeolocation } from '../../hooks/useGeolocation.js'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import { useEvacCenters, barangayCoords } from '../../context/AdminDataContext.jsx'
 import { getResidentBarangay, residentBarangayLabel } from '../../data/resident.js'
+import LiveNavigation from '../../components/resident/LiveNavigation.jsx'
+import RoutingGuide, { hasSeenRoutingGuide } from '../../components/resident/RoutingGuide.jsx'
+import * as speech from '../../services/speech.js'
 import '../admin/RoutePlanning.css'
 import './Resident.css'
 
@@ -76,8 +79,69 @@ export default function EvacuationRouting() {
   // system to compute (origin = their pinned location, else their barangay).
   const [gen, setGen] = useState(null)
   const [genMsg, setGenMsg] = useState('')
+
+  /* Guided navigation. `navSession` is the route actually being walked — it is
+     planned fresh from a live GPS fix at the moment "Start" is pressed, not
+     reused from the preview above, because the preview may have been generated
+     from a pin the resident set twenty minutes and two streets ago. */
+  const [navSession, setNavSession] = useState(null)
+  const [starting, setStarting] = useState(false)
+  // The walkthrough opens by itself the first time, and stays one tap away.
+  const [guideOpen, setGuideOpen] = useState(() => !hasSeenRoutingGuide())
   const routerLoc = useLocation()
   const autoDestRef = useRef(null) // guards the one-shot "Directions" auto-route
+
+  /**
+   * Begin guided navigation.
+   *
+   * Order matters here. speech.prime() has to run inside the tap itself —
+   * mobile browsers only unlock audio from a real user gesture, and awaiting
+   * the GPS fix first breaks that chain, leaving a navigator that silently
+   * never speaks. Everything slow happens after.
+   */
+  async function startNavigation() {
+    speech.prime()
+    setGenMsg('')
+    if (!graph || graph.size === 0) return setGenMsg('Road network unavailable.')
+
+    // Where are we going? The shelter the generated route picked, else the end
+    // of whichever published route is on screen.
+    let dest = null
+    if (gen?.centre?.coords) {
+      dest = { id: gen.centre.id, name: gen.centre.name, barangay: gen.centre.barangay, coords: gen.centre.coords }
+    } else if (points.length > 1) {
+      // A published route's endpoint is a place, not the route itself —
+      // "Arrive at Evacuation Route 2" tells the walker nothing about where
+      // they are standing when they get there.
+      dest = {
+        name: selected?.name ? `the end of ${selected.name}` : 'your route destination',
+        coords: points[points.length - 1],
+      }
+    } else {
+      return setGenMsg('Generate a safe route first, then start guided navigation.')
+    }
+
+    setStarting(true)
+    let start = origin
+    try {
+      const c = await locate()
+      setPin({ lat: c.lat, lng: c.lng })
+      start = [c.lat, c.lng]
+    } catch {
+      /* No fix (indoors, permission denied): fall back to the pin they set. The
+         navigator will keep asking for a fix on its own once it opens. */
+    }
+    setStarting(false)
+    if (!start) return setGenMsg('Pin your location first, then start guided navigation.')
+
+    const plan = planRoute(graph, start, dest.coords, {
+      riskAt: field?.riskAt, statusMap, alpha: DEFAULT_ALPHA, compare: false,
+    })
+    if (!plan?.ok || plan.safe.coords.length < 2) {
+      return setGenMsg('No route from your location to that shelter right now. Try another centre or call CDRRMO.')
+    }
+    setNavSession({ coords: plan.safe.coords, segments: plan.safe.segments, destination: dest })
+  }
 
   function findMyLocation() {
     setGenMsg('')
@@ -137,9 +201,10 @@ export default function EvacuationRouting() {
       alpha: DEFAULT_ALPHA,
     })
     if (!best) return setGenMsg('No reachable open evacuation centre right now.')
-    setSelectedId(null)
+      setSelectedId(null)
     setGen({
       coords: best.plan.safe.coords,
+      segments: best.plan.safe.segments,
       centre: best.centre,
       distanceM: best.plan.safe.distanceM,
       fromPin: Boolean(pin),
@@ -205,11 +270,28 @@ export default function EvacuationRouting() {
             >
               <SparkIcon /> Generate safe route
             </button>
+            <button
+              type="button"
+              className="rp-btn rp-btn--nav"
+              onClick={startNavigation}
+              disabled={starting || points.length < 2}
+              title="Follow this route live, with spoken turn-by-turn directions"
+            >
+              <NavIcon /> {starting ? 'Getting GPS…' : 'Start guided navigation'}
+            </button>
             {showGen && (
               <button type="button" className="rp-btn" onClick={() => setGen(null)}>
                 Clear
               </button>
             )}
+            <button
+              type="button"
+              className="rp-btn rp-btn--help"
+              onClick={() => setGuideOpen(true)}
+              title="How to use evacuation routing"
+            >
+              <HelpIcon /> How to use
+            </button>
           </div>
 
           <MapViewToggle value={use3D} onChange={setUse3D} />
@@ -441,10 +523,44 @@ export default function EvacuationRouting() {
           </aside>
         </div>
       </div>
+
+      {/* First-run walkthrough — opens by itself once, reopenable from the
+          toolbar. */}
+      <RoutingGuide open={guideOpen} onClose={() => setGuideOpen(false)} />
+
+      {/* Guided navigation takes over the whole screen while it runs. */}
+      {navSession && (
+        <LiveNavigation
+          open
+          graph={graph}
+          riskAt={field?.riskAt}
+          statusMap={statusMap}
+          destination={navSession.destination}
+          initialCoords={navSession.coords}
+          initialSegments={navSession.segments}
+          onExit={() => setNavSession(null)}
+        />
+      )}
     </ResidentLayout>
   )
 }
 
+function NavIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <polygon points="3 11 22 2 13 21 11 13 3 11" />
+    </svg>
+  )
+}
+function HelpIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  )
+}
 function ShieldIcon() {
   return (
     <svg viewBox="0 0 24 24">

@@ -377,6 +377,13 @@ function makeCost(opts, alpha, beta) {
 function decorate(graph, result, opts) {
   const { lat, lng, adj, wayInfo } = graph
   const coords = result.nodes.map((id) => [lat[id], lng[id]])
+  /* Per-segment metadata for the turn-by-turn navigator: segments[i] describes
+     the leg coords[i] → coords[i+1]. The via-list below collapses the path into
+     named runs, which is right for a summary panel and useless for spoken
+     directions — those need to know which road every metre of the line sits on,
+     and how many ways meet at the node where the name changes (a rename at a
+     two-way node is the same road continuing, not a turn). */
+  const segments = []
 
   // Walk the path start→goal, counting manually-flagged segments, summing a
   // class-aware drive time, and collecting the ordered list of named roads it
@@ -400,6 +407,16 @@ function decorate(graph, result, opts) {
       flooded.add(edge.wayId)
     }
     const info = wayInfo?.get(edge.wayId)
+    segments.push({
+      wayId: edge.wayId,
+      name: info?.named ? info.name : null,
+      highway: info?.highway,
+      d: edge.d,
+      kmh: edge.kmh,
+      // Degree of the node this segment STARTS at — 3+ means a real junction.
+      degree: adj[result.nodes[i - 1]]?.length ?? 2,
+      flooded: st === 'flooded' || st === 'blocked',
+    })
     // Free-flow minutes for this segment, then stretched by the traffic factor
     // so the headline ETA reflects the jam, not the empty-road ideal.
     const ffMins = (edge.d / 1000 / (edge.kmh || 25)) * 60
@@ -453,6 +470,7 @@ function decorate(graph, result, opts) {
     worstTrafficM, // metres spent at that worst level
     worstTrafficRoad, // friendly name of the worst-congested road, if any
     viaRoads, // ordered named roads the path follows: [{ name, m, wayIds }, …]
+    segments, // per-leg metadata aligned with coords — drives turn-by-turn
   }
 }
 

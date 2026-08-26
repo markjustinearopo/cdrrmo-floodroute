@@ -778,3 +778,60 @@
   .res-forecast { grid-template-columns: repeat(2, 1fr); }
   .res-route-btn { font-size: 0.875rem; padding: 14px 12px; }
 }
+
+/* ============================================================
+   Guided navigation entry points (Evacuation Routing toolbar).
+
+   "Start guided navigation" is the primary action on this screen once a route
+   exists, so it is the only filled button in a row of outlined ones — a
+   resident who has never seen the page should be able to find it without
+   reading any of the labels. "How to use" sits at the other end, quiet, and
+   never competes with it.
+   ============================================================ */
+
+.route-plan .rp-btn--nav {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(15, 118, 110, 0.28);
+}
+
+.route-plan .rp-btn--nav svg {
+  fill: #fff;
+  stroke: none;
+}
+
+.route-plan .rp-btn--nav:hover:not(:disabled) {
+  background: #115e59;
+  border-color: #115e59;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.route-plan .rp-btn--nav:disabled {
+  background: #e2e8f0;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  box-shadow: none;
+}
+
+.route-plan .rp-btn--nav:disabled svg {
+  fill: #94a3b8;
+}
+
+.route-plan .rp-btn--help {
+  border-style: dashed;
+  color: #64748b;
+}
+
+.route-plan .rp-btn--help:hover:not(:disabled) {
+  border-style: solid;
+  border-color: #0f766e;
+  color: #0f766e;
+  background: #f0fdfa;
+}
+
+.route-plan .rp-btn--help:hover:not(:disabled) svg {
+  stroke: #0f766e;
+}
