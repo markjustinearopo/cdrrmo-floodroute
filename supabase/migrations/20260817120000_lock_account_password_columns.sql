@@ -26,4 +26,27 @@
 -- migration. Flagging so it isn't mistaken for "fully locked down."
 -- ============================================================
 
-revoke select (password_hash, password_plain) on public.accounts from anon, authenticated;
+-- CORRECTED 2026-08-27. The original statement here was:
+--
+--     revoke select (password_hash, password_plain) on public.accounts
+--       from anon, authenticated;
+--
+-- It runs without error and does NOTHING. Table-level and column-level
+-- privileges are separate in Postgres: `GRANT SELECT ON accounts` authorises
+-- every column by itself, and a column-level REVOKE does not subtract from
+-- it. This was "applied" and the bcrypt hashes stayed readable through the
+-- public anon key the whole time.
+--
+-- The working form is to drop the table-level grant and grant back only the
+-- columns the app actually reads. Safe here because every read of `accounts`
+-- in src/services/db.js names its columns (ACCOUNT_COLUMNS / the profile
+-- select) — there is no `select('*')` to break.
+revoke select on public.accounts from anon, authenticated;
+
+grant select (
+  id, username, email, role, barangay, full_name, position, phone,
+  status, created_at, last_login, avatar, must_change_password,
+  email_verified_at, mfa_enabled
+) on public.accounts to anon, authenticated;
+
+-- password_hash and password_plain are deliberately absent from that list.

@@ -5,3 +5,6 @@ dist
 _manuscript.txt
 .env
 .env.*
+
+# Supabase CLI scratch state (project ref, pooler URL, version pins)
+supabase/.temp
