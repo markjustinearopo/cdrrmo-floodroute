@@ -27,6 +27,7 @@ import { FLOOD_LEVEL_LABEL } from '../data/floodReports.js'
 import db from '../services/db.js'
 import supabase from '../services/supabase.js'
 import { getSystemConfig } from '../services/systemConfig.js'
+import SaveErrorToast from '../components/SaveErrorToast.jsx'
 
 /* ── localStorage plumbing ────────────────────────────────────────────────
    Most collections are Supabase-backed now. localStorage survives only as:
@@ -177,6 +178,8 @@ function reducer(state, action) {
 export function AdminDataProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, null, () => ({ ...EMPTY, lastUpdated: Date.now() }))
   const [isLoading, setIsLoading] = useState(true)
+  /* Last background save that did NOT reach the database — see `persist`. */
+  const [saveError, setSaveError] = useState(null)
 
   // Latest state, readable inside callbacks for optimistic updates.
   const stateRef = useRef(state)
@@ -199,12 +202,28 @@ export function AdminDataProvider({ children }) {
     }
   }, [])
 
-  /* Apply an optimistic value now; persist in the background; reconcile. */
+  /* Apply an optimistic value now; persist in the background; reconcile.
+
+     A FAILED persist used to be swallowed into console.error, and the refetch
+     that follows then quietly rolled the optimistic value back. To the person
+     at the screen the record appeared, then vanished, with no explanation —
+     the worst possible failure mode for a warning system, because an operator
+     who issued an alert had every reason to believe the city had been warned.
+     (This is exactly how the EMERGENCY tier failed against a database whose
+     alerts_level_check constraint predated it.) The failure is now surfaced. */
   const optimistic = useCallback((name, value) => dispatch({ type: 'SET', name, value }), [])
   const persist = useCallback((name, op) => {
     Promise.resolve()
       .then(op)
-      .catch((e) => console.error(`[AdminData] persist ${name} failed`, e))
+      .then(() => setSaveError(null))
+      .catch((e) => {
+        console.error(`[AdminData] persist ${name} failed`, e)
+        setSaveError({
+          collection: name,
+          message: e?.message || 'The database rejected the change.',
+          at: Date.now(),
+        })
+      })
       .finally(() => refetch(name))
   }, [refetch])
 
@@ -723,9 +742,13 @@ export function AdminDataProvider({ children }) {
     persist('floodAreas', () => db.appSettings.set('flood_areas', next))
   }, [optimistic, persist])
 
+  const dismissSaveError = useCallback(() => setSaveError(null), [])
+
   const value = useMemo(() => ({
     ...state,
     isLoading,
+    saveError,
+    dismissSaveError,
     refresh,
     addAlert, updateAlert, resolveAlert, removeAlert,
     addIncident, updateIncident, removeIncident,
@@ -740,7 +763,7 @@ export function AdminDataProvider({ children }) {
     notify, markNotificationsRead,
     addSavedRoute, updateSavedRoute, removeSavedRoute,
   }), [
-    state, isLoading, refresh,
+    state, isLoading, saveError, dismissSaveError, refresh,
     addAlert, updateAlert, resolveAlert, removeAlert,
     addIncident, updateIncident, removeIncident,
     submitFloodReport, verifyFloodReport, updateFloodReport, removeFloodReport,
@@ -753,7 +776,14 @@ export function AdminDataProvider({ children }) {
     addSavedRoute, updateSavedRoute, removeSavedRoute,
   ])
 
-  return <AdminDataContext.Provider value={value}>{children}</AdminDataContext.Provider>
+  return (
+    <AdminDataContext.Provider value={value}>
+      {children}
+      {/* Mounted in the provider, so all three portals get it without each
+          screen having to remember to render it. */}
+      <SaveErrorToast error={saveError} onDismiss={dismissSaveError} />
+    </AdminDataContext.Provider>
+  )
 }
 
 export function useAdminData() {

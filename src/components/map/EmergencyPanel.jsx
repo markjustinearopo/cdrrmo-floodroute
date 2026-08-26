@@ -19,16 +19,33 @@ const HOTLINES = [
 export default function EmergencyPanel({ evacCenters = [], origin, originLabel, onGoto }) {
   const [open, setOpen] = useState(false)
 
+  /* Nearest first — but ACCEPTING first, always.
+     This list used to be pure distance over every non-closed centre, so during
+     a real event (when the near shelters fill first) it could hand a resident
+     three names that would turn them away at the gate. A centre at capacity is
+     still worth showing — it may be someone's landmark, and CDRRMO may open
+     overflow — but it is ranked below every shelter that can actually take
+     them, and it says so. */
   const nearest = useMemo(() => {
     if (!origin) return []
-    return evacCenters
+    const withDistance = evacCenters
       .filter((c) => Array.isArray(c.coords) && c.status !== 'closed')
-      .map((c) => ({
-        ...c,
-        km: haversineKm(origin, { lat: c.coords[0], lng: c.coords[1] }),
-      }))
+      .map((c) => {
+        const capacity = Number(c.capacity) || 0
+        const occupancy = Number(c.occupancy) || 0
+        const slots = capacity ? Math.max(0, capacity - occupancy) : null
+        return {
+          ...c,
+          km: haversineKm(origin, { lat: c.coords[0], lng: c.coords[1] }),
+          slots,
+          accepting: c.status !== 'full' && (capacity === 0 || occupancy < capacity),
+        }
+      })
       .sort((a, b) => a.km - b.km)
-      .slice(0, 3)
+
+    const accepting = withDistance.filter((c) => c.accepting)
+    const full = withDistance.filter((c) => !c.accepting)
+    return [...accepting, ...full].slice(0, 3)
   }, [evacCenters, origin])
 
   return (
@@ -52,11 +69,21 @@ export default function EmergencyPanel({ evacCenters = [], origin, originLabel, 
               <div className="emg-empty">No open evacuation centre found. Call the hotline below.</div>
             )}
             {nearest.map((c) => (
-              <button type="button" key={c.id} className="emg-row" onClick={() => onGoto?.(c)}>
-                <span className="emg-row-dot" data-status={c.status} />
+              <button
+                type="button"
+                key={c.id}
+                className={`emg-row ${c.accepting ? '' : 'emg-row--full'}`}
+                onClick={() => onGoto?.(c)}
+              >
+                <span className="emg-row-dot" data-status={c.accepting ? 'open' : 'full'} />
                 <span className="emg-row-txt">
                   <b>{c.name}</b>
-                  <small>{c.barangay} · {c.status}</small>
+                  <small>
+                    {c.barangay}
+                    {c.accepting
+                      ? c.slots != null ? ` · ${c.slots.toLocaleString()} slots left` : ' · Open'
+                      : ' · FULL — not accepting'}
+                  </small>
                 </span>
                 <span className="emg-row-km">{c.km < 1 ? `${Math.round(c.km * 1000)} m` : `${c.km.toFixed(1)} km`}</span>
               </button>
