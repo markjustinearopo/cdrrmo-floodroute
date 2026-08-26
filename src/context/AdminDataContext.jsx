@@ -879,7 +879,11 @@ export function useNotifications() {
 const ALERT_SETTINGS_DBKEY = 'alert_settings'
 
 export const ALERT_SETTINGS_DEFAULTS = {
-  email: true, push: false,
+  /* SMS defaults ON because it is the only channel that reaches a resident who
+     is not looking at a screen — which is every resident, most of the time. It
+     is still gated by a configured provider: with no key the sms-alert function
+     records the message and reports it as simulated rather than pretending. */
+  email: true, sms: true, push: false,
   autoIssue: false, triggerLevel: 'high', reissueInterval: 30,
   tplHigh: '🚨 SEVERE FLOOD WARNING for {barangay}. Water level has reached {depth} m. Evacuate low-lying areas immediately and proceed to the nearest evacuation center.',
   tplModerate: '⚠️ Flood advisory for {barangay}. Water level is rising ({depth} m). Avoid flooded roads and prepare to evacuate if conditions worsen.',

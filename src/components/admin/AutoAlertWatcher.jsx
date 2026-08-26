@@ -25,6 +25,7 @@ import {
   useAlerts, loadAlertSettings, fillAlertTemplate,
 } from '../../context/AdminDataContext.jsx'
 import { isDrillActive } from '../../services/drillMode.js'
+import { dispatchAlert } from '../../services/alertDispatch.js'
 
 /* An alert this raises during a drill is a REAL record — the system genuinely
    decided to issue it, which is the whole point of running a drill. But it must
@@ -100,14 +101,20 @@ export default function AutoAlertWatcher({ field }) {
 
         const drill = isDrillActive()
         const headline = level === 'high' ? 'Automatic Severe Flood Warning' : 'Automatic Flood Advisory'
-        addAlert({
+        const alert = {
           level,
           barangay: b.name,
           title: drill ? DRILL_PREFIX + headline : headline,
           message: fillAlertTemplate(level, { barangay: b.name, depth: b.floodDepth }),
           auto: true,
           drill,
-        })
+        }
+        addAlert(alert)
+        /* An automatic alert is the case where nobody is at the screen, which
+           makes the outbound channels the entire point of it. dispatchAlert
+           blocks its own sends during a drill, so a drill still exercises the
+           watcher without texting the city. */
+        dispatchAlert(alert)
         ledger[b.name] = [...recent, now]
         changed = true
       }

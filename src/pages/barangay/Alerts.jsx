@@ -4,6 +4,7 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { ALERT_LEVELS, alertAppliesTo } from '../../data/cabuyao.js'
 import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
 import { useAlerts } from '../../context/AdminDataContext.jsx'
+import { dispatchAlert, describeDispatch } from '../../services/alertDispatch.js'
 import '../admin/Manage.css'
 
 /**
@@ -69,14 +70,22 @@ export default function Alerts() {
   function handleIssue(e) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
-    addAlert({
+    const alert = {
       title: f.get('title').trim(),
       barangay: myBrgy,
       level: f.get('level'),
       message: f.get('message').trim(),
-    })
+    }
+    addAlert(alert)
     setShowModal(false)
-    flash(`Alert broadcast to Brgy. ${brgyLabel}.`)
+    flash(`Alert broadcast to Brgy. ${brgyLabel} — notifying residents…`)
+    /* An alert a barangay official raises reaches their residents on the same
+       channels a CDRRMO one does. "Broadcast" was previously true only of the
+       screens people already had open. */
+    dispatchAlert(alert).then((res) => {
+      const detail = describeDispatch(res)
+      if (detail) flash(`Brgy. ${brgyLabel} — ${detail}.`)
+    })
   }
 
   function resolve(id) {

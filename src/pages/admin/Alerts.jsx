@@ -4,7 +4,8 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import RecordList from '../../components/admin/RecordList.jsx'
 import { BARANGAYS, ALERT_LEVELS , CITY_WIDE } from '../../data/cabuyao.js'
 import { useAlerts, nowLabel, fillAlertTemplate } from '../../context/AdminDataContext.jsx'
-import { sendAlertEmail } from '../../services/emailAlert.js'
+import { dispatchAlert, describeDispatch } from '../../services/alertDispatch.js'
+import SmsDeliveryPanel from '../../components/admin/SmsDeliveryPanel.jsx'
 import './Manage.css'
 import api from '../../services/api.js'
 import EmergencyIssueModal from '../../components/admin/EmergencyIssueModal.jsx'
@@ -100,17 +101,21 @@ export default function Alerts() {
       alert.scheduledFor = when
       alert.issued = `Scheduled · ${nowLabel(when)}`
     }
-    addAlert(alert)
-    // Fire email for immediately-active alerts; scheduled ones email when they auto-promote.
+    const saved = addAlert(alert)
+    /* Email + SMS for immediately-active alerts; a scheduled one dispatches
+       when the store promotes it at its due time. The toast is rewritten once
+       the channels report back, so "issued" never stands in for "delivered". */
     if (alert.status !== 'scheduled') {
-      sendAlertEmail({ level: alert.level, title: alert.title, message: alert.message, barangay: alert.barangay })
-        .catch(console.warn)
+      dispatchAlert({ ...alert, id: saved?.id }).then((res) => {
+        const detail = describeDispatch(res)
+        if (detail) flash(`Alert issued for ${alert.barangay} — ${detail}.`)
+      })
     }
     setShowModal(false)
     setScheduling(false)
     flash(alert.status === 'scheduled'
       ? `Alert scheduled for ${alert.barangay} at ${nowLabel(when)}.`
-      : `Alert issued for ${alert.barangay}.`)
+      : `Alert issued for ${alert.barangay} — notifying residents…`)
   }
 
   // One "are you sure?" pattern for every destructive change, matching the
@@ -183,6 +188,10 @@ export default function Alerts() {
             </button>
           </div>
         </div>
+
+        {/* Directly under the Issue button, because "who will this actually
+            reach?" is a question to answer BEFORE pressing it, not after. */}
+        <SmsDeliveryPanel />
 
         {/* Stats */}
         <RecordList
@@ -315,9 +324,15 @@ export default function Alerts() {
         <EmergencyIssueModal
           onClose={() => setEmergency(false)}
           onIssue={(alert) => {
-            addAlert({ ...alert, issuedBy: api.getUser?.()?.name || 'CDRRMO' })
+            const saved = addAlert({ ...alert, issuedBy: api.getUser?.()?.name || 'CDRRMO' })
             setEmergency(false)
             flash('Emergency alert issued — every signed-in screen is showing it.')
+            /* The top tier goes out on every channel. This used to take over
+               the screens of people already signed in and reach nobody else. */
+            dispatchAlert({ ...alert, id: saved?.id }).then((res) => {
+              const detail = describeDispatch(res)
+              if (detail) flash(`Emergency alert issued — ${detail}.`)
+            })
           }}
         />
       )}

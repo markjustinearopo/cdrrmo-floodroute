@@ -24,6 +24,7 @@ import DecisionStrip from '../../components/admin/DecisionStrip.jsx'
 import { levelFromDepth } from '../../services/systemConfig.js'
 import { useT } from '../../services/i18n.js'
 import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
+import { dispatchAlert, describeDispatch } from '../../services/alertDispatch.js'
 import './Dashboard.css'
 
 /**
@@ -239,13 +240,21 @@ export default function Dashboard() {
       message: f.get('message').trim(),
     })
     setModal(null)
+    /* This screen used to record the alert and stop there — no email, no text.
+       An operator raising a HIGH alert from the Dashboard had every reason to
+       believe the barangay had been warned, and nothing had left the building.
+       Both channels now fire here exactly as they do on the Alerts page. */
+    dispatchAlert(alert).then((res) => {
+      const detail = describeDispatch(res)
+      if (detail) flashToast(`${alert.barangay} — ${detail}.`, alert.level === 'high' ? 'high' : '')
+    })
     if (alert.level === 'high') {
       // Escalated feedback for a HIGH alert: red toast + a brief screen pulse.
       setFlash(true)
       setTimeout(() => setFlash(false), 1100)
-      flashToast(`🚨 HIGH alert issued for ${alert.barangay}.`, 'high')
+      flashToast(`🚨 HIGH alert issued for ${alert.barangay} — notifying residents…`, 'high')
     } else {
-      flashToast(`Alert issued for ${alert.barangay}.`)
+      flashToast(`Alert issued for ${alert.barangay} — notifying residents…`)
     }
   }
 

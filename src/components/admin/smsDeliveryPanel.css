@@ -1,0 +1,310 @@
+/* ============================================================
+   smsDeliveryPanel.css — the operator's SMS delivery audit.
+
+   Colour carries the one distinction that matters: purple means recorded but
+   not delivered (simulation), green means a real gateway. Nothing here is
+   decorative — an operator scanning this during an incident needs the state of
+   the channel in under a second.
+   ============================================================ */
+
+.smsp {
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #16a34a;
+  border-radius: 12px;
+  background: #fff;
+  padding: 16px;
+  margin-bottom: 18px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.smsp--sim { border-left-color: #a855f7; }
+.smsp--offline { border-left-color: #f59e0b; }
+
+.smsp-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.smsp-head-text { flex: 1; min-width: 0; }
+
+.smsp-icon {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  border-radius: 9px;
+  background: #f0fdf4;
+  fill: none;
+  stroke: #16a34a;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.smsp--sim .smsp-icon { background: #faf5ff; stroke: #a855f7; }
+.smsp--offline .smsp-icon { background: #fff7ed; stroke: #f59e0b; }
+
+.smsp-head h3 {
+  margin: 0 0 3px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  font-size: 0.9375rem;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.smsp-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.smsp-pill.live { background: #dcfce7; color: #15803d; }
+.smsp-pill.sim { background: #f3e8ff; color: #7e22ce; }
+
+.smsp-head p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.smsp-head code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+  color: #334155;
+}
+
+.smsp-refresh {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+
+.smsp-refresh:hover { color: #0f766e; border-color: #0f766e; }
+.smsp-refresh svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Counts ── */
+.smsp-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.smsp-stat {
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #f8fafc;
+  border: 1px solid #eef2f6;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.smsp-stat-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.smsp-stat-lbl {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.smsp-warn {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: #9a3412;
+}
+
+/* ── Coverage chips ── */
+.smsp-coverage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.smsp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.smsp-chip b {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #fff;
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Outbox ── */
+.smsp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f766e;
+  cursor: pointer;
+}
+
+.smsp-toggle svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 200ms ease;
+}
+
+.smsp-toggle svg.open { transform: rotate(180deg); }
+
+.smsp-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.smsp-msg {
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #f8fafc;
+  border-left: 3px solid #cbd5e1;
+}
+
+.smsp-msg.sent { border-left-color: #16a34a; }
+.smsp-msg.simulated { border-left-color: #a855f7; }
+.smsp-msg.failed { border-left-color: #dc2626; background: #fef2f2; }
+
+.smsp-msg-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+
+.smsp-status {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.smsp-status.sent { background: #dcfce7; color: #15803d; }
+.smsp-status.simulated { background: #f3e8ff; color: #7e22ce; }
+.smsp-status.failed { background: #fee2e2; color: #991b1b; }
+
+.smsp-msg-to {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
+.smsp-msg-brgy {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.smsp-msg-time {
+  margin-left: auto;
+  font-size: 0.625rem;
+  color: #94a3b8;
+}
+
+.smsp-msg-body {
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.smsp-msg-error {
+  margin-top: 5px;
+  font-size: 0.6875rem;
+  color: #b91c1c;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  word-break: break-word;
+}
+
+.smsp-empty,
+.smsp-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 0 0;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+}
+
+.smsp-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #e2e8f0;
+  border-top-color: #94a3b8;
+  animation: smsp-spin 700ms linear infinite;
+}
+
+@keyframes smsp-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .smsp-spinner { animation: none; }
+  .smsp-toggle svg { transition: none; }
+}

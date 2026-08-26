@@ -4,6 +4,7 @@ import {
 } from '../../../context/AdminDataContext.jsx'
 import { useSystemConfig } from '../../../services/systemConfig.js'
 import { sendAlertEmail } from '../../../services/emailAlert.js'
+import { sendTestSms, smsConfig, smsStats } from '../../../services/smsAlert.js'
 import { Panel, Toggle, UnitInput, SaveBar, SettingsNote, TabHead } from '../SettingsKit.jsx'
 
 /**
@@ -23,11 +24,20 @@ export default function AlertsTab({ onToast, onGoToTab }) {
   const config = useSystemConfig()
   const [cfg, setCfg] = useState(loadAlertSettings)
   const [dirty, setDirty] = useState(false)
+  /* What the SMS channel can actually do right now, asked of the server rather
+     than assumed from a checkbox. An operator turning "SMS" on deserves to be
+     told, on this screen, whether that means anything yet. */
+  const [sms, setSms] = useState(null)     // { provider, simulation, senderName }
+  const [smsCounts, setSmsCounts] = useState(null)
+  const [testNumber, setTestNumber] = useState('')
+  const [testingSms, setTestingSms] = useState(false)
 
   // Pull the shared settings from Supabase once on mount (cache renders first).
   useEffect(() => {
     let alive = true
     loadAlertSettingsRemote().then((s) => { if (alive) setCfg(s) })
+    smsConfig().then((c) => { if (alive) setSms(c) }).catch(() => { if (alive) setSms({ unavailable: true }) })
+    smsStats().then((s) => { if (alive) setSmsCounts(s) }).catch(() => {})
     return () => { alive = false }
   }, [])
 
@@ -41,6 +51,21 @@ export default function AlertsTab({ onToast, onGoToTab }) {
     setDirty(false)
     onToast('Alert settings saved.')
   }
+  function sendTestText() {
+    if (!testNumber.trim()) return onToast('Enter a mobile number to send the test to.')
+    setTestingSms(true)
+    sendTestSms(testNumber.trim())
+      .then((res) => {
+        onToast(res.simulated
+          ? `Simulated only — recorded for ${res.phone}, but no provider key is set.`
+          : res.ok
+            ? `Test SMS sent to ${res.phone} via ${res.provider}.`
+            : `Test SMS failed: ${res.error}`)
+      })
+      .catch((e) => onToast(e.message || 'Could not send the test SMS.'))
+      .finally(() => setTestingSms(false))
+  }
+
   function sendTest() {
     const channels = [cfg.email && 'Email', cfg.push && 'Push'].filter(Boolean)
     if (!channels.length) return onToast('Enable a channel to send a test alert.')
@@ -73,8 +98,56 @@ export default function AlertsTab({ onToast, onGoToTab }) {
         <Panel icon={<SendIcon />} title="Delivery Channels" sub="Where alerts are broadcast">
           <div className="set-toggles">
             <Toggle label="Email" sub="Send alert emails to staff and registered contacts via Supabase + Resend." checked={cfg.email} onChange={(v) => set('email', v)} />
+            <Toggle
+              label="Emergency SMS to residents"
+              sub="Text every resident who has confirmed a mobile number for the affected barangay. Emergencies only."
+              checked={cfg.sms}
+              onChange={(v) => set('sms', v)}
+            />
             <Toggle label="Web push" sub="Browser notifications for command-center staff." checked={cfg.push} onChange={(v) => set('push', v)} />
           </div>
+
+          {/* The honest state of the SMS channel, stated where it is switched
+              on. A toggle that says "SMS" while no gateway is configured is the
+              same failure this system already had with email. */}
+          <div className={`set-sms-state ${sms?.unavailable ? 'off' : sms?.simulation ? 'sim' : sms ? 'live' : ''}`}>
+            {sms === null && <span>Checking the SMS gateway…</span>}
+            {sms?.unavailable && (
+              <span>
+                <b>Not deployed.</b> Run <code>npx supabase functions deploy sms-alert</code> to
+                switch this channel on.
+              </span>
+            )}
+            {sms && !sms.unavailable && sms.simulation && (
+              <span>
+                <b>Simulation mode.</b> No provider key is set, so alerts are recorded in the
+                outbox and <b>not delivered to handsets</b>. Add
+                <code>SEMAPHORE_API_KEY</code> to the Supabase secrets to go live.
+              </span>
+            )}
+            {sms && !sms.unavailable && !sms.simulation && (
+              <span>
+                <b>Live via {sms.provider}</b>{sms.senderName ? ` · sender "${sms.senderName}"` : ''}.
+                {smsCounts ? ` ${smsCounts.verified} confirmed number${smsCounts.verified === 1 ? '' : 's'}.` : ''}
+              </span>
+            )}
+          </div>
+
+          {sms && !sms.unavailable && (
+            <div className="set-sms-test">
+              <input
+                type="tel"
+                inputMode="tel"
+                placeholder="0917 123 4567"
+                value={testNumber}
+                onChange={(e) => setTestNumber(e.target.value)}
+                aria-label="Mobile number for the test message"
+              />
+              <button type="button" className="mng-btn mng-btn-ghost" onClick={sendTestText} disabled={testingSms}>
+                {testingSms ? 'Sending…' : 'Send test SMS'}
+              </button>
+            </div>
+          )}
         </Panel>
 
         {/* Quiet hours / throttling */}

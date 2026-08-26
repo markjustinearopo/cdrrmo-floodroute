@@ -252,6 +252,8 @@ function Icon({ name }) {
       return <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
     case 'bell':
       return <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+    case 'phone':
+      return <svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2.5" /><line x1="10" y1="18.5" x2="14" y2="18.5" /></svg>
     default:
       return <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /></svg>
   }

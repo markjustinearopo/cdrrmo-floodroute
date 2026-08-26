@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import { useAlerts } from '../../context/AdminDataContext.jsx'
+import EmergencySmsCard from '../../components/resident/EmergencySmsCard.jsx'
 import './Resident.css'
 import { alertAppliesTo } from '../../data/cabuyao.js'
 
@@ -112,6 +113,12 @@ export default function Alerts() {
             <div className="res-head-sub">Flood warnings and advisories for Brgy. {brgyLabel}</div>
           </div>
         </div>
+
+        {/* Above the feed, not below it. The point of this card is to reach
+            people who are NOT looking at this page; burying it under the list
+            of alerts they only see because they came here anyway would defeat
+            it entirely. */}
+        <EmergencySmsCard />
 
         <div className="res-filter-bar">
           {FILTERS.map((f) => (

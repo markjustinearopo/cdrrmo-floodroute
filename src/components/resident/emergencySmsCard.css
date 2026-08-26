@@ -1,0 +1,280 @@
+/* ============================================================
+   emergencySmsCard.css — the resident's emergency-SMS opt-in.
+
+   Sits inside the resident portal's white card language, but leans on the
+   system red so it reads as an emergency service rather than a newsletter
+   sign-up. Turns green once it is actually on: the state of this card is the
+   answer to "will I be warned?", and that should be legible at a glance.
+   ============================================================ */
+
+.esms {
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #c0181b;
+  border-radius: 14px;
+  background: #fff;
+  padding: 18px;
+  margin-bottom: 16px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.esms--on { border-left-color: #16a34a; }
+.esms--offline { border-left-color: #94a3b8; opacity: 0.9; }
+.esms--compact { padding: 14px; }
+
+.esms-head {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+}
+
+.esms-icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  padding: 6px;
+  border-radius: 10px;
+  background: #fef2f2;
+  fill: none;
+  stroke: #c0181b;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.esms--on .esms-icon { background: #f0fdf4; stroke: #16a34a; }
+.esms--offline .esms-icon { background: #f1f5f9; stroke: #94a3b8; }
+
+.esms-head h3 {
+  margin: 0 0 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9375rem;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.esms-badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.esms-head p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+/* ── Simulation warning ── */
+.esms-sim {
+  margin-top: 12px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: #6b21a8;
+}
+
+.esms-sim b { font-weight: 800; }
+
+/* ── Form ── */
+.esms-form { margin-top: 14px; }
+
+.esms-form label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.esms-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.esms-prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.esms-row input {
+  flex: 1 1 170px;
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  /* 16px keeps iOS Safari from zooming the whole page on focus. */
+  font-size: 1rem;
+  font-family: inherit;
+  color: #0f172a;
+  background: #fff;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.esms-row input:focus {
+  outline: none;
+  border-color: #c0181b;
+  box-shadow: 0 0 0 3px rgba(192, 24, 27, 0.12);
+}
+
+.esms-code {
+  font-size: 1.25rem !important;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.esms-btn {
+  flex: 0 0 auto;
+  padding: 11px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #c0181b;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.esms-btn:hover:not(:disabled) { background: #a01518; transform: translateY(-1px); }
+.esms-btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+
+.esms-fine {
+  margin: 10px 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+.esms-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 11px;
+  flex-wrap: wrap;
+}
+
+.esms-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #0f766e;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.esms-link:hover { color: #115e59; }
+.esms-link:disabled { color: #cbd5e1; cursor: not-allowed; }
+
+/* ── Confirmed ── */
+.esms-done {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.esms-confirm {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  font-size: 0.8125rem;
+  color: #166534;
+  flex: 1 1 240px;
+}
+
+.esms-confirm svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: #16a34a;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.esms-optout {
+  padding: 10px 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.esms-optout:hover:not(:disabled) { border-color: #c0181b; color: #c0181b; }
+
+/* ── Feedback ── */
+.esms-error,
+.esms-notice {
+  margin-top: 11px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.esms-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.esms-notice { background: #f0f9ff; border: 1px solid #bae6fd; color: #075985; }
+
+.esms-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+}
+
+.esms-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #e2e8f0;
+  border-top-color: #94a3b8;
+  animation: esms-spin 700ms linear infinite;
+}
+
+@keyframes esms-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .esms-row { gap: 7px; }
+  .esms-btn { flex: 1 1 100%; padding: 12px; }
+  .esms-prefix { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .esms-spinner { animation: none; }
+  .esms-btn:hover:not(:disabled) { transform: none; }
+}

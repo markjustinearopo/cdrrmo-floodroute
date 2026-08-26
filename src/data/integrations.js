@@ -35,6 +35,16 @@ export const INTEGRATION_CATALOG = [
     testUrl: 'https://flood-api.open-meteo.com/v1/flood?latitude=14.27&longitude=121.13&daily=river_discharge&forecast_days=1',
   },
   {
+    id: 'sms', name: 'SMS Gateway (Semaphore)', category: 'Notifications', icon: 'phone',
+    desc: 'Emergency flood alerts by text message — the only channel that reaches a resident who is not looking at a screen. The API key lives in the Supabase secrets, never here: enter it with "npx supabase secrets set SEMAPHORE_API_KEY=…". Without a key the channel runs in simulation, recording every message without delivering it.',
+    fields: [
+      { key: 'provider', label: 'Provider', type: 'text', placeholder: 'semaphore | twilio' },
+      { key: 'senderName', label: 'Sender ID', type: 'text', placeholder: 'CDRRMO (must be approved by the provider)' },
+    ],
+    enabled: false, status: 'disconnected',
+    values: { provider: 'semaphore', senderName: 'CDRRMO' },
+  },
+  {
     id: 'email', name: 'Email Alerts (Resend)', category: 'Notifications', icon: 'mail',
     desc: 'Send flood alert emails via Supabase Edge Functions + Resend. Free tier: 3,000 emails/month. Add your RESEND_API_KEY as a Supabase secret, then enter it below to connect.',
     fields: [
