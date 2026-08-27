@@ -42,6 +42,9 @@ import {
   playRouteReveal3D,
 } from '../routing3d.js'
 import { useEvacCenters, useSavedRoutes } from '../../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../map/MapSearchBar.jsx'
+import SearchResultLayer from '../../map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../map/searchTools.js'
 import RouteResultPanel, { SHORTEST_COLOR } from '../RouteResultPanel.jsx'
 
 /**
@@ -86,6 +89,14 @@ export default function GenerateTab({ shared, onToast }) {
   const [name, setName] = useState('')
   const [confirmClear, setConfirmClear] = useState(false)
   const [coords, setCoords] = useState(null)
+
+  /* The starting point of a generated route is a place, and places have names.
+     Search turns "Mamatid Elementary School" into the click this tab wants. */
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
 
   const color = ROUTE_TYPES[type].color
   // Destinations = the shared store's open centres (city-wide), so Generate
@@ -465,9 +476,13 @@ export default function GenerateTab({ shared, onToast }) {
               <Marker position={chosenCentre.coords} icon={waypointIcon('B', 'end')} />
             )}
 
+            <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=generate" />
             <CoordReadout onChange={setCoords} />
           </MapContainer>
         )}
+
+        {/* 2D only — the result layer draws through Leaflet. */}
+        {!use3D && <MapSearchBar collapsible localIndex={localIndex} onSelect={setSearchResult} />}
 
         {!start && (
           <div className="ar-hint">

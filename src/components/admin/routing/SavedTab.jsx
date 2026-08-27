@@ -11,7 +11,10 @@ import {
   activeRouteGeometry,
   routeGeometry,
 } from '../routingHelpers.jsx'
-import { useSavedRoutes } from '../../../context/AdminDataContext.jsx'
+import { useEvacCenters, useSavedRoutes } from '../../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../map/MapSearchBar.jsx'
+import SearchResultLayer from '../../map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../map/searchTools.js'
 import SavedRouteList, { SavedRouteFilters } from '../SavedRouteList.jsx'
 
 /**
@@ -28,6 +31,15 @@ export default function SavedTab({ onToast, onGoToTab }) {
   const [coords, setCoords] = useState(null)
   const [filter, setFilter] = useState('all') // 'all' | route type key
   const [confirmDelete, setConfirmDelete] = useState(null) // route pending deletion
+
+  /* Checking a published route usually starts from "does it cover THIS
+     street?" — which needs the street findable. */
+  const { evacuationCenters } = useEvacCenters()
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
 
   const selected = routes.find((r) => r.id === selectedId) || null
 
@@ -126,8 +138,11 @@ export default function SavedTab({ onToast, onGoToTab }) {
           )}
 
           <FitBounds geom={activeGeom} />
+          <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=saved" />
           <CoordReadout onChange={setCoords} />
         </MapContainer>
+
+        <MapSearchBar collapsible localIndex={localIndex} onSelect={setSearchResult} />
 
         {/* Floating hint when no route is selected */}
         {!selected && (

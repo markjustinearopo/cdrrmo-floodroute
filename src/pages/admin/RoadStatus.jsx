@@ -14,7 +14,10 @@ import {
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
 import RoadConditionModal from '../../components/admin/RoadConditionModal.jsx'
-import { useRoadRequests, useRoadReports } from '../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
+import { useEvacCenters, useRoadRequests, useRoadReports } from '../../context/AdminDataContext.jsx'
 import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
 import { ftToM, formatMeters } from '../../services/depth.js'
@@ -56,6 +59,16 @@ export default function RoadStatus() {
   const [brush, setBrush] = useState('flooded')
   const [trafficBrush, setTrafficBrush] = useState('moderate')
   const [coords, setCoords] = useState(null)
+
+  /* The operator tagging a road is usually working from a phoned-in report
+     that names a street, not a map position. Search is how the name becomes a
+     position. */
+  const { evacuationCenters } = useEvacCenters()
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
   const [use3D, setUse3D] = use3DPreference()
   const [rejectId, setRejectId] = useState(null)
   const [rejectNote, setRejectNote] = useState('')
@@ -310,9 +323,13 @@ export default function RoadStatus() {
                   onPick={handlePick}
                 />
               )}
+              <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=draw" />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
             )}
+
+            {/* 2D only — the result layer draws through Leaflet. */}
+            {!use3D && <MapSearchBar collapsible localIndex={localIndex} onSelect={setSearchResult} />}
 
             {roads && (
               <div className="rs-paint-hint">

@@ -10,6 +10,10 @@ import {
 } from '../../components/admin/routingHelpers.jsx'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
+import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import '../admin/RoadStatus.css'
 
 /**
@@ -26,6 +30,18 @@ export default function RoadStatus() {
   const [statusMap] = useRoadStatus() // read-only consumption of the shared conditions
   const [coords, setCoords] = useState(null)
   const [use3D, setUse3D] = use3DPreference()
+
+  /* Finding a specific street is the whole point of this page — a resident
+     checks it to answer "is MY road passable?", and hunting for it by dragging
+     a city-wide network of 4,853 segments is not an answer. Same search as the
+     flood maps: barangays and evacuation centres locally, streets and
+     landmarks from OSM. */
+  const { evacuationCenters } = useEvacCenters()
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
 
   const counts = useMemo(() => {
     const c = { flooded: 0, blocked: 0 }
@@ -108,9 +124,13 @@ export default function RoadStatus() {
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
               {roads && <RoadNetworkLayer roads={roads} statusMap={statusMap} interactive={false} />}
+              <SearchResultLayer result={searchResult} />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
             )}
+
+            {/* 2D only — the result layer draws through Leaflet. */}
+            {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 
             <div className="rs-coords">
               {coords

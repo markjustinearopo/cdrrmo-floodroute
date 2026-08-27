@@ -12,7 +12,10 @@ import {
   useTrafficStatus,
 } from '../routingHelpers.jsx'
 import { planRoute, DEFAULT_ALPHA, DEFAULT_BETA } from '../routeEngine.js'
-import { useSavedRoutes } from '../../../context/AdminDataContext.jsx'
+import { useEvacCenters, useSavedRoutes } from '../../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../map/MapSearchBar.jsx'
+import SearchResultLayer from '../../map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../map/searchTools.js'
 import SavedRouteList from '../SavedRouteList.jsx'
 
 /**
@@ -38,6 +41,17 @@ export default function DrawTab({ shared, onToast, onGoToTab }) {
   const [points, setPoints] = useState([]) // ordered stops [[lat, lng], …]
   const [path, setPath] = useState(null) // road-following geometry once snapped
   const [coords, setCoords] = useState(null)
+
+  /* Drawing a route begins by finding its first stop. Naming the place beats
+     hunting for it — and this is the tab the Flood Map's search results link
+     into ("route from here"), so arriving with search already present keeps
+     that handoff coherent. */
+  const { evacuationCenters } = useEvacCenters()
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
 
   const color = ROUTE_TYPES[type].color
   // The drawn line follows roads once it has been snapped, else the raw stops.
@@ -167,8 +181,11 @@ export default function DrawTab({ shared, onToast, onGoToTab }) {
             />
           ))}
 
+          <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=draw" />
           <CoordReadout onChange={setCoords} />
         </MapContainer>
+
+        <MapSearchBar collapsible localIndex={localIndex} onSelect={setSearchResult} />
 
         {/* First-run hint */}
         {points.length === 0 && (

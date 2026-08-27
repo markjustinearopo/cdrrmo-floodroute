@@ -19,6 +19,9 @@ import {
 } from '../../components/admin/routingHelpers.jsx'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock } from '../../components/admin/mapHelpers.jsx'
 import { useAlerts, useIncidents, useRoadReports, useEvacCenters } from '../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
 import CutoffPanel from '../../components/admin/CutoffPanel.jsx'
 import DecisionStrip from '../../components/admin/DecisionStrip.jsx'
 import { levelFromDepth } from '../../services/systemConfig.js'
@@ -74,6 +77,15 @@ export default function Dashboard() {
   const { weather } = useLiveWeather()
   const { field } = useFloodRisk()
   const { evacuationCenters } = useEvacCenters()
+
+  /* The dashboard's road map is click-to-flag, so the operator has to be able
+     to reach the street a call just named — the same reason the full Road
+     Status page carries search. */
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
 
   const { roads: roadNetwork } = useCabuyaoRoads()
   const [roadStatus, { setStatus }] = useRoadStatus()
@@ -595,7 +607,9 @@ export default function Dashboard() {
               {roadNetwork && (
                 <RoadNetworkLayer roads={roadNetwork} statusMap={roadStatus} onPick={paintRoad} interactive />
               )}
+              <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=draw" />
             </MapContainer>
+            <MapSearchBar collapsible localIndex={localIndex} onSelect={setSearchResult} />
             <div className="road-map-hint">
               {t('Click a road to mark it')}{' '}
               <b style={{ color: ROAD_STATUS[roadBrush].swatch }}>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, ZoomControl } from 'react-leaflet'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
@@ -18,6 +18,9 @@ import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.
 import {
   useAlerts, useEvacCenters, useIncidents, useRoadRequests, useBarangayAssignments,
 } from '../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
 import './Barangay.css'
 import { alertAppliesTo } from '../../data/cabuyao.js'
 
@@ -47,6 +50,14 @@ export default function Dashboard() {
   const { field } = useFloodRisk()
   const { alerts: allAlerts } = useAlerts()
   const { evacuationCenters } = useEvacCenters()
+
+  /* Same search as every other map in the system — an official checking their
+     own barangay still needs to jump to a named street. */
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
   const { incidents } = useIncidents()
   const { roadChangeRequests } = useRoadRequests()
   const { barangayAssignments } = useBarangayAssignments()
@@ -143,7 +154,9 @@ export default function Dashboard() {
                 <ZoomControl position="bottomright" />
                 {myBrgy ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
                 <LocateControl />
+                <SearchResultLayer result={searchResult} navigateTo="/barangay/evacuation-routing" />
               </MapContainer>
+              <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />
               <div className="bq-map-legend">
                 <div className="bq-legend-item"><span className="bq-legend-line" style={{ background: '#16A34A' }} /> Safe Route</div>
                 <div className="bq-legend-item"><span className="bq-legend-line" style={{ background: '#F97316' }} /> Flood Risk</div>

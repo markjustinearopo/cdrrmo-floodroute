@@ -18,6 +18,9 @@ import { usePersistedState } from '../../utils/usePersistedState.js'
 import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import { useAlerts, useEvacCenters, useBarangayAssignments } from '../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
 import './Resident.css'
 import { alertAppliesTo } from '../../data/cabuyao.js'
 
@@ -113,6 +116,15 @@ export default function Dashboard() {
   const prepDone = PREP_ITEMS.filter((i) => prep[i.key]).length
   const [showReport, setShowReport] = useState(false)
 
+  /* Even the small area map earns a search box: this is the first screen a
+     resident lands on, and "where is the nearest centre to my street?" is the
+     first question they bring to it. */
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
+
   /* On a phone this page was 2,690px tall — more than three screens — and the
      alert card alone accounted for 900px of it. Five full alerts is a digest,
      not a dashboard: it buries the forecast, the checklist and the hotlines
@@ -201,7 +213,9 @@ export default function Dashboard() {
                 <ZoomControl position="bottomright" />
                 {myBrgy ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
                 <LocateControl />
+                <SearchResultLayer result={searchResult} />
               </MapContainer>
+              <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />
               <div className="res-map-legend">
                 <div className="res-legend-item"><span className="res-legend-line" style={{ background: '#16A34A' }} /> Safe Route</div>
                 <div className="res-legend-item"><span className="res-legend-line" style={{ background: '#F97316' }} /> Flood Risk</div>

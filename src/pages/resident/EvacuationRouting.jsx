@@ -26,6 +26,9 @@ import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
 import { useGeolocation } from '../../hooks/useGeolocation.js'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import { useEvacCenters, barangayCoords } from '../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
 import { getResidentBarangay, residentBarangayLabel } from '../../data/resident.js'
 import LiveNavigation from '../../components/resident/LiveNavigation.jsx'
 import RoutingGuide, { hasSeenRoutingGuide } from '../../components/resident/RoutingGuide.jsx'
@@ -66,6 +69,15 @@ export default function EvacuationRouting() {
   const [selectedId, setSelectedId] = useState(null)
   const [coords, setCoords] = useState(null)
   const [use3D, setUse3D] = use3DPreference()
+
+  /* Search matters more here than anywhere: a resident routing to safety may
+     be starting from a relative's house or a workplace rather than the pin
+     they saved, and the fastest way to say where that is, is to name it. */
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
 
   // The resident's own location: pinned on the map and REMEMBERED (geolocation
   // can be off by a block, so a manual pin that stays put is the source of truth
@@ -367,9 +379,13 @@ export default function EvacuationRouting() {
                 </Marker>
               ))}
 
+              <SearchResultLayer result={searchResult} />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
             )}
+
+            {/* 2D only — the result layer draws through Leaflet. */}
+            {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 
             {routes.length === 0 && !showGen && (
               <div className="rp-hint">

@@ -27,6 +27,9 @@ import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx
 import RouteSketch3DView from '../../components/admin/RouteSketch3DView.jsx'
 import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
 import { useEvacCenters, useSavedRoutes } from '../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
 import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/RoutePlanning.css'
 
@@ -65,6 +68,15 @@ export default function EvacuationRouting() {
   const [toast, setToast] = useState('')
   const [use3D, setUse3D] = use3DPreference()
   const [confirmDel, setConfirmDel] = useState(null) // saved route pending deletion
+
+  /* Drawing a route starts by finding where it starts — usually a named place
+     (a purok, a school, a chapel) rather than a coordinate the official can
+     eyeball. */
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
 
   const color = ROUTE_TYPES[type].color
   const geometry = path && path.length > 1 ? path : points
@@ -267,9 +279,13 @@ export default function EvacuationRouting() {
                 </Marker>
               ))}
 
+              <SearchResultLayer result={searchResult} navigateTo="/barangay/evacuation-routing" />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
             )}
+
+            {/* 2D only — the result layer draws through Leaflet. */}
+            {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 
             {points.length === 0 && (
               <div className="rp-hint">

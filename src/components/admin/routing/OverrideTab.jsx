@@ -14,7 +14,10 @@ import {
   useTrafficStatus,
 } from '../routingHelpers.jsx'
 import { planRoute, DEFAULT_BETA } from '../routeEngine.js'
-import { useSavedRoutes } from '../../../context/AdminDataContext.jsx'
+import { useEvacCenters, useSavedRoutes } from '../../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../map/MapSearchBar.jsx'
+import SearchResultLayer from '../../map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../map/searchTools.js'
 import SavedRouteList from '../SavedRouteList.jsx'
 
 const OVERRIDE_COLOR = '#B8860B' // gold — distinct from any route-type colour
@@ -39,6 +42,16 @@ export default function OverrideTab({ shared, onToast, onGoToTab }) {
   const [trafficMap] = useTrafficStatus()
 
   const [selectedId, setSelectedId] = useState(null)
+
+  /* Overriding a route means reaching the blocked stretch it has to avoid,
+     which an operator knows by street name rather than by position. */
+  const { evacuationCenters } = useEvacCenters()
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
+
   const [override, setOverride] = useState([]) // [[lat,lng], …]
   const [overrideAuto, setOverrideAuto] = useState(false) // auto-detour vs hand-drawn
   const [showHazards, setShowHazards] = usePersistedState('cdrrmo-layers-admin-override-hazards', false)
@@ -230,8 +243,11 @@ export default function OverrideTab({ shared, onToast, onGoToTab }) {
                 />
               ))}
 
+          <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=override" />
           <CoordReadout onChange={setCoords} />
         </MapContainer>
+
+        <MapSearchBar collapsible localIndex={localIndex} onSelect={setSearchResult} />
 
         {!selected && (
           <div className="ov-hint">

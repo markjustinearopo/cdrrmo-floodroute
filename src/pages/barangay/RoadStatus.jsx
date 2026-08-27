@@ -18,7 +18,10 @@ import {
 } from '../../components/admin/routingHelpers.jsx'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
-import { useRoadRequests } from '../../context/AdminDataContext.jsx'
+import MapSearchBar from '../../components/map/MapSearchBar.jsx'
+import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
+import { buildLocalIndex } from '../../components/map/searchTools.js'
+import { useEvacCenters, useRoadRequests } from '../../context/AdminDataContext.jsx'
 import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/RoadStatus.css'
 
@@ -50,6 +53,16 @@ export default function RoadStatus() {
   const [reason, setReason] = useState('')
   const [confirmSend, setConfirmSend] = useState(false)
   const [coords, setCoords] = useState(null)
+
+  /* An official tagging roads has to reach the specific street a resident just
+     phoned in about. Dragging to find it is the slow path during the exact
+     hour this page matters most. */
+  const { evacuationCenters } = useEvacCenters()
+  const [searchResult, setSearchResult] = useState(null)
+  const localIndex = useMemo(
+    () => buildLocalIndex({ evacCenters: evacuationCenters }),
+    [evacuationCenters],
+  )
   const [use3D, setUse3D] = use3DPreference()
   const [view, setView] = useJurisdictionView()
   const locked = view === 'mine' && Boolean(myBrgy)
@@ -161,9 +174,13 @@ export default function RoadStatus() {
               <ZoomControl position="bottomright" />
               {locked ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
               {roads && <RoadNetworkLayer roads={roads} statusMap={mapStatus} onPick={stage} />}
+              <SearchResultLayer result={searchResult} navigateTo="/barangay/evacuation-routing" />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
             )}
+
+            {/* 2D only — the result layer draws through Leaflet. */}
+            {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 
             {roads && (
               <div className="rs-paint-hint">
