@@ -71,11 +71,23 @@ export default function RoadStatus() {
     for (const [id, status] of Object.entries(statusMap)) {
       const props = byId.get(String(id))
       if (!props) continue
-      const named = props.named === true
-      const key = named ? `${props.name} ${status}` : ` unnamed ${status}`
+      /* A label is enough to scan for, whether or not it is the way's own OSM
+         street name: "Saint Joseph Village road · 6 stretches" tells a
+         resident where to avoid, and "Unnamed local roads · 6" does not. Only
+         ways with no label at all fall into the catch-all row. */
+      const label = props.nameSource ? props.name : null
+      const key = label ? `${label} ${status}` : ` unnamed ${status}`
       const prev = groups.get(key)
       if (prev) prev.count++
-      else groups.set(key, { id: key, status, count: 1, named, name: named ? props.name : 'Unnamed local roads' })
+      else {
+        groups.set(key, {
+          id: key,
+          status,
+          count: 1,
+          named: Boolean(label),
+          name: label || 'Unnamed local roads',
+        })
+      }
     }
     return [...groups.values()].sort((a, b) =>
       // Closed first — those are the ones with no way through at all — then

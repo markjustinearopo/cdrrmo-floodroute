@@ -1,0 +1,289 @@
+/* ============================================================
+   Next-12-hours rainfall outlook — shared by all three portals.
+   Prefixed `fo-` so it can be dropped into the admin, barangay and
+   resident stylesheets without colliding with any of them.
+   ============================================================ */
+
+.fo-card {
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 14px;
+  padding: 12px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.fo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.fo-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  white-space: nowrap;
+}
+.fo-title svg {
+  width: 15px;
+  height: 15px;
+  stroke: #2563eb;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fo-src {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 20px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+
+/* ── Headline figures ───────────────────────────────────────────────────── */
+.fo-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.fo-sum-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.fo-sum-val {
+  font-family: var(--font-display, inherit);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.fo-sum-val em {
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-left: 3px;
+  opacity: 0.65;
+}
+.fo-sum-lbl {
+  font-size: 0.68rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+.fo-band {
+  margin-left: auto;
+  align-self: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 20px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.fo-band.red { color: #fff; background: #dc2626; }
+.fo-band.orange { color: #fff; background: #f97316; }
+.fo-band.yellow { color: #713f12; background: #fde047; }
+.fo-band.moderate { color: #075985; background: #e0f2fe; }
+.fo-band.light { color: #075985; background: #f0f9ff; }
+.fo-band.dry { color: #475569; background: #f1f5f9; }
+
+/* ── Plot ───────────────────────────────────────────────────────────────── */
+.fo-plot {
+  position: relative;
+  width: 100%;
+}
+.fo-svg {
+  display: block;
+  width: 100%;
+  height: 150px;
+  overflow: visible;
+}
+.fo-card.compact .fo-svg { height: 110px; }
+
+.fo-thresh {
+  stroke: #cbd5e1;
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  vector-effect: non-scaling-stroke;
+}
+.fo-thresh.t75 { stroke: #fde047; }
+.fo-thresh.t15 { stroke: #fdba74; }
+.fo-thresh.t30 { stroke: #fca5a5; }
+.fo-thresh-lbl {
+  font-size: 8px;
+  fill: #94a3b8;
+  text-anchor: end;
+  font-weight: 600;
+}
+
+.fo-cume { stroke: none; }
+.fo-pop {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 1.6;
+  stroke-dasharray: 4 3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.75;
+}
+
+.fo-hit { fill: transparent; cursor: crosshair; }
+.fo-bar { transition: opacity 0.15s ease, filter 0.15s ease; }
+.fo-bar.on { filter: brightness(1.12) saturate(1.15); }
+
+.fo-now {
+  stroke: #0f172a;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.35;
+  vector-effect: non-scaling-stroke;
+}
+.fo-now-dot { fill: #0f172a; }
+
+.fo-x {
+  font-size: 9px;
+  fill: #94a3b8;
+  text-anchor: middle;
+  font-weight: 600;
+}
+.fo-x.now { fill: #0f172a; font-weight: 800; }
+
+/* ── Hover readout ──────────────────────────────────────────────────────── */
+.fo-readout {
+  position: absolute;
+  top: -2px;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 0.66rem;
+  line-height: 1.45;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.fo-readout b { font-size: 0.7rem; }
+.fo-readout span { opacity: 0.82; font-variant-numeric: tabular-nums; }
+
+/* ── Verdict line ───────────────────────────────────────────────────────── */
+.fo-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #475569;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+}
+.fo-verdict b { color: #0f172a; }
+.fo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  margin-top: 4px;
+  background: #cbd5e1;
+}
+.fo-dot.red { background: #dc2626; }
+.fo-dot.orange { background: #f97316; }
+.fo-dot.yellow { background: #eab308; }
+.fo-dot.moderate { background: #38bdf8; }
+.fo-dot.light { background: #7dd3fc; }
+.fo-dot.dry { background: #cbd5e1; }
+
+/* ── Offline state ──────────────────────────────────────────────────────── */
+.fo-offline {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 4px 8px;
+  color: #64748b;
+}
+.fo-offline svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  stroke: #94a3b8;
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fo-offline b { display: block; font-size: 0.8rem; color: #334155; }
+.fo-offline em { font-style: normal; font-size: 0.72rem; line-height: 1.5; }
+
+/* ── Motion ─────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  /* Bars grow up out of the baseline, left to right, once the card is on
+     screen — the chart draws itself rather than appearing fully formed. */
+  .fo-card.in .fo-bar {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: fo-grow 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: var(--d, 0ms);
+  }
+  /* The chance-of-rain curve traces on behind them. */
+  .fo-card.in .fo-pop {
+    stroke-dasharray: 4 3;
+    animation: fo-trace 1.1s ease-out backwards;
+    animation-delay: 0.25s;
+  }
+  .fo-card.in .fo-cume {
+    animation: fo-fade 0.7s ease-out backwards;
+    animation-delay: 0.15s;
+  }
+  /* The "now" dot keeps a slow pulse so a stalled feed is visible as a still
+     page rather than mistaken for calm weather. */
+  .fo-card .fo-now-dot {
+    animation: fo-pulse 2.4s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+}
+
+@keyframes fo-grow {
+  from { transform: scaleY(0); opacity: 0.3; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+@keyframes fo-trace {
+  from { opacity: 0; }
+  to { opacity: 0.75; }
+}
+@keyframes fo-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fo-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(1.55); }
+}
+
+/* ── Phone ──────────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .fo-card { padding: 11px 12px 9px; }
+  .fo-svg { height: 122px; }
+  .fo-sum-val { font-size: 1.15rem; }
+  .fo-summary { gap: 14px; }
+  .fo-band { margin-left: 0; }
+}

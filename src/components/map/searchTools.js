@@ -13,7 +13,8 @@
    the search bar shows before the user types.
    ============================================================ */
 
-import { BARANGAY_CENTROIDS } from '../../data/cabuyaoBarangays.js'
+import { BARANGAY_CENTROIDS, barangayForPoint } from '../../data/cabuyaoBarangays.js'
+import ROADS_BUNDLE from '../../data/cabuyaoRoads.json'
 
 /* Cabuyao bounding box for Nominatim (viewbox = left,top,right,bottom). */
 const VIEWBOX = '121.08,14.31,121.21,14.20'
@@ -33,6 +34,80 @@ export const RESULT_TYPES = {
   school: { label: 'School', icon: 'school' },
   hospital: { label: 'Hospital', icon: 'health' },
   place: { label: 'Place', icon: 'pin' },
+}
+
+/* ── Streets, from the bundled network ───────────────────────────────────── */
+
+/**
+ * Every named street in the bundled road network, as searchable entries.
+ *
+ * Streets used to be reachable only through Nominatim — a network round trip
+ * that fails exactly when it matters, in the field on a bad connection during
+ * a flood. The city's whole road graph already ships with the app; it just was
+ * not in the index. Now "Bailon" or "Southville" resolves instantly, offline.
+ *
+ * One entry per NAME, not per OSM way: a street is drawn as however many ways
+ * OSM felt like splitting it into, and a dropdown listing "Caingin Road" nine
+ * times is worse than not having it. The representative point is the midpoint
+ * of the longest way carrying that name, which for a split street lands on the
+ * main stretch rather than on a stub.
+ *
+ * Built once, lazily, on first use — parsing 4,853 ways is a few milliseconds,
+ * but there is no reason to spend them before somebody opens a search box.
+ */
+let roadIndexCache = null
+
+function buildRoadIndex() {
+  if (roadIndexCache) return roadIndexCache
+
+  const best = new Map() // name -> { name, source, span, lat, lng }
+  for (const w of ROADS_BUNDLE.ways || []) {
+    const name = w.n
+    if (!name) continue
+    const g = w.g || []
+    if (g.length < 4) continue
+
+    // Way length as a squared-degree proxy: only used to compare ways with the
+    // same name, so the missing cos(lat) factor cannot change the ordering.
+    let span = 0
+    for (let i = 2; i < g.length; i += 2) {
+      const dLat = g[i] - g[i - 2]
+      const dLng = g[i + 1] - g[i - 1]
+      span += dLat * dLat + dLng * dLng
+    }
+
+    const prev = best.get(name)
+    if (prev && prev.span >= span) continue
+    const mid = Math.floor(g.length / 4) * 2 // even index = a lat
+    best.set(name, {
+      name,
+      source: w.ns || 'osm',
+      span,
+      lat: g[mid],
+      lng: g[mid + 1],
+    })
+  }
+
+  roadIndexCache = [...best.values()]
+    .filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng))
+    .map((r) => {
+      const brgy = barangayForPoint(r.lat, r.lng)
+      return {
+        id: `road-${r.name}`,
+        label: r.name,
+        /* Say where an inferred label came from rather than passing a
+           subdivision context label off as a surveyed street name. */
+        sub: r.source === 'area'
+          ? `Roads inside ${r.name.replace(/ (service )?road$/i, '')}${brgy ? ` · Brgy. ${brgy}` : ''}`
+          : `Street · ${brgy ? `Brgy. ${brgy}` : 'Cabuyao City'}`,
+        type: 'road',
+        lat: r.lat,
+        lng: r.lng,
+        zoom: 17,
+      }
+    })
+
+  return roadIndexCache
 }
 
 /* ── Local index ─────────────────────────────────────────────────────────── */
@@ -79,6 +154,10 @@ export function buildLocalIndex({ evacCenters = [], floodAreas = [] } = {}) {
       zoom: 16,
     })
   })
+  /* Streets last so a barangay, a shelter or a documented flood-prone area
+     still outranks a street of the same name — those are the answers a person
+     asking about a place usually wants. */
+  out.push(...buildRoadIndex())
   return out.filter((e) => e.lat != null && e.lng != null)
 }
 

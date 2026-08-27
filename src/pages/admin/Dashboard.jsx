@@ -18,7 +18,12 @@ import {
   ROAD_STATUS,
 } from '../../components/admin/routingHelpers.jsx'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock } from '../../components/admin/mapHelpers.jsx'
-import { useAlerts, useIncidents, useRoadReports, useEvacCenters } from '../../context/AdminDataContext.jsx'
+import {
+  useAlerts, useIncidents, useRoadReports, useEvacCenters, useFloodReports, useAdminData,
+} from '../../context/AdminDataContext.jsx'
+import CommandBar from '../../components/dash/CommandBar.jsx'
+import FloodOutlook from '../../components/dash/FloodOutlook.jsx'
+import PulseTicker from '../../components/dash/PulseTicker.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
@@ -94,6 +99,8 @@ export default function Dashboard() {
   const { alerts, addAlert, resolveAlert } = useAlerts()
   const { incidents } = useIncidents()
   const { roadReports, reportRoad, removeRoadReport } = useRoadReports()
+  const { floodReports } = useFloodReports()
+  const { lastUpdated } = useAdminData()
 
   /* How high the water actually is, for the cutoff panel's headroom column.
 
@@ -219,6 +226,16 @@ export default function Dashboard() {
     () => [...barangays].sort((a, b) => b.floodDepth - a.floodDepth),
     [barangays],
   )
+
+  /* Shelter capacity for the status band. "Sheltered" is the figure the city
+     reports upward during an event, and it was on no screen at all. */
+  const shelterStats = useMemo(() => {
+    const open = evacuationCenters.filter((c) => c.status === 'open')
+    return {
+      open: open.length,
+      sheltered: open.reduce((sum, c) => sum + (Number(c.occupancy) || 0), 0),
+    }
+  }, [evacuationCenters])
 
   const sortedBarangays = useMemo(() => {
     return [...barangays]
@@ -346,6 +363,20 @@ export default function Dashboard() {
 
   return (
     <AdminLayout>
+      {/* Posture first. Before the cards, the gauge or the map: what state is
+          the city in, what time is it, and is this screen still receiving
+          anything. Everything in the band is derived from the same live
+          figures the rest of the page draws, so it cannot disagree with them. */}
+      <CommandBar
+        riskCounts={riskCounts}
+        alerts={alerts}
+        blockedRoads={blockedRoads}
+        openShelters={shelterStats.open}
+        sheltered={shelterStats.sheltered}
+        lastUpdated={lastUpdated}
+        live={weather.live}
+      />
+
       {/* The first thing on the screen: what is waiting for a person to decide.
           This took the rainfall chart's place — rainfall is already on the
           topbar, the stat cards and the Flood Map, and a chart cannot be acted
@@ -398,13 +429,35 @@ export default function Dashboard() {
         currentLevelM={currentWaterM}
       />
 
-      <div className="viz-strip viz-strip--two">
+      {/* What the rain is about to do. Every screen could say what it was
+          doing now; none could say what was coming, even though the same
+          Open-Meteo response the topbar already fetches carries it. */}
+      <div className="viz-strip viz-strip--outlook">
+        <FloodOutlook weather={weather} hours={12} title={t('Next 12 Hours')} />
+
         <div className="section-card viz-card viz-gauge">
           <div className="viz-hdr">
             <span className="viz-hdr-title"><GaugeIcon />{t('City Flood Risk')}</span>
           </div>
           <RiskGauge counts={riskCounts} total={barangays.length} />
         </div>
+      </div>
+
+      <div className="viz-strip viz-strip--two">
+        <PulseTicker
+          alerts={alerts}
+          incidents={incidents}
+          floodReports={floodReports}
+          roadReports={roadReports}
+          limit={6}
+          title={t('Live Operations Feed')}
+          onOpen={(kind, record) => {
+            if (kind === 'alert') setAlertDetail(record.id)
+            else if (kind === 'incident') navigate('/admin/incidents')
+            else if (kind === 'report') navigate('/admin/flood-reports')
+            else navigate('/admin/road-status')
+          }}
+        />
 
         <div className="section-card viz-card viz-sky">
           <div className="viz-hdr">

@@ -11,7 +11,8 @@
     "check:functions": "node scripts/check-regex.mjs && node scripts/check-functions.mjs",
     "check:backend": "node scripts/check-backend.mjs",
     "deploy:functions": "node scripts/check-functions.mjs && npx supabase functions deploy auth-otp sms-alert send-alert-email",
-    "check:regex": "node scripts/check-regex.mjs"
+    "check:regex": "node scripts/check-regex.mjs",
+    "data:road-names": "node scripts/enrich-road-names.mjs"
   },
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.3.3",

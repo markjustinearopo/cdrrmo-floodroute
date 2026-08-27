@@ -22,6 +22,8 @@ import EmergencySmsCard from '../../components/resident/EmergencySmsCard.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
+import DepthGauge from '../../components/dash/DepthGauge.jsx'
+import FloodOutlook from '../../components/dash/FloodOutlook.jsx'
 import './Resident.css'
 import { alertAppliesTo } from '../../data/cabuyao.js'
 
@@ -164,6 +166,23 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* The metre reading, drawn.
+              "~0.62 m est. depth" is on the card above, and it is the one
+              number a person standing in front of the water cannot use. This
+              puts it against a person and a car, marks ankle / knee / waist /
+              chest, and says in words whether it can be walked or driven. */}
+          <div className="res-depth-card">
+            <div className="res-card-head">
+              <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /></svg>
+              What {floodDepth.toFixed(2)} m Looks Like
+            </div>
+            <DepthGauge depth={floodDepth} />
+            <div className="res-depth-note">
+              Estimated from live rainfall and the terrain in Brgy. {brgyLabel} — a model,
+              not a measurement at your street. Water can be much deeper in low spots and near creeks.
+            </div>
+          </div>
+
           <div className={`res-steps-card ${level}`}>
             <div className="res-card-head">
               <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
@@ -175,6 +194,11 @@ export default function Dashboard() {
               ))}
             </ul>
           </div>
+
+          {/* How much more rain is coming, and when it gets bad. The daily
+              forecast in the side column answers "should I hang the laundry";
+              this answers "do I have time to move the motorcycle". */}
+          <FloodOutlook weather={weather} hours={12} title="Rain In The Next 12 Hours" />
 
           <div className="res-evac-card">
             <div className="res-card-head">

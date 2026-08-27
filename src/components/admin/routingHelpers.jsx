@@ -197,7 +197,21 @@ function bundleToGeoJSON(bundle) {
       properties: {
         id: w.i,
         name: w.n || `Unnamed ${w.h || 'road'}`,
-        named: Boolean(w.n),
+        /* `named` means "this way has its own street name", and it is what the
+           routing engine and the turn-by-turn builder key off: two consecutive
+           ways with the same name are one road, so no turn is announced
+           between them.
+
+           That makes it the wrong flag for a subdivision context label. The
+           name enrichment gives 2,139 interior alleys a label like
+           "Saint Joseph Village road" — useful on a pin, but 114 different
+           alleys share it, and treating them as one road would swallow every
+           turn instruction inside the subdivision. So an `area` label is a
+           display name only; for navigation those ways stay unnamed, exactly
+           as they were before they had a label at all. */
+        named: Boolean(w.n) && w.ns !== 'area',
+        // Where the name came from: undefined = the way's own OSM name tag.
+        nameSource: w.n ? (w.ns || 'osm') : null,
         highway: w.h || 'road',
       },
       geometry: { type: 'LineString', coordinates },

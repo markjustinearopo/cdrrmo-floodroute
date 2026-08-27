@@ -207,11 +207,26 @@ async function issueCode(db: any, opts: {
   const email = opts.email.toLowerCase()
   const hourAgo = new Date(Date.now() - 3600_000).toISOString()
 
+  /* Only codes that ACTUALLY REACHED somebody count against the limits.
+
+     `channel` is stamped when a channel accepts the message and stays null
+     when neither SMS nor email could carry it. Counting the undeliverable
+     ones turned a mail outage into an account lockout: with the sending
+     domain unverified, every sign-in by a resident with two-factor on burns
+     a code that nobody ever sees, and by the second attempt inside a minute
+     the cooldown — which is a plain Error, not an Undeliverable — escaped the
+     fallback below and failed the sign-in outright. The password had already
+     been checked; the only thing standing between the resident and their own
+     account was a rate limit protecting a channel that had delivered nothing.
+
+     Rate limiting exists to stop someone spraying real messages at an
+     address. A code that was never sent is not a message. */
   const { data: recent } = await db
     .from('auth_codes')
     .select('id, created_at')
     .eq('email', email)
     .gte('created_at', hourAgo)
+    .not('channel', 'is', null)
     .order('created_at', { ascending: false })
 
   if ((recent?.length ?? 0) >= MAX_CODES_PER_HOUR) {
@@ -596,7 +611,14 @@ serve(async (req) => {
            system its entire resident base once. The password check has
            already passed, so the session is granted and the operator is told
            that the second factor did not run. */
-        if (!(e instanceof Undeliverable)) throw e
+        if (!(e instanceof Undeliverable)) {
+          /* A throttle is not an outage, so it does not get the free pass
+             above — but it must not surface as a 500 either. Someone who has
+             genuinely been mailed six codes in an hour needs to be told to
+             wait, in words, not handed "Internal Server Error" on a screen
+             that gives them nothing to do next. */
+          return json({ error: (e as Error).message }, 429)
+        }
         await db.from('notifications').insert({
           level: 'moderate',
           title: 'Two-factor code could not be delivered',
