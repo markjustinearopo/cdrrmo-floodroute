@@ -25,9 +25,17 @@
                     store instead of two)
 
    PROVIDERS
-     semaphore   Philippine gateway. Free trial credits, delivers to any PH
-                 number, sender IDs are approved per account. The right choice
-                 for a Cabuyao deployment.
+     semaphore   Philippine gateway. Delivers to any PH number, sender IDs are
+                 approved per account, ~P0.56/text. The right choice for a
+                 funded Cabuyao deployment, and preferred whenever its key is
+                 set.
+     textbee     An Android phone with a PH SIM, driven over HTTP. Free to
+                 300 messages/month. Chosen because every cloud API that
+                 reaches PH numbers costs money and this office had none — it
+                 makes the channel real today. Depends on that handset staying
+                 charged and in signal, and sends from a mobile number rather
+                 than a sender ID, so it suits verification codes better than
+                 citywide alerts. See sendTextBee().
      twilio      Works anywhere, but a trial account can only text numbers you
                  have verified in its console — a demo channel, not a city one.
      simulation  No key configured. Every message is still written to
@@ -37,8 +45,9 @@
                  was reached.
 
    Deploy:  npx supabase functions deploy sms-alert
-   Secrets: SMS_PROVIDER=semaphore|twilio       (default: auto-detect, else simulation)
+   Secrets: SMS_PROVIDER=semaphore|textbee|twilio  (default: auto-detect, else simulation)
             SEMAPHORE_API_KEY, SEMAPHORE_SENDER_NAME
+            TEXTBEE_API_KEY, TEXTBEE_DEVICE_ID (device id optional)
             TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM
    ============================================================ */
 
@@ -119,15 +128,33 @@ function mask(phone: string): string {
 }
 
 /* ── Providers ─────────────────────────────────────────────────────────── */
-type SendResult = { ok: boolean; provider: string; error?: string; simulated?: boolean }
+/* `queued` means the provider ACCEPTED the message but has not sent it yet, so
+   it is not evidence a handset was reached. textbee is the case that forced
+   this distinction: it answers HTTP 200 "SMS added to queue for processing"
+   and only later hands the message to the phone, which can then fail on its
+   own — the gateway handset losing cellular service is the normal way this
+   happens, and it happened here. Recording that 200 as 'sent' would put a
+   confident "resident warned" row in the outbox for a text that never left the
+   building, which is the one failure this system cannot afford. */
+type SendResult = {
+  ok: boolean
+  provider: string
+  error?: string
+  simulated?: boolean
+  queued?: boolean
+}
 
-function activeProvider(): 'semaphore' | 'twilio' | 'simulation' {
+function activeProvider(): 'semaphore' | 'textbee' | 'twilio' | 'simulation' {
   const forced = (Deno.env.get('SMS_PROVIDER') || '').toLowerCase()
   if (forced === 'semaphore' && Deno.env.get('SEMAPHORE_API_KEY')) return 'semaphore'
+  if (forced === 'textbee' && Deno.env.get('TEXTBEE_API_KEY')) return 'textbee'
   if (forced === 'twilio' && Deno.env.get('TWILIO_ACCOUNT_SID')) return 'twilio'
   if (forced === 'simulation') return 'simulation'
-  // Nothing forced: use whatever is actually configured.
+  /* Nothing forced: use whatever is actually configured. Semaphore outranks
+     textbee when both are set — a telco gateway does not depend on a handset
+     staying charged, which matters more the worse the flood gets. */
   if (Deno.env.get('SEMAPHORE_API_KEY')) return 'semaphore'
+  if (Deno.env.get('TEXTBEE_API_KEY')) return 'textbee'
   if (Deno.env.get('TWILIO_ACCOUNT_SID') && Deno.env.get('TWILIO_AUTH_TOKEN')) return 'twilio'
   return 'simulation'
 }
@@ -183,11 +210,78 @@ async function sendTwilio(to: string, body: string): Promise<SendResult> {
   return { ok: true, provider: 'twilio' }
 }
 
+/* textbee — an Android handset with a Philippine SIM, driven over HTTP.
+
+   Why it is here: every cloud SMS API that reaches PH numbers is paid, and
+   this office had no budget to start one. textbee sends through a phone the
+   CDRRMO already owns, on a normal load promo, so the channel can be switched
+   on today instead of after a procurement cycle.
+
+   What that costs, stated plainly rather than discovered during a typhoon:
+     · The phone has to stay charged, unlocked enough to run the app, and in
+       signal. It is a single point of failure sitting in the same city as the
+       flood being warned about.
+     · Messages arrive from a personal mobile number, not a "CDRRMO" sender
+       ID, so they carry less authority than an official alert should.
+     · PH telcos throttle bulk sending from consumer SIMs under anti-spam
+       rules. Fine for verification codes; a citywide blast can get the SIM
+       flagged.
+
+   So this is the right provider for OTPs and small barangay-level warnings,
+   and Semaphore is the right one for citywide alerts — which is why
+   activeProvider() prefers Semaphore whenever it is configured. */
+async function sendTextBee(to: string, body: string): Promise<SendResult> {
+  const apikey = Deno.env.get('TEXTBEE_API_KEY')!
+  const deviceId = Deno.env.get('TEXTBEE_DEVICE_ID') || ''
+  /* textbee wants E.164 WITH the leading plus — the opposite of Semaphore.
+     normalisePH() already produced exactly that, so it goes out untouched. */
+  const payload: Record<string, unknown> = { recipients: [to], message: body }
+  if (deviceId) payload.deviceId = deviceId
+
+  const res = await fetch('https://api.textbee.dev/api/v1/gateway/send-sms', {
+    method: 'POST',
+    headers: { 'x-api-key': apikey, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const text = await res.text()
+  if (!res.ok) {
+    let msg = text.slice(0, 200)
+    try {
+      const parsed = JSON.parse(text)
+      msg = parsed?.message ?? parsed?.error ?? msg
+      if (Array.isArray(msg)) msg = msg.join('; ')
+    } catch { /* keep the raw text */ }
+    /* The failure people actually hit: the phone is off, offline, unpaired, or
+       the app was killed by battery optimisation, so no device has sent a
+       heartbeat. Matched on the message rather than the status code —
+       textbee answers 400 for "no enabled device" and 404 for an unknown
+       deviceId, and an operator reading the delivery log needs the same
+       actionable sentence either way. */
+    const noDevice = /no\s+(enabled\s+)?device/i.test(String(msg)) || res.status === 404
+    if (noDevice) {
+      return {
+        ok: false,
+        provider: 'textbee',
+        error: 'No textbee gateway phone is paired and online. Open the textbee app on the CDRRMO handset, confirm the device is enabled in the dashboard, and exempt the app from battery optimisation.',
+      }
+    }
+    return { ok: false, provider: 'textbee', error: `${res.status} ${msg}` }
+  }
+  /* Accepted, NOT delivered — textbee's 200 body says "SMS added to queue for
+     processing". The phone sends it afterwards and can fail there (no
+     cellular service, no load, SMS permission revoked), which the outbox has
+     to reflect. Reconcile real outcomes from
+     GET /api/v1/gateway/messages, where each message carries
+     status=dispatched|sent|failed with an errorMessage. */
+  return { ok: true, provider: 'textbee', queued: true }
+}
+
 async function sendSms(to: string, body: string): Promise<SendResult> {
   const provider = activeProvider()
   const trimmed = body.length > MAX_BODY ? `${body.slice(0, MAX_BODY - 1)}…` : body
   try {
     if (provider === 'semaphore') return await sendSemaphore(to, trimmed)
+    if (provider === 'textbee') return await sendTextBee(to, trimmed)
     if (provider === 'twilio') return await sendTwilio(to, trimmed)
     return { ok: true, provider: 'simulation', simulated: true }
   } catch (e) {
@@ -214,7 +308,10 @@ async function dispatch(db: any, opts: {
     barangay: opts.barangay ?? null,
     level: opts.level ?? null,
     provider: result.provider,
-    status: result.simulated ? 'simulated' : result.ok ? 'sent' : 'failed',
+    status: result.simulated ? 'simulated'
+      : result.queued ? 'queued'
+      : result.ok ? 'sent'
+      : 'failed',
     error: result.error ?? null,
   })
   return result
@@ -343,7 +440,7 @@ serve(async (req) => {
        visitor can reach this branch. */
     if (action === 'deliver') {
       const auth = req.headers.get('authorization') || ''
-      const token = auth.replace(/^Bearers+/i, '').trim()
+      const token = auth.replace(/^Bearer\s+/i, '').trim()
       const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
       if (!serviceKey || token !== serviceKey) {
         return json({ error: 'Not authorised.' }, 403)
@@ -366,7 +463,13 @@ serve(async (req) => {
         simulation: provider === 'simulation',
         senderName: provider === 'semaphore'
           ? (Deno.env.get('SEMAPHORE_SENDER_NAME') || 'SEMAPHORE')
-          : provider === 'twilio' ? (Deno.env.get('TWILIO_FROM') || '') : 'CDRRMO',
+          : provider === 'twilio' ? (Deno.env.get('TWILIO_FROM') || '')
+          /* textbee sends from whatever SIM is in the phone, and this function
+             never sees that number. Saying "CDRRMO" here would tell the
+             operator a sender ID is in use when residents will actually see a
+             mobile number they do not recognise. */
+          : provider === 'textbee' ? 'the CDRRMO gateway phone'
+          : 'CDRRMO',
         note: provider === 'simulation'
           ? 'No SMS provider key is set. Messages are recorded but NOT delivered to handsets.'
           : null,
@@ -508,6 +611,7 @@ serve(async (req) => {
       let sent = 0
       let failed = 0
       let simulated = 0
+      let queued = 0
       const provider = activeProvider()
 
       /* Sent in small batches rather than all at once: every gateway rate
@@ -521,6 +625,7 @@ serve(async (req) => {
         })))
         for (const r of results) {
           if (r.simulated) simulated++
+          else if (r.queued) queued++
           else if (r.ok) sent++
           else failed++
         }
@@ -531,7 +636,7 @@ serve(async (req) => {
         .in('phone', recipients.map((r: { phone: string }) => r.phone))
 
       return json({
-        sent, failed, simulated, provider,
+        sent, failed, simulated, queued, provider,
         recipients: recipients.length,
         preview: text,
       })

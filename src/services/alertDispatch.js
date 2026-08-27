@@ -71,12 +71,23 @@ export function describeDispatch(result) {
   if (sms && !sms.skipped) {
     const delivered = sms.sent ?? 0
     const simulated = sms.simulated ?? 0
+    const queued = sms.queued ?? 0
     if (simulated > 0) parts.push(`${simulated} SMS simulated (no provider key)`)
     if (delivered > 0) parts.push(`${delivered} SMS sent`)
+    /* Deliberately NOT worded as "sent". The phone gateway accepts a message
+       into a queue and sends it afterwards, so this number is what was handed
+       over — not what reached anyone. Saying "sent" here would be the system
+       telling an operator the city was warned on the strength of an HTTP 200. */
+    if (queued > 0) parts.push(`${queued} SMS queued on the gateway phone (not yet confirmed)`)
     if (sms.failed) parts.push(`${sms.failed} SMS failed`)
-    if (!delivered && !simulated && !sms.failed) parts.push('no SMS subscribers yet')
+    if (!delivered && !simulated && !queued && !sms.failed) parts.push('no SMS subscribers yet')
   } else if (sms?.reason === 'channel-off') {
     parts.push('SMS channel off')
+  } else if (sms?.reason === 'residents-off') {
+    /* Named separately from 'channel-off' on purpose: the fix is a different
+       switch, and "SMS channel off" would send the operator to the wrong one
+       while residents keep going unwarned. */
+    parts.push('residents NOT texted — "Registered residents" is off in Alert Settings')
   }
   const email = result.email
   if (email && !email.skipped) {

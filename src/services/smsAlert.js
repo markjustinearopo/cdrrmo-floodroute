@@ -106,7 +106,18 @@ export async function sendAlertSms({ level, title, message, barangay, alertId } 
     console.info('[drill] outbound SMS blocked:', title)
     return { skipped: true, blockedByDrill: true }
   }
-  if (!isSmsEnabled()) return { skipped: true, reason: 'channel-off' }
+  const cfg = loadAlertSettings()
+  if (!cfg.sms) return { skipped: true, reason: 'channel-off' }
+  /* Alert Settings → "Send alerts to → Registered residents".
+     That switch decided nothing until now: it existed in the settings screen
+     and in the defaults, and no code anywhere read it. Every alert texted
+     every verified subscriber whatever it was set to.
+
+     In a warning system that is the dangerous kind of bug, because it lies in
+     both directions — an operator who turned it OFF was still texting
+     residents, and one who turned it ON to start reaching them changed
+     nothing and had no way to tell. It now means what it says. */
+  if (!cfg.toResidents) return { skipped: true, reason: 'residents-off' }
   return call('broadcast', { level, title, message, barangay, alertId })
 }
 

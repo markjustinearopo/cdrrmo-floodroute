@@ -888,7 +888,12 @@ export const ALERT_SETTINGS_DEFAULTS = {
   tplHigh: '🚨 SEVERE FLOOD WARNING for {barangay}. Water level has reached {depth} m. Evacuate low-lying areas immediately and proceed to the nearest evacuation center.',
   tplModerate: '⚠️ Flood advisory for {barangay}. Water level is rising ({depth} m). Avoid flooded roads and prepare to evacuate if conditions worsen.',
   tplSafe: '✅ ALL CLEAR for {barangay}. Flood waters have receded. Stay alert for further advisories from CDRRMO.',
-  toStaff: true, toOfficials: true, toResidents: false,
+  /* toResidents defaults ON for the same reason sms does: a resident with a
+     verified number has already asked to be warned, and defaulting that to
+     "no" means the people the system exists for are the only ones it does not
+     reach. NOTE: toStaff and toOfficials are still decorative — nothing reads
+     them. send-alert-email picks its audience by role server-side. */
+  toStaff: true, toOfficials: true, toResidents: true,
   quietHours: false, quietFrom: '22:00', quietTo: '05:00', maxPerHour: 4,
 }
 
