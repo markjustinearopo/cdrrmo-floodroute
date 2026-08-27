@@ -9,6 +9,8 @@ import SmsDeliveryPanel from '../../components/admin/SmsDeliveryPanel.jsx'
 import './Manage.css'
 import api from '../../services/api.js'
 import EmergencyIssueModal from '../../components/admin/EmergencyIssueModal.jsx'
+import TextSmsModal from '../../components/admin/TextSmsModal.jsx'
+import { sendNoticeSms } from '../../services/smsAlert.js'
 
 /**
  * CDRRMO Admin — Alerts.
@@ -41,6 +43,7 @@ function defaultScheduleValue() {
 export default function Alerts() {
   const { alerts, addAlert, updateAlert, resolveAlert, removeAlert } = useAlerts()
   const [emergency, setEmergency] = useState(false)
+  const [textSms, setTextSms] = useState(false)
   // accounts.role — 'admin' is the CDRRMO administrator; operators and viewers
   // sit in the same portal but do not get the siren.
   const isCdrrmoAdmin = (api.getUser?.()?.role || '') === 'admin'
@@ -183,6 +186,15 @@ export default function Alerts() {
                 <SirenIcon /> Emergency
               </button>
             )}
+            {/* Plain bulk text — no alert record, no siren, no email. Sits with
+                the other two because "tell residents something" is the same job
+                from the operator's side; what differs is how loud it is. Gated
+                like Emergency: texting the city is CDRRMO's alone. */}
+            {isCdrrmoAdmin && (
+              <button type="button" className="mng-btn alerts-sms-btn" onClick={() => setTextSms(true)}>
+                <ChatIcon /> Text SMS
+              </button>
+            )}
             <button type="button" className="mng-btn" onClick={openIssue}>
               <PlusIcon /> Issue Alert
             </button>
@@ -320,6 +332,30 @@ export default function Alerts() {
         />
       )}
 
+      {textSms && (
+        <TextSmsModal
+          onClose={() => setTextSms(false)}
+          onSend={async ({ message, barangay }) => {
+            const res = await sendNoticeSms({ message, barangay })
+            setTextSms(false)
+            /* Reported the same way alerts are: what actually happened, not
+               what was attempted. A blocked channel names the switch to fix. */
+            if (res?.blockedByDrill) return flash('Drill mode — no messages left the building.')
+            if (res?.reason === 'residents-off') {
+              return flash('Not sent — "Registered residents" is off in Settings → Alerts.')
+            }
+            if (res?.reason === 'channel-off') return flash('Not sent — the SMS channel is off.')
+            if (res?.reason === 'not-authorised') return flash('Not sent — texting residents is CDRRMO-only.')
+            const bits = []
+            if (res?.sent) bits.push(`${res.sent} sent`)
+            if (res?.queued) bits.push(`${res.queued} queued on the gateway phone`)
+            if (res?.simulated) bits.push(`${res.simulated} simulated (no provider key)`)
+            if (res?.failed) bits.push(`${res.failed} failed`)
+            flash(bits.length ? `Text message — ${bits.join(' · ')}.` : (res?.info || 'Nothing was sent.'))
+          }}
+        />
+      )}
+
       {emergency && (
         <EmergencyIssueModal
           onClose={() => setEmergency(false)}
@@ -346,6 +382,11 @@ export default function Alerts() {
 function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+  )
+}
+function ChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" /></svg>
   )
 }
 function SparkIcon() {

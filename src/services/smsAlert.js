@@ -145,6 +145,28 @@ export async function sendAlertSms({ level, title, message, barangay, alertId } 
   return call('broadcast', { level, title, message, barangay, alertId, actorId: actor()?.id })
 }
 
+/**
+ * Text a plain operator-written message to verified subscribers — no alert
+ * record, no severity. Relief schedules, "the centre is open", "water is back".
+ *
+ * Deliberately NOT routed through dispatchAlert: this is not an alert and must
+ * not appear in the alert log, take over screens, or send email. It is one
+ * channel doing one thing.
+ *
+ * @param {{message: string, barangay?: string|null}} opts
+ */
+export async function sendNoticeSms({ message, barangay } = {}) {
+  if (isDrillActive()) {
+    console.info('[drill] outbound SMS blocked:', message)
+    return { skipped: true, blockedByDrill: true }
+  }
+  if (!canSendSms()) return { skipped: true, reason: 'not-authorised' }
+  const cfg = loadAlertSettings()
+  if (!cfg.sms) return { skipped: true, reason: 'channel-off' }
+  if (!cfg.toResidents) return { skipped: true, reason: 'residents-off' }
+  return call('notice', { message, barangay: barangay || null, actorId: actor()?.id })
+}
+
 /** Send one test message, to prove the provider works before it is needed. */
 export function sendTestSms(phone) {
   return call('test', { phone, actorId: actor()?.id })

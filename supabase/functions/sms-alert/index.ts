@@ -410,6 +410,19 @@ function alertBody(level: string, title: string, message: string, barangay?: str
   return `[CDRRMO CABUYAO] ${prefix}.${where} ${title}. ${message}${tail}`.replace(/\s+/g, ' ').trim()
 }
 
+/* A plain operator-written text — no alert record, no severity, no siren.
+   "Relief goods at the covered court from 8am", "the Sala centre is open now".
+
+   It still carries the [CDRRMO CABUYAO] prefix, and that is not decoration:
+   on the phone gateway these arrive from an ordinary mobile number the
+   resident has never seen, so the prefix is the only thing distinguishing an
+   official message from a stranger's text. It is prepended here rather than
+   left to the operator, because the one time somebody forgets is the time it
+   matters. */
+function noticeBody(message: string): string {
+  return `[CDRRMO CABUYAO] ${message}`.replace(/\s+/g, ' ').trim()
+}
+
 /* ── Handler ───────────────────────────────────────────────────────────── */
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -473,7 +486,7 @@ serve(async (req) => {
        model can. Closing that last gap means real signed sessions — see
        README — and this gate is written so it becomes a JWT check in one place
        when they arrive, rather than a rule scattered across call sites. */
-    if (action === 'broadcast' || action === 'test') {
+    if (action === 'broadcast' || action === 'notice' || action === 'test') {
       const auth = req.headers.get('authorization') || ''
       const token = auth.replace(/^Bearer\s+/i, '').trim()
       const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
@@ -613,13 +626,22 @@ serve(async (req) => {
     }
 
     /* ── Broadcast an alert ───────────────────────────────────────────── */
-    if (action === 'broadcast') {
+    /* One path for both, because they differ only in what the text says and
+       who it reaches — the batching, the outbox row, the opt-out filter and
+       the recipient cap are things neither is allowed to skip. A second copy
+       of this loop is a second place for "sent" to start meaning something
+       different. */
+    if (action === 'broadcast' || action === 'notice') {
+      const isNotice = action === 'notice'
       const level = String(body.level ?? 'moderate')
       const title = String(body.title ?? '').trim()
       const message = String(body.message ?? '').trim()
       const barangay = body.barangay ? String(body.barangay) : null
       const alertId = Number.isInteger(body.alertId) ? Number(body.alertId) : null
-      if (!title && !message) return json({ error: 'Nothing to send.' }, 400)
+      /* A notice is only its message; an alert may carry either field. */
+      if (isNotice ? !message : (!title && !message)) {
+        return json({ error: 'Nothing to send.' }, 400)
+      }
 
       let q = db.from('sms_subscribers')
         .select('phone, barangay')
@@ -638,7 +660,10 @@ serve(async (req) => {
          Over-warning the city costs a text; under-warning the street outside
          the line costs more than this system is allowed to cost. So the
          severity, not the operator's dropdown, decides the reach. */
-      const cityWide = level === 'emergency'
+      /* A notice never claims emergency reach — the operator picked its
+         audience deliberately, and silently widening a "relief goods at 8am"
+         text to the whole city would be the same lie in the other direction. */
+      const cityWide = !isNotice && level === 'emergency'
       if (!cityWide && barangay && barangay !== 'All' && barangay !== 'All Barangays') {
         q = q.or(`barangay.eq.${barangay},barangay.is.null`)
       }
@@ -653,7 +678,9 @@ serve(async (req) => {
         return json({ sent: 0, failed: 0, simulated: 0, info: 'No verified subscribers for that area yet.' })
       }
 
-      const text = alertBody(level, title, message, barangay ?? undefined)
+      const text = isNotice
+        ? noticeBody(message)
+        : alertBody(level, title, message, barangay ?? undefined)
       let sent = 0
       let failed = 0
       let simulated = 0
@@ -667,7 +694,12 @@ serve(async (req) => {
       for (let i = 0; i < recipients.length; i += BATCH) {
         const slice = recipients.slice(i, i + BATCH)
         const results = await Promise.all(slice.map((s: { phone: string }) => dispatch(db, {
-          phone: s.phone, body: text, purpose: 'alert', alertId, barangay, level,
+          /* purpose stays 'alert' — the column's CHECK allows only
+             alert|verify|test, and a notice is closer to an alert than to
+             either of the others. `level` is null so the outbox does not
+             attribute a severity the operator never chose. */
+          phone: s.phone, body: text, purpose: 'alert', alertId,
+          barangay, level: isNotice ? null : level,
         })))
         for (const r of results) {
           if (r.simulated) simulated++
