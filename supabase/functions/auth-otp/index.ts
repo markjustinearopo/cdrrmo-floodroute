@@ -158,11 +158,12 @@ async function sendCodeEmail(to: string, name: string, purpose: string, code: st
 
 /** Same normalisation sms-alert uses — one row per handset, however it is typed. */
 function normalisePH(raw: string): string | null {
-  const digits = String(raw ?? '').replace(/[^d+]/g, '')
-  let d = digits.replace(/^+/, '')
+  const digits = String(raw ?? '').replace(/[^\d+]/g, '')
+  let d = digits.replace(/^\+/, '')
   if (d.startsWith('63')) d = d.slice(2)
   else if (d.startsWith('0')) d = d.slice(1)
-  if (!/^9d{9}$/.test(d)) return null
+  // A PH mobile subscriber number is 10 digits and always starts with 9.
+  if (!/^9\d{9}$/.test(d)) return null
   return `+63${d}`
 }
 
