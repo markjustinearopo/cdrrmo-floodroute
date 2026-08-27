@@ -334,22 +334,8 @@
 .bq-action-arrow { margin-left: auto; color: #cbb9b9; font-weight: 800; }
 .bq-action.primary .bq-action-arrow { color: rgba(255, 255, 255, 0.7); }
 
-/* ── Feed / activity list (empty by default) ─────────────────────────────── */
-.bq-feed { display: flex; flex-direction: column; gap: 8px; }
-.bq-feed-item {
-  display: flex;
-  gap: 10px;
-  padding: 10px 11px;
-  border: 1px solid #f0eee9;
-  border-radius: 3px;
-}
-.bq-feed-stripe { width: 3px; border-radius: 2px; flex-shrink: 0; background: #9a9a9a; }
-.bq-feed-stripe.high { background: #dc2626; }
-.bq-feed-stripe.moderate { background: #f97316; }
-.bq-feed-stripe.safe { background: #16a34a; }
-.bq-feed-title { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
-.bq-feed-msg { font-size: 0.75rem; color: #5a5a5a; line-height: 1.4; }
-.bq-feed-time { font-size: 0.6875rem; color: #9a9a9a; margin-top: 2px; }
+/* The recent-alerts feed moved to the shared collapsible AlertStack
+   (components/dash/AlertStack.css). */
 .bq-empty {
   display: flex;
   flex-direction: column;

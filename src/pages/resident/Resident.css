@@ -283,22 +283,9 @@
 }
 .res-side-title svg { width: 15px; height: 15px; stroke: #c0181b; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 
-/* mini alert rows on the dashboard */
-.res-alert-list { display: flex; flex-direction: column; gap: 8px; }
-.res-alert-row {
-  display: flex;
-  gap: 9px;
-  padding: 9px 10px;
-  border: 1px solid #f0eee9;
-  border-radius: 3px;
-}
-.res-alert-stripe { width: 3px; border-radius: 2px; flex-shrink: 0; background: #9a9a9a; }
-.res-alert-stripe.high { background: #dc2626; }
-.res-alert-stripe.moderate { background: #f97316; }
-.res-alert-stripe.safe { background: #16a34a; }
-.res-alert-title { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
-.res-alert-msg { font-size: 0.75rem; color: #5a5a5a; line-height: 1.4; }
-.res-alert-time { font-size: 0.6875rem; color: #9a9a9a; margin-top: 2px; }
+/* The dashboard alert rows moved to the shared collapsible AlertStack
+   (components/dash/AlertStack.css) — a row is now a severity bar, a title
+   and a time, and the message opens on click instead of printing in full. */
 
 /* forecast */
 .res-forecast { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -637,20 +624,7 @@
   .res-map-legend { padding: 8px 10px; gap: 6px; }
   .res-legend-item { font-size: 0.6875rem; }
 
-  /* Alert rows. This card is a digest, not the feed — a 275-character alert
-     body rendered in full made one row 205px tall. Three lines is enough to
-     recognise which alert it is; the whole text is one tap away on the Alerts
-     page, where nothing is clamped. */
-  .res-alert-title { font-size: 0.875rem; line-height: 1.3; }
-  .res-alert-msg {
-    font-size: 0.8125rem;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .res-alert-time { font-size: 0.75rem; }
+
 
   /* Order on a phone follows urgency, not the desktop column order. The
      preparedness checklist is a calm-weather task and the tallest card on the
