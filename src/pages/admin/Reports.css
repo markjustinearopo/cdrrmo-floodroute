@@ -1,358 +1,729 @@
 /* ============================================================
-   CDRRMO Admin — Reports (report builder + printable document)
+   CDRRMO Admin — Reports.
+
+   Two things live on this screen and they are styled as two different kinds
+   of object:
+
+   · the BUILDER, which is app chrome — Poppins, rounded, CDRRMO red;
+   · the DOCUMENT, which is paper — a real sheet at its real width, in the
+     typeface and spacing an LGU document is written in.
+
+   Keeping them visually separate is what stops the screen reading as one big
+   undifferentiated control panel. The document is sized from --doc-w /
+   --doc-pad, both written by ReportDocument from the chosen paper, so what is
+   on screen is the printed sheet rather than an approximation of it.
    ============================================================ */
 
 .reports {
   display: flex;
-  gap: 18px;
+  gap: 20px;
   align-items: flex-start;
 }
 
-/* ── Builder panel (screen only) ── */
-.report-builder {
-  /* The document stops growing at its 850px page-width cap, so on a wide screen
-     everything past that sat empty while this panel stayed pinned at 320px —
-     cramped enough that "Office of the City Mayor" truncated in its input and
-     the 19 barangay chips wrapped to six rows. It now takes up that slack.
-
-     460px is where the gain stops: the chips settle at four rows there and a
-     wider panel only eats the preview. */
-  width: clamp(320px, 30vw, 460px);
-  flex-shrink: 0;
+/* ══════════════════════════════════════════════════════════════
+   BUILDER
+   ══════════════════════════════════════════════════════════════ */
+.rb {
+  width: clamp(330px, 27vw, 410px);
+  flex: 0 0 auto;
   position: sticky;
   top: 12px;
-  background: #fff;
-  border: 1px solid #e5e2dd;
-  border-radius: 14px;
-  padding: 16px;
-  max-height: calc(100vh - 150px);
-  overflow-y: auto;
-}
-.report-builder .rb-head h2 {
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 800;
-  color: #1a1a1a;
-  margin: 0;
-}
-.report-builder .rb-head p {
-  font-size: 0.75rem;
-  color: #9a9a9a;
-  margin: 2px 0 14px;
-}
-.rb-group { margin-bottom: 14px; }
-/* Prepared by / Prepared for sit two-up. At `flex: 1 1 0` they split whatever
-   is there and truncated their own values; given a real basis they stack
-   instead of clipping once the pair no longer fits. */
-.rb-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.rb-row .rb-group { flex: 1 1 180px; min-width: 0; }
-.rb-label {
-  display: block;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #5a5a5a;
-  margin-bottom: 6px;
-}
-.rb-hint { font-size: 0.6875rem; color: #9a9a9a; line-height: 1.45; margin-bottom: 7px; }
-.rb-input {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #e5e2dd;
-  border-radius: 8px;
-  font-family: var(--font-body);
-  font-size: 0.8125rem;
-  color: #1a1a1a;
-  background: #fafafa;
-}
-.rb-input:focus { outline: none; border-color: #c0181b; background: #fff; }
-
-.rb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.rb-chip {
-  padding: 5px 10px;
-  border: 1.5px solid #e5e2dd;
-  background: #fafafa;
-  border-radius: 9999px;
-  font-family: var(--font-body);
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #5a5a5a;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.rb-chip:hover { border-color: #c0181b; }
-.rb-chip.on { background: #fef2f2; border-color: #c0181b; color: #c0181b; }
-
-.rb-checks { display: flex; flex-direction: column; gap: 7px; }
-.rb-check {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 0.8125rem;
-  color: #3a3a3a;
-  cursor: pointer;
-}
-.rb-check input { width: 15px; height: 15px; accent-color: #c0181b; cursor: pointer; }
-
-.rb-generate {
-  width: 100%;
-  margin-top: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 11px;
-  border: none;
-  border-radius: 10px;
-  background: #c0181b;
-  color: #fff;
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.rb-generate:hover { background: #a81518; }
-.rb-generate svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-.rb-foot { font-size: 0.6875rem; color: #9a9a9a; line-height: 1.5; margin-top: 10px; }
-
-/* ── Document stage ── */
-.report-stage {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  justify-content: center;
-  padding-bottom: 30px;
-}
-.report-doc {
-  width: 100%;
-  max-width: 850px;
-  background: #fff;
-  border: 1px solid #e5e2dd;
-  border-radius: 6px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-  padding: 34px 38px;
-  color: #1a1a1a;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-
-/* Letterhead */
-.rd-header { display: flex; align-items: center; gap: 14px; }
-.rd-logo { width: 58px; height: 58px; object-fit: contain; flex-shrink: 0; }
-.rd-org { flex: 1 1 auto; min-width: 0; }
-.rd-org-name {
-  font-family: var(--font-display);
-  font-size: 1.0625rem;
-  font-weight: 800;
-  color: #1a2a4a;
-  line-height: 1.15;
-}
-.rd-org-sub { font-size: 0.75rem; color: #6a6a6a; margin-top: 3px; }
-.rd-rule { height: 3px; background: linear-gradient(90deg, #c0181b 0 60%, #1a2a4a 60% 100%); border-radius: 2px; margin: 12px 0 18px; }
-
-/* Title block */
-.rd-titleblock { margin-bottom: 20px; }
-.rd-title {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 800;
-  margin: 0 0 8px;
-  color: #1a1a1a;
-}
-.rd-meta {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px 24px;
-  font-size: 0.75rem;
-  color: #4a4a4a;
-}
-.rd-meta b { color: #1a1a1a; }
-
-/* Sections */
-.rd-section { margin-bottom: 22px; break-inside: avoid; }
-.rd-sec-title {
-  font-family: var(--font-display);
-  font-size: 0.9375rem;
-  font-weight: 800;
-  color: #1a2a4a;
-  margin: 0 0 10px;
-  padding-bottom: 6px;
-  border-bottom: 1.5px solid #ece8e0;
-}
-
-/* Summary stats */
-.rd-stats {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 9px;
-  margin-bottom: 12px;
-}
-.rd-stat {
-  border: 1px solid #ece8e0;
-  border-radius: 9px;
-  padding: 10px 6px;
-  text-align: center;
-  background: #fbfaf7;
-}
-.rd-stat-n {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  font-weight: 800;
-  line-height: 1;
-  color: #c0181b;
-  font-variant-numeric: tabular-nums;
-}
-.rd-stat-l { font-size: 0.625rem; color: #6a6a6a; margin-top: 5px; line-height: 1.25; }
-.rd-para { font-size: 0.8125rem; line-height: 1.6; color: #2a2a2a; margin: 0; }
-
-/* Map */
-.rd-map {
-  width: 100%;
-  height: auto;
-  border: 1px solid #ece8e0;
-  border-radius: 8px;
-  display: block;
-}
-.rd-map-lbl { font-size: 8px; font-family: var(--font-body); fill: #3a3a3a; font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 2px; }
-.rd-maplegend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 9px; }
-.rd-leg { display: inline-flex; align-items: center; gap: 6px; font-size: 0.6875rem; color: #4a4a4a; font-weight: 600; }
-.rd-leg i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
-
-/* Tables */
-.rd-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-.rd-table thead th {
-  text-align: left;
-  font-size: 0.625rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #6a6a6a;
-  padding: 6px 8px;
-  border-bottom: 1.5px solid #ddd7cc;
-  background: #f7f5f0;
-}
-.rd-table tbody td { padding: 6px 8px; border-bottom: 1px solid #f0ece4; color: #2a2a2a; vertical-align: top; }
-.rd-table tbody tr:nth-child(even) td { background: #fcfbf8; }
-.rd-strong { font-weight: 700; color: #1a1a1a; }
-.rd-depth { font-weight: 800; font-family: var(--font-display); }
-
-.rd-badge, .rd-status, .rd-lvl {
-  display: inline-block;
-  font-size: 0.5625rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 9999px;
-  color: #fff;
-}
-.rd-status.open { background: #16a34a; }
-.rd-status.full { background: #f97316; }
-.rd-status.closed { background: #dc2626; }
-.rd-lvl.high { background: #c0181b; }
-.rd-lvl.moderate { background: #f97316; }
-.rd-lvl.low { background: #ca8a04; }
-.rd-lvl.safe { background: #16a34a; }
-
-.rd-empty { font-size: 0.8125rem; color: #9a9a9a; font-style: italic; padding: 4px 0; }
-
-.rd-footer {
-  margin-top: 26px;
-  padding-top: 10px;
-  border-top: 1px solid #ece8e0;
+  max-height: calc(100vh - 130px);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 0.625rem;
-  color: #9a9a9a;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
+
+/* ── Header ── */
+.rb-top {
+  flex: 0 0 auto;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.rb-top-title { display: flex; gap: 10px; align-items: flex-start; }
+.rb-top-title svg {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px;
+  stroke: var(--cdrrmo-red); fill: none; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.rb-top h2 {
+  font-family: var(--font-display);
+  font-size: 0.9375rem; font-weight: 800; margin: 0; color: var(--color-text-primary);
+}
+.rb-top p { font-size: 0.75rem; color: var(--color-text-muted); margin: 2px 0 0; line-height: 1.4; }
+
+/* Edit / Preview — the one control that changes what clicking the page does,
+   so it sits above the tabs instead of inside one of them. */
+.rb-mode {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  margin-top: 12px; padding: 3px;
+  background: var(--color-bg-secondary);
+  border-radius: 9px;
+}
+.rb-mode-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 7px 6px; border: none; border-radius: 7px;
+  background: transparent; cursor: pointer;
+  font-family: var(--font-body); font-size: 0.75rem; font-weight: 700;
+  color: var(--color-text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.rb-mode-btn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rb-mode-btn:hover { color: var(--color-text-primary); }
+.rb-mode-btn.on { background: #fff; color: var(--cdrrmo-red); box-shadow: var(--shadow-sm); }
+
+/* ── Tabs ── */
+.rb-tabs {
+  flex: 0 0 auto;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+.rb-tab {
+  padding: 10px 4px; border: none; background: none; cursor: pointer;
+  font-family: var(--font-body); font-size: 0.75rem; font-weight: 700;
+  color: var(--color-text-secondary);
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.rb-tab:hover { color: var(--color-text-primary); }
+.rb-tab.on { color: var(--cdrrmo-red); border-bottom-color: var(--cdrrmo-red); background: #fff; }
+
+/* ── Scrolling body ── */
+.rb-body { flex: 1 1 auto; overflow-y: auto; padding: 14px; }
+
+.rb-group { margin-bottom: 20px; }
+.rb-group:last-child { margin-bottom: 4px; }
+.rb-group-label {
+  font-family: var(--font-display);
+  font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--color-text-secondary); margin: 0 0 4px;
+}
+.rb-group-hint { font-size: 0.7rem; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 10px; }
+.rb-sublabel {
+  font-size: 0.6875rem; font-weight: 700; color: var(--color-text-secondary);
+  margin: 12px 0 6px;
+}
+.rb-note { font-size: 0.6875rem; color: var(--color-text-muted); line-height: 1.5; margin: 8px 0 0; }
+.rb-note.inline { margin: 0; }
+.rb-empty { font-size: 0.75rem; color: var(--color-text-muted); font-style: italic; padding: 6px 0; }
+
+/* ── Generic controls ── */
+.rb-input {
+  width: 100%; min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border); border-radius: 8px;
+  font-family: var(--font-body); font-size: 0.8125rem;
+  color: var(--color-text-primary); background: var(--color-bg-secondary);
+}
+.rb-input:focus { outline: none; border-color: var(--cdrrmo-red); background: #fff; }
+
+.rb-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border); border-radius: 8px;
+  background: #fff; cursor: pointer;
+  font-family: var(--font-body); font-size: 0.75rem; font-weight: 700;
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.rb-btn:hover:not(:disabled) { border-color: var(--cdrrmo-red); color: var(--cdrrmo-red); }
+.rb-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.rb-btn.wide { width: 100%; }
+.rb-btn.primary { background: var(--cdrrmo-red); border-color: var(--cdrrmo-red); color: #fff; }
+.rb-btn.primary:hover:not(:disabled) { background: var(--cdrrmo-red-dark); color: #fff; }
+.rb-btn.primary-soft { background: #FEF3F3; border-color: #F0C9C9; color: var(--cdrrmo-red); }
+.rb-btn.primary-soft:hover { background: #FCE9E9; }
+
+.rb-link {
+  border: none; background: none; padding: 6px 0 0; cursor: pointer;
+  font-family: var(--font-body); font-size: 0.6875rem; font-weight: 700;
+  color: var(--cdrrmo-red); text-decoration: underline;
+}
+
+.rb-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; flex-shrink: 0;
+  border: none; background: none; border-radius: 6px; cursor: pointer;
+  color: var(--color-text-muted);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.rb-icon svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rb-icon:hover:not(:disabled) { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
+.rb-icon.danger:hover { background: #FDECEC; color: var(--cdrrmo-red); }
+.rb-icon:disabled { opacity: 0.25; cursor: not-allowed; }
+
+.rb-check {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.75rem; color: var(--color-text-primary);
+  cursor: pointer; min-width: 0; padding: 3px 0;
+}
+.rb-check input { width: 14px; height: 14px; flex-shrink: 0; accent-color: var(--cdrrmo-red); cursor: pointer; }
+.rb-check span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.rb-optgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; }
+
+.rb-seg {
+  display: flex; gap: 3px; padding: 3px;
+  background: var(--color-bg-secondary); border-radius: 8px;
+}
+.rb-seg button {
+  flex: 1 1 0; min-width: 0;
+  padding: 6px 4px; border: none; border-radius: 6px; background: transparent; cursor: pointer;
+  font-family: var(--font-body); font-size: 0.6875rem; font-weight: 700;
+  color: var(--color-text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.rb-seg button:hover { color: var(--color-text-primary); }
+.rb-seg button.on { background: #fff; color: var(--cdrrmo-red); box-shadow: var(--shadow-sm); }
+
+.rb-select { display: block; margin-top: 10px; }
+.rb-select span {
+  display: block; font-size: 0.6875rem; font-weight: 700;
+  color: var(--color-text-secondary); margin-bottom: 5px;
+}
+.rb-select select {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--color-border); border-radius: 8px;
+  background: var(--color-bg-secondary);
+  font-family: var(--font-body); font-size: 0.75rem; color: var(--color-text-primary);
+  cursor: pointer;
+}
+.rb-select select:focus { outline: none; border-color: var(--cdrrmo-red); background: #fff; }
+
+.rb-inline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.rb-mini { display: inline-flex; align-items: center; gap: 6px; font-size: 0.6875rem; color: var(--color-text-secondary); }
+.rb-num {
+  width: 52px; padding: 5px 6px; text-align: center;
+  border: 1px solid var(--color-border); border-radius: 6px;
+  font-family: var(--font-body); font-size: 0.75rem; color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+.rb-num:focus { outline: none; border-color: var(--cdrrmo-red); background: #fff; }
+
+/* ── Chips (coverage + summary figures) ── */
+.rb-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.rb-chips.tight { gap: 4px; }
+.rb-chip {
+  padding: 5px 9px;
+  border: 1.5px solid var(--color-border); border-radius: var(--radius-full);
+  background: var(--color-bg-secondary); cursor: pointer;
+  font-family: var(--font-body); font-size: 0.6875rem; font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+.rb-chip:hover { border-color: var(--cdrrmo-red); }
+.rb-chip.on { background: #FEF3F3; border-color: var(--cdrrmo-red); color: var(--cdrrmo-red); }
+
+/* ── Template tab ── */
+.rb-presets { display: flex; flex-direction: column; gap: 6px; }
+.rb-preset {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border); border-radius: 10px;
+  background: #fff; cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.rb-preset:hover { border-color: var(--cdrrmo-red); background: #FEFAFA; }
+.rb-preset-name {
+  display: block; font-family: var(--font-display);
+  font-size: 0.8125rem; font-weight: 700; color: var(--color-text-primary);
+}
+.rb-preset-hint { display: block; font-size: 0.6875rem; color: var(--color-text-muted); line-height: 1.45; margin-top: 2px; }
+
+.rb-saverow { display: flex; gap: 6px; align-items: stretch; }
+.rb-saverow .rb-input { flex: 1 1 auto; }
+.rb-saverow .rb-btn { flex: 0 0 auto; }
+
+.rb-tpls { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rb-tpls li { display: flex; align-items: center; gap: 4px; }
+.rb-tpl-load {
+  flex: 1 1 auto; min-width: 0; text-align: left;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border); border-radius: 8px;
+  background: var(--color-bg-secondary); cursor: pointer;
+}
+.rb-tpl-load:hover { border-color: var(--cdrrmo-red); background: #fff; }
+.rb-tpl-name {
+  font-size: 0.75rem; font-weight: 700; color: var(--color-text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rb-tpl-date { font-size: 0.625rem; color: var(--color-text-muted); flex-shrink: 0; }
+
+/* ── Coverage tab: reference rows ── */
+.rb-metarows { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.rb-metarows li {
+  display: flex; align-items: center; gap: 6px;
+  padding: 2px 2px 2px 0;
+  border-bottom: 1px solid var(--color-bg-tertiary);
+}
+.rb-metarows li .rb-check { flex: 1 1 auto; min-width: 0; }
+.rb-auto {
+  flex-shrink: 0; font-size: 0.5625rem; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--color-text-muted);
+  background: var(--color-bg-tertiary); border-radius: 4px; padding: 2px 6px;
+}
+.rb-sig-label {
+  flex: 1 1 auto; min-width: 0; font-size: 0.7rem; color: var(--color-text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Contents tab: the block list ── */
+.rb-blocks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.rb-block {
+  border: 1px solid var(--color-border); border-radius: 10px;
+  background: #fff;
+  transition: border-color var(--transition-fast), opacity var(--transition-fast);
+}
+.rb-block.open { border-color: var(--cdrrmo-red); }
+.rb-block.off { opacity: 0.55; background: var(--color-bg-secondary); }
+.rb-block-head { display: flex; align-items: center; gap: 2px; padding: 5px 6px 5px 2px; }
+.rb-grip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; flex-shrink: 0; cursor: grab; color: #CFC9BE;
+}
+.rb-grip svg { width: 14px; height: 14px; fill: currentColor; stroke: currentColor; }
+.rb-block:active .rb-grip { cursor: grabbing; }
+.rb-block-on { display: inline-flex; align-items: center; flex-shrink: 0; padding: 0 4px; }
+.rb-block-on input { width: 14px; height: 14px; accent-color: var(--cdrrmo-red); cursor: pointer; }
+.rb-block-name {
+  flex: 1 1 auto; min-width: 0; text-align: left;
+  border: none; background: none; cursor: pointer; padding: 2px 4px;
+}
+.rb-block-name:disabled { cursor: default; }
+.rb-block-title {
+  display: block; font-size: 0.75rem; font-weight: 700; color: var(--color-text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rb-block-type { display: block; font-size: 0.625rem; color: var(--color-text-muted); margin-top: 1px; }
+.rb-block-tools { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+.rb-block-opts {
+  padding: 10px 12px 12px;
+  border-top: 1px dashed var(--color-border);
+  background: var(--color-bg-secondary);
+  border-radius: 0 0 9px 9px;
+}
+.rb-block-opts .rb-sublabel:first-child { margin-top: 0; }
+
+.rb-add { margin-top: 10px; }
+.rb-addmenu {
+  list-style: none; margin: 6px 0 0; padding: 5px;
+  border: 1px solid var(--color-border); border-radius: 10px;
+  background: var(--color-bg-secondary);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.rb-addmenu button {
+  display: block; width: 100%; text-align: left;
+  padding: 7px 9px; border: none; border-radius: 7px; background: none; cursor: pointer;
+}
+.rb-addmenu button:hover { background: #fff; }
+.rb-add-name { display: block; font-size: 0.75rem; font-weight: 700; color: var(--color-text-primary); }
+.rb-add-hint { display: block; font-size: 0.625rem; color: var(--color-text-muted); line-height: 1.4; margin-top: 1px; }
+
+/* ── Footer / export ── */
+.rb-foot {
+  flex: 0 0 auto;
+  padding: 12px 14px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+.rb-print {
+  width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px; border: none; border-radius: 10px;
+  background: var(--cdrrmo-red); color: #fff; cursor: pointer;
+  font-family: var(--font-body); font-size: 0.875rem; font-weight: 800;
+  transition: background var(--transition-fast);
+}
+.rb-print:hover { background: var(--cdrrmo-red-dark); }
+.rb-print svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.rb-tip { font-size: 0.6875rem; color: var(--color-text-muted); line-height: 1.5; margin: 9px 0 0; }
+.rb-tip b { color: var(--color-text-secondary); }
+
+/* ══════════════════════════════════════════════════════════════
+   STAGE
+   ══════════════════════════════════════════════════════════════ */
+/* The stage is a plain block, not a centring flexbox. A centred flex item that
+   outgrows its scroll container overflows to BOTH sides and the left edge
+   becomes unreachable — the sheet's own `margin: 0 auto` degrades to 0 instead,
+   so an oversized sheet simply scrolls from its left edge. */
+.report-stage {
+  flex: 1 1 auto; min-width: 0;
+  padding-bottom: 40px;
+  overflow-x: auto;
+}
+.report-sheet { width: max-content; max-width: 100%; margin: 0 auto; }
+
+.report-sheetbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 0 2px 10px;
+  font-size: 0.6875rem; color: var(--color-text-muted);
+}
+.rs-zoom {
+  margin-left: auto; display: flex; gap: 2px; padding: 2px;
+  background: var(--color-bg-tertiary); border-radius: var(--radius-full);
+}
+.rs-zoom button {
+  border: none; background: none; cursor: pointer;
+  padding: 3px 10px; border-radius: var(--radius-full);
+  font-family: var(--font-body); font-size: 0.6875rem; font-weight: 700;
+  color: var(--color-text-secondary);
+}
+.rs-zoom button.on { background: #fff; color: var(--cdrrmo-red); box-shadow: var(--shadow-sm); }
+.rs-chip {
+  font-weight: 700; color: var(--color-text-secondary);
+  background: #fff; border: 1px solid var(--color-border);
+  border-radius: var(--radius-full); padding: 3px 9px;
+}
+.rs-sep { width: 1px; height: 12px; background: var(--color-border); }
+.rs-mode.edit { color: var(--cdrrmo-red); font-weight: 700; }
+
+.report-flash {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+  z-index: 60;
+  background: var(--cdrrmo-navy); color: #fff;
+  padding: 10px 18px; border-radius: var(--radius-full);
+  font-size: 0.8125rem; font-weight: 700;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   THE DOCUMENT — this, and only this, is what prints.
+   ══════════════════════════════════════════════════════════════ */
+.report-doc {
+  width: calc(var(--doc-w, 657px) + var(--doc-pad, 68px) * 2);
+  padding: var(--doc-pad, 68px);
+  background: #fff;
+  border: 1px solid #E2DDD4;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.10);
+  color: #16181D;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+
+  /* Every size in the document is an em of this, so density is one variable. */
+  font-size: var(--fs, 14.5px);
+  line-height: var(--lh, 1.5);
+}
+
+/* Typeface. A report that leaves this office is set in a serif — the sans
+   option is there for the screen-first internal copy. */
+.report-doc.tf-serif { font-family: 'Times New Roman', Times, 'Liberation Serif', Georgia, serif; }
+.report-doc.tf-sans { font-family: var(--font-body); }
+
+/* Density */
+.report-doc.dn-compact { --fs: 13px; --lh: 1.42; --sec-gap: 14px; }
+.report-doc.dn-standard { --fs: 14.5px; --lh: 1.5; --sec-gap: 20px; }
+.report-doc.dn-relaxed { --fs: 16px; --lh: 1.62; --sec-gap: 28px; }
+
+/* Accent */
+.report-doc.ac-navy { --accent: #1A2A4A; --accent-soft: #EEF1F7; --accent-line: #C6CEDD; }
+.report-doc.ac-red { --accent: #8B0F11; --accent-soft: #FBEEEE; --accent-line: #E4BEBE; }
+.report-doc.ac-mono { --accent: #16181D; --accent-soft: #F1F0EE; --accent-line: #CFCCC7; }
+
+/* ── Classification banner ── */
+.rd-class {
+  text-align: center;
+  font-size: 0.68em; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--accent);
+  border-top: 1px solid var(--accent-line);
+  border-bottom: 1px solid var(--accent-line);
+  padding: 3px 0; margin-bottom: 14px;
+}
+
+/* ── Letterhead ── */
+.rd-letterhead {
+  display: grid;
+  grid-template-columns: 66px 1fr 66px;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+.rd-seal { width: 66px; height: 66px; object-fit: contain; }
+.rd-seal-spacer { width: 66px; }
+.rd-lh-text { min-width: 0; }
+.rd-lh-1 { font-size: 0.82em; line-height: 1.35; }
+.rd-lh-2 { font-size: 0.94em; font-weight: 700; letter-spacing: 0.05em; line-height: 1.35; }
+.rd-lh-3 {
+  font-size: 1.06em; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--accent); text-transform: uppercase; line-height: 1.3; margin-top: 2px;
+}
+.rd-lh-4 { font-size: 0.7em; font-style: italic; color: #5A5F6A; line-height: 1.4; margin-top: 3px; }
+
+/* The classic double rule under an LGU letterhead. */
+.rd-rule {
+  height: 4px; margin: 12px 0 20px;
+  border-top: 2.5px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+}
+
+/* ── Title ── */
+.rd-titleblock { text-align: center; margin-bottom: 18px; }
+.rd-title {
+  font-family: inherit;
+  font-size: 1.32em; font-weight: 700; letter-spacing: 0.03em;
+  text-transform: uppercase; line-height: 1.25; margin: 0; color: #16181D;
+}
+.rd-subtitle { font-size: 0.86em; font-style: italic; color: #4A4F58; margin-top: 5px; }
+
+/* ── Reference block ── */
+.rd-meta {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--accent-line);
+  border-left: 1px solid var(--accent-line);
+  margin: 0 0 var(--sec-gap);
+  font-size: 0.8em;
+}
+.rd-meta-row {
+  display: grid; grid-template-columns: 40% 1fr;
+  border-right: 1px solid var(--accent-line);
+  border-bottom: 1px solid var(--accent-line);
+  min-width: 0;
+}
+/* An odd number of rows would otherwise leave a hole in the grid. */
+.rd-meta-row:last-child:nth-child(odd) { grid-column: 1 / -1; grid-template-columns: 20% 1fr; }
+.rd-meta-row dt {
+  padding: 5px 8px; background: var(--accent-soft);
+  font-weight: 700; color: var(--accent);
+  border-right: 1px solid var(--accent-line);
+  min-width: 0;
+}
+.rd-meta-row dd { padding: 5px 8px; margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.rd-meta-auto { color: #3A3F48; }
+
+/* ── Sections ── */
+.rd-section { margin-bottom: var(--sec-gap); break-inside: avoid; }
+.rd-sec-title {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: inherit;
+  font-size: 0.96em; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--accent);
+  border-bottom: 1.5px solid var(--accent);
+  padding-bottom: 4px; margin: 0 0 10px;
+}
+.rd-sec-num { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.rd-sec-name { flex: 1 1 auto; min-width: 0; }
+.rd-sec-count {
+  flex: 0 0 auto; font-size: 0.72em; font-weight: 700; letter-spacing: 0.04em;
+  background: var(--accent-soft); color: var(--accent);
+  border-radius: 3px; padding: 1px 7px;
+}
+
+.rd-prose { font-size: 0.92em; line-height: 1.62; color: #23272E; white-space: pre-wrap; text-align: justify; }
+.rd-caption { font-size: 0.76em; font-style: italic; color: #5A5F6A; text-align: center; margin-top: 6px; }
+.rd-tablenote { font-size: 0.76em; font-style: italic; color: #5A5F6A; margin-top: 6px; white-space: pre-wrap; }
+.rd-empty { font-size: 0.86em; font-style: italic; color: #7A7F88; margin: 4px 0; }
+
+/* ── Headline figures ── */
+.rd-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  border: 1px solid var(--accent-line);
+  margin-bottom: 12px;
+  break-inside: avoid;
+}
+.rd-stat {
+  padding: 9px 6px; text-align: center;
+  border-right: 1px solid var(--accent-line);
+  min-width: 0;
+}
+.rd-stat:last-child { border-right: none; }
+.rd-stat-n {
+  font-size: 1.5em; font-weight: 700; line-height: 1.1;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+}
+.rd-stat-l {
+  font-size: 0.64em; letter-spacing: 0.04em; text-transform: uppercase;
+  color: #5A5F6A; margin-top: 4px; line-height: 1.3;
+}
+
+/* ── Map ── */
+.rd-map { width: 100%; height: auto; display: block; border: 1px solid var(--accent-line); }
+.rd-map-lbl {
+  font-size: 9px; font-family: var(--font-body); fill: #2A2F38; font-weight: 600;
+  paint-order: stroke; stroke: #fff; stroke-width: 2.5px;
+}
+.rd-legend {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin-top: 8px; padding: 7px 9px;
+  border: 1px solid var(--accent-line); background: #FBFAF7;
+}
+.rd-leg { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72em; color: #3A3F48; }
+.rd-leg i { width: 11px; height: 11px; flex-shrink: 0; display: inline-block; border: 1px solid rgba(0, 0, 0, 0.18); }
+.rd-leg i.dot { border-radius: 50%; }
+.rd-leg i.line { height: 3px; border: none; border-radius: 2px; }
+
+/* ── Tables ── */
+.rd-table { width: 100%; border-collapse: collapse; font-size: 0.8em; }
+.rd-table th,
+.rd-table td { border: 1px solid var(--accent-line); padding: 4px 7px; vertical-align: top; }
+.rd-table thead th {
+  background: var(--accent-soft); color: var(--accent);
+  font-size: 0.92em; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  text-align: left; white-space: nowrap;
+}
+.rd-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.rd-table .rd-th-idx,
+.rd-table .rd-td-idx { width: 2.4em; text-align: right; color: #8A8F98; }
+.rd-table.zebra tbody tr:nth-child(even) td { background: #FAF9F6; }
+.rd-strong { font-weight: 700; color: #16181D; }
+.rd-fig { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Status words. Outlined rather than solid: it reads as a document annotation
+   instead of a web badge, and it survives a greyscale office printer. */
+.rd-tag {
+  display: inline-block;
+  font-size: 0.86em; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  padding: 0 6px; border-radius: 3px; border: 1px solid; white-space: nowrap;
+}
+.rd-tag.tone-high { color: #8B0F11; background: #FBEAEA; border-color: #E3B3B3; }
+.rd-tag.tone-moderate { color: #92400E; background: #FEF2E4; border-color: #F0C79B; }
+.rd-tag.tone-low { color: #78550A; background: #FEF8E3; border-color: #E9D699; }
+.rd-tag.tone-safe { color: #14603C; background: #E9F6EF; border-color: #A8DCC0; }
+
+/* ── Signatures ── */
+.rd-signs {
+  display: grid; gap: 26px 40px;
+  margin-top: 6px; break-inside: avoid;
+}
+.rd-signs[data-cols="1"] { grid-template-columns: minmax(0, 60%); }
+.rd-signs[data-cols="2"] { grid-template-columns: 1fr 1fr; }
+.rd-signs[data-cols="3"] { grid-template-columns: 1fr 1fr 1fr; }
+.rd-sign { min-width: 0; }
+.rd-sign-label { font-size: 0.86em; color: #3A3F48; }
+.rd-sign-name {
+  margin-top: 34px; text-align: center;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;
+  font-size: 0.92em;
+}
+.rd-sign-rule { border-top: 1px solid #2A2F38; margin-top: 1px; }
+.rd-sign-pos { text-align: center; font-size: 0.78em; font-style: italic; color: #4A4F58; margin-top: 3px; }
+
+/* ── Page break marker ── */
+.rd-pagebreak {
+  display: flex; align-items: center; gap: 10px;
+  margin: 18px 0;
+  font-family: var(--font-body);
+  font-size: 0.62em; letter-spacing: 0.12em; text-transform: uppercase; color: #B6AFA3;
+}
+.rd-pagebreak::before,
+.rd-pagebreak::after { content: ''; flex: 1 1 auto; border-top: 1px dashed #CFC9BE; }
+
+/* ── Closing note ── */
+.rd-footer {
+  margin-top: 26px; padding-top: 8px;
+  border-top: 1px solid var(--accent-line);
+}
+.rd-foot-note { font-size: 0.74em; font-style: italic; color: #5A5F6A; line-height: 1.5; white-space: pre-wrap; }
+.rd-foot-meta { font-size: 0.68em; color: #8A8F98; margin-top: 4px; }
+
+/* ══════════════════════════════════════════════════════════════
+   INLINE EDITING — the affordance, and nothing else, is what the
+   Edit / Preview switch turns on and off.
+   ══════════════════════════════════════════════════════════════ */
+.rd-edit { min-height: 1em; }
+/* Gated on editing: Preview has to be an honest picture of the paper, and a
+   blank signature line is meant to be blank, not captioned "Full name". */
+.report-doc.is-editing .rd-edit:empty::before {
+  content: attr(data-placeholder);
+  color: #B6AFA3; font-style: italic; font-weight: 400;
+}
+.report-doc.is-editing .rd-edit {
+  cursor: text; border-radius: 3px;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+.report-doc.is-editing .rd-edit:hover {
+  background: rgba(192, 24, 27, 0.055);
+  box-shadow: 0 0 0 3px rgba(192, 24, 27, 0.055);
+}
+.report-doc.is-editing .rd-edit:focus {
+  outline: none;
+  background: #FFFBEF;
+  box-shadow: 0 0 0 2px rgba(192, 24, 27, 0.4);
+}
+/* A heading cell keeps its own background, so the hover wash has to sit on the
+   editable run rather than behind it. */
+.report-doc.is-editing .rd-meta-row dt .rd-edit:hover { background: rgba(0, 0, 0, 0.05); box-shadow: none; }
 
 /* ============================================================
    Responsive — phone / narrow tablet.
 
-   The screen is a two-column flex: a fixed 320px builder beside the document.
-   Below ~760px there is no room for both, and because the builder is
-   `flex-shrink: 0` it kept its full width while the document absorbed every
-   pixel of the shortfall — measured at 78px wide on a 375px screen, with the
-   page force-expanding its layout viewport to 770px so the whole thing
-   rendered zoomed out.
+   The screen is a two-column flex: the builder beside a sheet of paper at its
+   true printed width. Below ~760px neither fits, so they stack and the sheet
+   drops its real-width promise (it is unprintable from a phone anyway) in
+   favour of fitting the screen.
 
-   So the two stack: builder first (it is the control surface), document below.
-
-   Everything here is scoped to the media query on purpose. The document is a
-   printable/PDF artefact, and the @media print rules below own how it renders
-   on paper. Note the `screen and` qualifier: an A4 page area is ~703px wide,
-   which is UNDER this breakpoint, so a bare max-width query would also match
-   while printing — the table sections’ overflow-x would then clip columns off
-   the PDF. Restricting to screen keeps paper output exactly as it was.
+   Everything is scoped to `screen and` ON PURPOSE. An A4 page area is ~703px
+   wide — under this breakpoint — so a bare max-width query would also match
+   while printing and would clip table columns off the PDF.
    ============================================================ */
 @media screen and (max-width: 760px) {
   .reports {
     flex-direction: column;
     gap: 12px;
     /* The base rule is align-items: flex-start, which in a COLUMN makes each
-       child shrink-wrap its own content width instead of filling the page.
-       The document then sized to the widest table max-content (691px) and
-       dragged the layout viewport out with it. */
+       child shrink-wrap its content width instead of filling the page. */
     align-items: stretch;
   }
 
-  /* Full width, and no longer pinned: sticky positioning with a viewport-height
-     cap made sense beside the document, but stacked above it the builder would
-     scroll its own inner scrollbar while the page scrolled behind it. */
-  .report-builder {
+  /* Full width and unpinned: a sticky, height-capped panel stacked above the
+     document would scroll its own inner scrollbar while the page scrolled
+     behind it. */
+  .rb {
     width: 100%;
     position: static;
     max-height: none;
-    overflow-y: visible;
   }
+  .rb-body { overflow-y: visible; max-height: none; }
 
-  /* 34px/38px of document padding costs 76px of a 351px content width. */
+  .report-stage { overflow-x: visible; }
+  .report-sheet { width: 100%; }
   .report-doc {
-    padding: 20px 16px;
-    border-radius: 10px;
+    width: 100%;
+    padding: 18px 14px;
+    font-size: 13.5px;
+    zoom: 1 !important; /* fit-to-width is meaningless once the sheet is fluid */
   }
 
-  /* Six stat tiles across gave ~47px each — the 1.4rem figures barely fit and
-     the labels wrapped to three lines. Two across, and the tiles can breathe. */
-  .rd-stats {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
+  .rd-letterhead { grid-template-columns: 48px 1fr; text-align: left; }
+  .rd-seal { width: 48px; height: 48px; }
+  .rd-seal-spacer { display: none; }
+  .rd-titleblock { text-align: left; }
+  .rd-meta { grid-template-columns: 1fr; }
+  .rd-meta-row:last-child:nth-child(odd) { grid-template-columns: 40% 1fr; }
+  .rd-signs[data-cols="2"],
+  .rd-signs[data-cols="3"] { grid-template-columns: 1fr; }
 
-  /* Two columns of "Prepared by: …" pairs cut each to ~57px. */
-  .rd-meta {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
-
-  .rd-title { font-size: 1.25rem; }
-
-  /* Tables run to six columns. Rather than crush them, let each section scroll
-     its own table sideways: `max-content` sizes the table to what it actually
-     needs, `min-width: 100%` keeps the narrow ones filling the page. */
+  /* Tables run to nine columns. Rather than crush them, let each section
+     scroll its own table sideways. */
   .rd-section { overflow-x: auto; }
-  .rd-table {
-    width: max-content;
-    min-width: 100%;
-  }
+  .rd-table { width: max-content; min-width: 100%; }
+
+  /* 13px triggers the iOS Safari focus-zoom, which on a page this tall leaves
+     the reader scrolled sideways mid-form. */
+  .rb-input,
+  .rb-num,
+  .rb-select select { font-size: 16px; min-height: 44px; }
+  .rb-chip { min-height: 38px; display: inline-flex; align-items: center; }
+  .rb-icon { width: 32px; height: 32px; }
 }
 
 /* ============================================================
    Print — flow ONLY the document, sharp and chrome-free.
 
-   The document is left in normal flow (not position:absolute) so it
-   paginates across pages; the app chrome + scroll containers are hidden
-   and unclamped so nothing clips the report.
+   The document stays in normal flow (not position: absolute) so it paginates;
+   the app chrome and every scroll container between <body> and the sheet are
+   hidden or unclamped so nothing clips the report. The sheet itself drops its
+   padding because @page owns the margins on paper.
    ============================================================ */
 @media print {
-  /* Hide the app shell + the builder. */
-  .alert-banner, .topbar, .sidebar, .report-builder { display: none !important; }
+  .alert-banner, .topbar, .sidebar,
+  .rb, .report-sheetbar, .report-flash { display: none !important; }
 
-  /* Unclamp every scroll/flex container between <body> and the document so the
-     full report flows onto as many A4 pages as it needs. */
   html, body, .body-wrap, .main, .reports, .report-stage {
     display: block !important;
     height: auto !important;
@@ -364,44 +735,34 @@
     background: #fff !important;
   }
 
+  .report-sheet { width: auto !important; max-width: none !important; margin: 0 !important; }
   .report-doc {
     width: 100% !important;
     max-width: none !important;
     margin: 0 !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
     padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    /* @page owns the paper; the on-screen fit must never reach the printer. */
+    zoom: 1 !important;
   }
 
+  /* No editing affordance survives onto paper. */
+  .report-doc.is-editing .rd-edit,
+  .report-doc.is-editing .rd-edit:hover,
+  .report-doc.is-editing .rd-edit:focus {
+    background: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  .rd-edit:empty::before { content: '' !important; }
+
   /* Keep logical blocks together; let long tables break but never mid-row. */
-  .rd-section { break-inside: avoid; }
-  .rd-header, .rd-titleblock, .rd-stats, .rd-map { break-inside: avoid; }
+  .rd-section, .rd-letterhead, .rd-titleblock, .rd-meta, .rd-stats, .rd-map, .rd-signs { break-inside: avoid; }
   .rd-table { break-inside: auto; }
   .rd-table thead { display: table-header-group; } /* repeat headers per page */
   .rd-table tr { break-inside: avoid; }
 
-  @page { size: A4; margin: 12mm; }
-}
-
-/* Report-builder fields: 13px triggers the iOS Safari focus-zoom, which on a
-   page this tall leaves the reader scrolled sideways mid-form. Same opt-in as
-   .mng-search — the class rule outranks the global mobile input rule. */
-@media (max-width: 760px) {
-  .rb-input {
-    font-size: 16px;
-    min-height: 44px;
-  }
-}
-
-/* ── Phone: scope and section pickers ────────────────────────────────────
-   The report builder is one long column of chip rows (19 barangays, then
-   sections, then overlays) at 28px each. */
-@media screen and (max-width: 760px) {
-  .rb-chip {
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    padding: 6px 12px;
-  }
+  /* The marker itself is invisible on paper; only its page break survives. */
+  .rd-pagebreak { break-before: page; margin: 0 !important; height: 0; visibility: hidden; }
 }

@@ -1,59 +1,42 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
-import { BARANGAYS } from '../../data/cabuyao.js'
-import { RISK_META, levelFromDepth } from '../../components/admin/mapHelpers.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import ReportBuilder from '../../components/admin/report/ReportBuilder.jsx'
+import ReportDocument from '../../components/admin/report/ReportDocument.jsx'
+import {
+  PRESETS, clearDraft, defaultSpec, deleteTemplate, loadDraft, loadTemplates,
+  migrate, saveDraft, saveTemplate, sheetPx,
+} from '../../components/admin/report/reportSpec.js'
+import { levelFromDepth } from '../../components/admin/mapHelpers.jsx'
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
-import { getCabuyaoRoads, useRoadStatus, ROAD_STATUS } from '../../components/admin/routingHelpers.jsx'
+import { getCabuyaoRoads, useRoadStatus } from '../../components/admin/routingHelpers.jsx'
 import {
   useFloodAreas, useEvacCenters, useAlerts, useIncidents, useRoadReports, nowLabel,
 } from '../../context/AdminDataContext.jsx'
-import {
-  BARANGAY_FEATURES, CABUYAO_LAND_BBOX, barangayBounds, barangayOuterRings,
-} from '../../data/cabuyaoBarangays.js'
-import {
-  FLOOD_SEVERITY_META, FLOOD_TYPE_LABEL, floodSeverity, formatFloodDepth,
-} from '../../data/floodAreas.js'
+import { barangayAt } from '../../data/cabuyaoBarangays.js'
+import { depthMeters, formatMeters } from '../../services/depth.js'
 import './Reports.css'
 
 /**
  * CDRRMO Admin — Reports.
  *
- * A full report-generation studio. The officer customises a clean, printable
- * flood & road-conditions report — pick the barangay scope (whole city or
- * specific "bordered" barangays), choose which sections appear, and toggle the
- * map overlays — then exports it to PDF (the browser's print-to-PDF). The map
- * is a crisp VECTOR rendering of the real Cabuyao barangay boundaries with the
- * flood-prone areas, road conditions and evacuation centres drawn on top, so it
- * prints sharp at any size. The CDRRMO logo heads every page.
+ * A document editor, not a form. The left rail arranges the report — which
+ * blocks appear, in what order, which columns each table shows, how it is
+ * filtered, and how the paper is set up — while every word in the document is
+ * edited by clicking it on the page. The two never overlap, which is what
+ * keeps a screen with this much power readable.
+ *
+ * What comes out is an LGU document: Republic-of-the-Philippines letterhead,
+ * a bordered reference block, numbered sections, a sharp vector situation map
+ * and real signature lines. It prints through the browser's Save-as-PDF, and
+ * the on-screen page is the exact width of the chosen sheet so nothing shifts
+ * between the preview and the print dialog.
  */
-
-const SECTIONS = [
-  { key: 'summary', label: 'Executive Summary' },
-  { key: 'map', label: 'Situation Map' },
-  { key: 'floodAreas', label: 'Flood-Prone Areas' },
-  { key: 'roads', label: 'Road Conditions' },
-  { key: 'evac', label: 'Evacuation Centres' },
-  { key: 'alerts', label: 'Active Alerts' },
-  { key: 'incidents', label: 'Open Incidents' },
-  { key: 'barangays', label: 'Barangay Risk Table' },
-]
-
-const MAP_OPTS = [
-  { key: 'boundaries', label: 'Barangay boundaries' },
-  { key: 'barangayRisk', label: 'Barangay risk shading' },
-  { key: 'floodAreas', label: 'Flood-prone areas' },
-  { key: 'roads', label: 'Road conditions' },
-  { key: 'evac', label: 'Evacuation centres' },
-]
-
 export default function Reports() {
   /* One-tap SITREP: /admin/reports?sitrep=1 skips the builder entirely and goes
-     straight to the print dialog with everything switched on and the whole city
-     in scope — which is exactly what a situation report is. The builder was
-     already producing this document; the only thing standing between an
-     operator and a printed SITREP was a configuration step they would pick the
-     defaults for every time anyway. */
+     straight to the print dialog with the full situation report and the whole
+     city in scope — which is exactly what a SITREP is. */
   const [params] = useSearchParams()
   const autoSitrep = params.get('sitrep') === '1'
 
@@ -65,33 +48,58 @@ export default function Reports() {
   const { roadReports } = useRoadReports()
   const [roadStatus] = useRoadStatus()
   const roadNetwork = useMemo(() => getCabuyaoRoads(), [])
-
   const samples = useMemo(() => barangayRiskSamples(field), [field])
 
-  // ── Report configuration ──
-  const [title, setTitle] = useState(
-    autoSitrep ? 'Situation Report (SITREP)' : 'Flood & Road Conditions Report',
-  )
-  const [preparedBy, setPreparedBy] = useState('CDRRMO Cabuyao City')
-  const [preparedFor, setPreparedFor] = useState('Office of the City Mayor')
-  const [scope, setScope] = useState([]) // [] = whole city; else list of barangay names
-  const [sections, setSections] = useState(
-    Object.fromEntries(SECTIONS.map((s) => [s.key, true])),
-  )
-  const [mapOpts, setMapOpts] = useState(
-    Object.fromEntries(MAP_OPTS.map((o) => [o.key, true])),
-  )
+  /* The spec IS the report. A SITREP link always starts from the standard
+     document; otherwise pick up wherever the officer left off. */
+  const [spec, setSpec] = useState(() => (
+    autoSitrep ? PRESETS[0].build() : (loadDraft() || defaultSpec())
+  ))
+  const [templates, setTemplates] = useState(() => loadTemplates())
+  const [editing, setEditing] = useState(true)
+  const [generatedAt, setGeneratedAt] = useState(() => nowLabel())
+  const [confirm, setConfirm] = useState(null)
+  const [flash, setFlash] = useState('')
+  const [fitWidth, setFitWidth] = useState(true)
+  const [stageW, setStageW] = useState(0)
+  const stageRef = useRef(null)
 
-  /* Fire the print dialog once, and only after the live feeds have actually
-     answered — printing an empty situation map would be worse than useless.
-     The extra frame lets the SVG map paint before the dialog freezes it. */
+  /* A landscape A4 sheet is 1122px wide; a laptop leaves well under that once
+     the nav rail and the builder have taken their share. Rather than shrink
+     the paper permanently (the preview would stop being the printed page) the
+     sheet is ZOOMED to fit, which reflows rather than transforms — so text
+     stays crisp and the print rules can simply reset it to 1. */
+  useEffect(() => {
+    const el = stageRef.current
+    if (!el) return undefined
+    const ro = new ResizeObserver(([entry]) => setStageW(entry.contentRect.width))
+    ro.observe(el)
+    setStageW(el.clientWidth)
+    return () => ro.disconnect()
+  }, [])
+
+  /* Auto-save the working draft. An officer who wanders off to check a road
+     status should not come back to a blank report. A SITREP link is a
+     throwaway render, so it deliberately does not overwrite that draft. */
+  useEffect(() => {
+    if (!autoSitrep) saveDraft(spec)
+  }, [spec, autoSitrep])
+
+  useEffect(() => {
+    if (!flash) return undefined
+    const id = window.setTimeout(() => setFlash(''), 2600)
+    return () => window.clearTimeout(id)
+  }, [flash])
+
+  /* Fire the print dialog once, and only after the live feeds have answered —
+     printing an empty situation map would be worse than useless. The extra
+     frame lets the SVG map paint before the dialog freezes it. */
   const printedRef = useRef(false)
   useEffect(() => {
     if (!autoSitrep || printedRef.current || !field) return undefined
-    // The "already printed" latch is set INSIDE the timer, not before it.
-    // React double-invokes effects in development: setting it up front meant
-    // the first pass armed the latch and its cleanup cancelled the only timer,
-    // and the second pass saw the latch and did nothing — so the dialog never
+    // The latch is set INSIDE the timer, not before it. React double-invokes
+    // effects in development: arming it up front meant the first pass set the
+    // latch and its cleanup cancelled the only timer, so the dialog never
     // opened at all.
     const id = window.setTimeout(() => {
       if (printedRef.current) return
@@ -101,39 +109,109 @@ export default function Reports() {
     return () => window.clearTimeout(id)
   }, [autoSitrep, field])
 
-  const toggleSection = (k) => setSections((v) => ({ ...v, [k]: !v[k] }))
-  const toggleMapOpt = (k) => setMapOpts((v) => ({ ...v, [k]: !v[k] }))
-  const toggleScope = (name) =>
-    setScope((v) => (v.includes(name) ? v.filter((n) => n !== name) : [...v, name]))
+  /* ── Spec editing ─────────────────────────────────────────────────────── */
+  /* `patch` may be a plain object or a function of the current spec — the
+     latter for anything derived from what is already there, such as toggling a
+     barangay in and out of the coverage. */
+  const update = useCallback((patch) => setSpec((s) => ({
+    ...s, ...(typeof patch === 'function' ? patch(s) : patch),
+  })), [])
+  const updateBlock = useCallback((id, patch) => setSpec((s) => ({
+    ...s, blocks: s.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+  })), [])
+  /* The nested objects — page, letterhead, a block's options — each get their
+     own updater that merges against the CURRENT state rather than whatever the
+     caller last rendered with. Spreading a prop instead (`{...page, ...patch}`)
+     silently loses every update but the last whenever two land in one batch. */
+  const updatePage = useCallback((patch) => setSpec((s) => ({
+    ...s, page: { ...s.page, ...patch },
+  })), [])
+  const updateLetterhead = useCallback((patch) => setSpec((s) => ({
+    ...s, letterhead: { ...s.letterhead, ...patch },
+  })), [])
+  /* `patch` may be a function of the block's current options, which is how a
+     toggle inside options.columns stays safe at any click speed. */
+  const updateOpts = useCallback((id, patch) => setSpec((s) => ({
+    ...s,
+    blocks: s.blocks.map((b) => (b.id === id
+      ? { ...b, opts: { ...b.opts, ...(typeof patch === 'function' ? patch(b.opts) : patch) } }
+      : b)),
+  })), [])
+  const updateMeta = useCallback((id, patch) => setSpec((s) => ({
+    ...s, meta: s.meta.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+  })), [])
+  const setBlocks = useCallback((blocks) => setSpec((s) => ({ ...s, blocks })), [])
+  const setMetaList = useCallback((meta) => setSpec((s) => ({ ...s, meta })), [])
 
-  const inScope = (b) => scope.length === 0 || scope.includes(b)
-  const scopeLabel = scope.length === 0
-    ? 'Whole City — all 18 barangays'
-    : `${scope.length} barangay${scope.length > 1 ? 's' : ''}: ${scope.join(', ')}`
+  /* Loading a template throws away whatever is on the page, so it asks first —
+     unless the report is still the untouched default. */
+  const replaceSpec = (next, message) => {
+    setSpec(migrate(next))
+    setFlash(message)
+  }
+  const confirmReplace = (title, message, run) => setConfirm({
+    title, message, confirmLabel: 'Replace', tone: 'default', onConfirm: run,
+  })
 
-  // ── Scoped datasets ──
-  const fAreas = useMemo(
-    () => floodAreas.filter((a) => inScope(a.barangay)),
-    [floodAreas, scope],
+  const handlePreset = (preset) => confirmReplace(
+    `Start from “${preset.name}”?`,
+    'This replaces the report currently on the page, including any wording you have typed.',
+    () => replaceSpec(preset.build(), `Loaded ${preset.name}`),
   )
-  const evac = useMemo(
-    () => evacuationCenters.filter((c) => inScope(c.barangay)),
-    [evacuationCenters, scope],
+  const handleLoadTemplate = (tpl) => confirmReplace(
+    `Load “${tpl.name}”?`,
+    'This replaces the report currently on the page, including any wording you have typed.',
+    () => replaceSpec(tpl.spec, `Loaded ${tpl.name}`),
   )
+  const handleSaveTemplate = (name) => {
+    setTemplates(saveTemplate(name, spec))
+    setFlash(`Saved “${name}”`)
+  }
+  const handleDeleteTemplate = (tpl) => setConfirm({
+    title: `Delete “${tpl.name}”?`,
+    message: 'The saved template is removed from this browser. Reports already printed are unaffected.',
+    confirmLabel: 'Delete',
+    tone: 'danger',
+    onConfirm: () => { setTemplates(deleteTemplate(tpl.id)); setFlash('Template deleted') },
+  })
+  const handleReset = () => confirmReplace(
+    'Reset the report?',
+    'Everything goes back to the default full situation report. Saved templates are kept.',
+    () => { clearDraft(); replaceSpec(defaultSpec(), 'Reset to the default report') },
+  )
+
+  /* Stamp the generation time at the moment the officer exports, not whenever
+     the page happened to mount. */
+  const handlePrint = () => {
+    setGeneratedAt(nowLabel())
+    window.requestAnimationFrame(() => window.setTimeout(() => window.print(), 80))
+  }
+
+  /* ── Scoped datasets ──────────────────────────────────────────────────── */
+  const scope = spec.scope
+  const scopeKey = scope.join('|')
+
+  const inScope = useCallback(
+    (b) => scope.length === 0 || scope.includes(b),
+    [scopeKey], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
+  const fAreas = useMemo(() => floodAreas.filter((a) => inScope(a.barangay)), [floodAreas, inScope])
+  const evac = useMemo(() => evacuationCenters.filter((c) => inScope(c.barangay)), [evacuationCenters, inScope])
   const activeAlerts = useMemo(
     () => alerts.filter((a) => a.status === 'active' && (scope.length === 0 || inScope(a.barangay) || a.barangay === 'All')),
-    [alerts, scope],
+    [alerts, inScope, scope.length],
   )
   const openIncidents = useMemo(
     () => incidents.filter((i) => i.status !== 'resolved' && inScope(i.barangay)),
-    [incidents, scope],
+    [incidents, inScope],
   )
-  const scopedSamples = useMemo(
-    () => samples.filter((b) => inScope(b.name)),
-    [samples, scope],
-  )
+  const scopedSamples = useMemo(() => samples.filter((b) => inScope(b.name)), [samples, inScope])
 
-  // Flagged roads → drawable lines + table rows (depth from road reports).
+  /* Flagged roads → drawable lines + table rows. The barangay comes from the
+     report when an officer typed one, and is otherwise resolved from the
+     segment's midpoint, which is what lets a road table be scoped and carry a
+     Barangay column at all. */
   const roadLines = useMemo(() => {
     if (!roadNetwork) return []
     const byId = new Map(roadNetwork.features.map((f) => [String(f.properties.id), f]))
@@ -143,460 +221,151 @@ export default function Reports() {
         const f = byId.get(String(id))
         if (!f) return null
         const report = reportByWay.get(String(id))
+        const latlngs = f.geometry.coordinates.map(([lng, lat]) => [lat, lng])
+        const mid = latlngs[Math.floor(latlngs.length / 2)] || latlngs[0]
+        const barangay = report?.barangay || (mid ? barangayAt(mid[0], mid[1]) : '') || ''
         return {
-          id, status,
-          name: report?.name || f.properties.name,
+          id,
+          status,
+          name: report?.name || f.properties.name || 'Unnamed road',
+          barangay,
           depthFt: report?.depthFt,
-          latlngs: f.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+          reason: report?.reason || '',
+          updated: report?.updated || '',
+          latlngs,
         }
       })
       .filter(Boolean)
-  }, [roadNetwork, roadStatus, roadReports])
+      .filter((r) => scope.length === 0 || !r.barangay || scope.includes(r.barangay))
+  }, [roadNetwork, roadStatus, roadReports, scopeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const generatedAt = nowLabel()
+  /* ── Everything the document needs, in one bundle ─────────────────────── */
+  const data = useMemo(() => {
+    const deepestM = Math.max(0, ...fAreas.map((a) => depthMeters(a) || 0))
+    const deepestLabel = formatMeters(deepestM) || '—'
+    const capacity = evac.reduce((n, c) => n + (Number(c.capacity) || 0), 0)
+    const occupancy = evac.reduce((n, c) => n + (Number(c.occupancy) || 0), 0)
+
+    /* Per-barangay tallies for the risk table's optional count columns. */
+    const tally = (list, key) => list.reduce((m, row) => {
+      const b = row[key]
+      if (b) m[b] = (m[b] || 0) + 1
+      return m
+    }, {})
+    const areaBy = tally(fAreas, 'barangay')
+    const roadBy = tally(roadLines, 'barangay')
+    const evacBy = tally(evac, 'barangay')
+
+    return {
+      generatedAt,
+      scopeLabel: scope.length === 0
+        ? 'City-wide — all 18 barangays'
+        : `${scope.length} barangay${scope.length > 1 ? 's' : ''}: ${scope.join(', ')}`,
+      floodAreas: fAreas,
+      evac,
+      alerts: activeAlerts,
+      incidents: openIncidents,
+      roadLines,
+      samples: scopedSamples.map((b) => ({
+        ...b,
+        areaCount: areaBy[b.name] || 0,
+        roadCount: roadBy[b.name] || 0,
+        evacCount: evacBy[b.name] || 0,
+      })),
+      deepestLabel,
+      stats: {
+        floodAreas: fAreas.length,
+        roadsClosed: roadLines.filter((r) => r.status === 'blocked').length,
+        roadsFlooded: roadLines.filter((r) => r.status === 'flooded').length,
+        evacOpen: evac.filter((c) => c.status !== 'closed').length,
+        evacCapacity: capacity.toLocaleString(),
+        evacOccupancy: occupancy.toLocaleString(),
+        alerts: activeAlerts.length,
+        incidents: openIncidents.length,
+        highRisk: scopedSamples.filter((b) => levelFromDepth(b.floodDepth) === 'high').length,
+        deepest: deepestLabel,
+      },
+    }
+  }, [fAreas, evac, activeAlerts, openIncidents, roadLines, scopedSamples, generatedAt, scopeKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const activeCount = spec.blocks.filter((b) => b.on).length
+  const sheetWidth = sheetPx(spec.page).totalPx
+  const zoom = fitWidth && stageW > 0 && sheetWidth > stageW
+    ? Math.max(0.45, Math.floor((stageW / sheetWidth) * 100) / 100)
+    : 1
 
   return (
     <AdminLayout>
       <div className="reports">
-        {/* ── Builder (hidden in print) ── */}
-        <aside className="report-builder">
-          <div className="rb-head">
-            <h2>Report Builder</h2>
-            <p>Customise, preview, then export to PDF.</p>
-          </div>
+        <ReportBuilder
+          spec={spec}
+          templates={templates}
+          editing={editing}
+          onChange={update}
+          onPageChange={updatePage}
+          onLetterheadChange={updateLetterhead}
+          onBlockChange={updateBlock}
+          onOptsChange={updateOpts}
+          onMetaChange={updateMeta}
+          onBlocksChange={setBlocks}
+          onMetaListChange={setMetaList}
+          onLoadPreset={handlePreset}
+          onLoadTemplate={handleLoadTemplate}
+          onSaveTemplate={handleSaveTemplate}
+          onDeleteTemplate={handleDeleteTemplate}
+          onReset={handleReset}
+          onToggleEditing={setEditing}
+          onPrint={handlePrint}
+        />
 
-          <div className="rb-group">
-            <label className="rb-label">Report Title</label>
-            <input className="rb-input" value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-          <div className="rb-row">
-            <div className="rb-group">
-              <label className="rb-label">Prepared by</label>
-              <input className="rb-input" value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} />
-            </div>
-            <div className="rb-group">
-              <label className="rb-label">Prepared for</label>
-              <input className="rb-input" value={preparedFor} onChange={(e) => setPreparedFor(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="rb-group">
-            <label className="rb-label">Barangay Scope</label>
-            <div className="rb-hint">No selection = whole city. Pick barangays to focus the map on those borders only.</div>
-            <div className="rb-chips">
-              <button
-                type="button"
-                className={`rb-chip ${scope.length === 0 ? 'on' : ''}`}
-                onClick={() => setScope([])}
-              >
-                Whole City
+        <div className="report-stage" ref={stageRef}>
+          <div className="report-sheetbar">
+            <span className="rs-chip">{spec.page.paper === 'letter' ? 'Letter' : 'A4'}</span>
+            <span className="rs-chip">{spec.page.orientation === 'landscape' ? 'Landscape' : 'Portrait'}</span>
+            <span className="rs-sep" />
+            <span className="rs-meta">{activeCount} block{activeCount === 1 ? '' : 's'}</span>
+            <span className="rs-sep" />
+            <span className={`rs-mode ${editing ? 'edit' : ''}`}>
+              {editing ? 'Click any text to edit it' : 'Preview — text locked'}
+            </span>
+            <div className="rs-zoom">
+              <button type="button" className={fitWidth ? 'on' : ''} onClick={() => setFitWidth(true)}>
+                Fit{zoom < 1 ? ` ${Math.round(zoom * 100)}%` : ''}
               </button>
-              {BARANGAYS.map((b) => (
-                <button
-                  type="button"
-                  key={b}
-                  className={`rb-chip ${scope.includes(b) ? 'on' : ''}`}
-                  onClick={() => toggleScope(b)}
-                >
-                  {b}
-                </button>
-              ))}
+              <button type="button" className={fitWidth ? '' : 'on'} onClick={() => setFitWidth(false)}>
+                Actual size
+              </button>
             </div>
           </div>
 
-          <div className="rb-group">
-            <label className="rb-label">Sections</label>
-            <div className="rb-checks">
-              {SECTIONS.map((s) => (
-                <label key={s.key} className="rb-check">
-                  <input type="checkbox" checked={sections[s.key]} onChange={() => toggleSection(s.key)} />
-                  <span>{s.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="rb-group">
-            <label className="rb-label">Map Overlays</label>
-            <div className="rb-checks">
-              {MAP_OPTS.map((o) => (
-                <label key={o.key} className="rb-check">
-                  <input type="checkbox" checked={mapOpts[o.key]} onChange={() => toggleMapOpt(o.key)} />
-                  <span>{o.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <button type="button" className="rb-generate" onClick={() => window.print()}>
-            <PrintIcon /> Generate PDF
-          </button>
-          <div className="rb-foot">Tip: in the print dialog choose “Save as PDF”. Set margins to Default and enable “Background graphics”.</div>
-        </aside>
-
-        {/* ── Live document preview (this is what prints) ── */}
-        <div className="report-stage">
-          <div className="report-doc" id="report-doc">
-            {/* Letterhead */}
-            <header className="rd-header">
-              <img className="rd-logo" src="/cdrrmo-logo.png" alt="CDRRMO logo" />
-              <div className="rd-org">
-                <div className="rd-org-name">City Disaster Risk Reduction &amp; Management Office</div>
-                <div className="rd-org-sub">City of Cabuyao, Province of Laguna · FloodRoute Command Center</div>
-              </div>
-            </header>
-            <div className="rd-rule" />
-
-            {/* Title block */}
-            <div className="rd-titleblock">
-              <h1 className="rd-title">{title}</h1>
-              <div className="rd-meta">
-                <span><b>Scope:</b> {scopeLabel}</span>
-                <span><b>Generated:</b> {generatedAt} PHT</span>
-                <span><b>Prepared by:</b> {preparedBy}</span>
-                <span><b>Prepared for:</b> {preparedFor}</span>
-              </div>
-            </div>
-
-            {/* Executive summary */}
-            {sections.summary && (
-              <ReportSection title="Executive Summary">
-                <div className="rd-stats">
-                  <Stat n={fAreas.length} l="Flood-prone areas" />
-                  <Stat n={roadLines.filter((r) => r.status === 'blocked').length} l="Roads closed" />
-                  <Stat n={roadLines.filter((r) => r.status === 'flooded').length} l="Roads flooded" />
-                  <Stat n={evac.filter((c) => c.status !== 'closed').length} l="Evac centres open" />
-                  <Stat n={activeAlerts.length} l="Active alerts" />
-                  <Stat n={openIncidents.length} l="Open incidents" />
-                </div>
-                <p className="rd-para">
-                  This report consolidates the current flood and road situation for{' '}
-                  {scope.length === 0 ? 'the entire City of Cabuyao' : scope.join(', ')}. It documents{' '}
-                  {fAreas.length} known flood-prone {fAreas.length === 1 ? 'area' : 'areas'} (depths recorded in feet),
-                  {' '}{roadLines.length} flagged road {roadLines.length === 1 ? 'segment' : 'segments'}, and{' '}
-                  {evac.length} registered evacuation {evac.length === 1 ? 'centre' : 'centres'}. Deepest documented
-                  flooding on record:{' '}
-                  <b>{Math.max(0, ...fAreas.map((a) => Number(a.depthFt) || 0)) || '—'} ft</b>.
-                </p>
-              </ReportSection>
-            )}
-
-            {/* Situation map */}
-            {sections.map && (
-              <ReportSection title="Situation Map">
-                <ReportMap
-                  scope={scope}
-                  opts={mapOpts}
-                  samples={scopedSamples}
-                  floodAreas={fAreas}
-                  evac={evac}
-                  roadLines={roadLines}
-                />
-                <div className="rd-maplegend">
-                  {mapOpts.floodAreas && ['high', 'moderate', 'low'].map((k) => (
-                    <span key={k} className="rd-leg"><i style={{ background: FLOOD_SEVERITY_META[k].color }} />Flood {FLOOD_SEVERITY_META[k].label}</span>
-                  ))}
-                  {mapOpts.roads && <><span className="rd-leg"><i style={{ background: ROAD_STATUS.blocked.swatch }} />Road closed</span><span className="rd-leg"><i style={{ background: ROAD_STATUS.flooded.swatch }} />Road flooded</span></>}
-                  {mapOpts.evac && <span className="rd-leg"><i style={{ background: '#16a34a' }} />Evacuation centre</span>}
-                </div>
-              </ReportSection>
-            )}
-
-            {/* Flood-prone areas */}
-            {sections.floodAreas && (
-              <ReportSection title={`Flood-Prone Areas (${fAreas.length})`}>
-                {fAreas.length === 0 ? <Empty /> : (
-                  <table className="rd-table">
-                    <thead>
-                      <tr><th>Area / Road</th><th>Barangay</th><th>Depth</th><th>Type</th><th>Cause</th><th>Recorded under</th></tr>
-                    </thead>
-                    <tbody>
-                      {[...fAreas].sort((a, b) => (Number(b.depthFt) || 0) - (Number(a.depthFt) || 0)).map((a) => {
-                        const meta = FLOOD_SEVERITY_META[floodSeverity(a)]
-                        return (
-                          <tr key={a.id}>
-                            <td className="rd-strong">{a.name}</td>
-                            <td>{a.barangay}</td>
-                            <td><span className="rd-depth" style={{ color: meta.color }}>{formatFloodDepth(a)}</span></td>
-                            <td>{FLOOD_TYPE_LABEL[a.type]}</td>
-                            <td>{(a.causes || []).join(', ') || '—'}</td>
-                            <td>{a.sourceStorms || '—'}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </ReportSection>
-            )}
-
-            {/* Road conditions */}
-            {sections.roads && (
-              <ReportSection title={`Road Conditions (${roadLines.length})`}>
-                {roadLines.length === 0 ? <Empty msg="No roads currently flagged flooded or closed." /> : (
-                  <table className="rd-table">
-                    <thead><tr><th>Road</th><th>Condition</th><th>Flood depth</th></tr></thead>
-                    <tbody>
-                      {[...roadLines].sort((a, b) => a.name.localeCompare(b.name)).map((r) => (
-                        <tr key={r.id}>
-                          <td className="rd-strong">{r.name}</td>
-                          <td><span className="rd-badge" style={{ background: ROAD_STATUS[r.status]?.swatch }}>{ROAD_STATUS[r.status]?.label}</span></td>
-                          <td>{r.depthFt != null ? `${r.depthFt} ft` : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </ReportSection>
-            )}
-
-            {/* Evacuation centres */}
-            {sections.evac && (
-              <ReportSection title={`Evacuation Centres (${evac.length})`}>
-                {evac.length === 0 ? <Empty /> : (
-                  <table className="rd-table">
-                    <thead><tr><th>Centre</th><th>Barangay</th><th>Capacity</th><th>Occupancy</th><th>Status</th></tr></thead>
-                    <tbody>
-                      {[...evac].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
-                        <tr key={c.id}>
-                          <td className="rd-strong">{c.name}</td>
-                          <td>{c.barangay}</td>
-                          <td>{(c.capacity || 0).toLocaleString()}</td>
-                          <td>{(c.occupancy || 0).toLocaleString()}</td>
-                          <td><span className={`rd-status ${c.status}`}>{c.status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </ReportSection>
-            )}
-
-            {/* Active alerts */}
-            {sections.alerts && (
-              <ReportSection title={`Active Alerts (${activeAlerts.length})`}>
-                {activeAlerts.length === 0 ? <Empty msg="No active flood alerts." /> : (
-                  <table className="rd-table">
-                    <thead><tr><th>Level</th><th>Title</th><th>Barangay</th><th>Issued</th></tr></thead>
-                    <tbody>
-                      {activeAlerts.map((a) => (
-                        <tr key={a.id}>
-                          <td><span className={`rd-lvl ${a.level}`}>{a.level}</span></td>
-                          <td className="rd-strong">{a.title}</td>
-                          <td>{a.barangay}</td>
-                          <td>{a.issued}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </ReportSection>
-            )}
-
-            {/* Open incidents */}
-            {sections.incidents && (
-              <ReportSection title={`Open Incidents (${openIncidents.length})`}>
-                {openIncidents.length === 0 ? <Empty msg="No open incidents." /> : (
-                  <table className="rd-table">
-                    <thead><tr><th>Type</th><th>Barangay</th><th>Priority</th><th>Status</th><th>Team</th></tr></thead>
-                    <tbody>
-                      {openIncidents.map((i) => (
-                        <tr key={i.id}>
-                          <td className="rd-strong">{i.type}</td>
-                          <td>{i.barangay}</td>
-                          <td><span className={`rd-lvl ${i.priority === 'critical' || i.priority === 'high' ? 'high' : 'moderate'}`}>{i.priority}</span></td>
-                          <td>{i.status}</td>
-                          <td>{i.team || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </ReportSection>
-            )}
-
-            {/* Barangay risk table */}
-            {sections.barangays && (
-              <ReportSection title="Barangay Flood-Risk Summary">
-                <table className="rd-table">
-                  <thead><tr><th>Barangay</th><th>Risk level</th><th>Modelled depth</th></tr></thead>
-                  <tbody>
-                    {[...scopedSamples].sort((a, b) => b.floodDepth - a.floodDepth).map((b) => {
-                      const lvl = levelFromDepth(b.floodDepth)
-                      return (
-                        <tr key={b.name}>
-                          <td className="rd-strong">{b.name}</td>
-                          <td><span className={`rd-lvl ${lvl}`}>{RISK_META[lvl].label}</span></td>
-                          <td>{b.floodDepth.toFixed(2)} m</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </ReportSection>
-            )}
-
-            <footer className="rd-footer">
-              <span>CDRRMO Cabuyao City · FloodRoute · Generated {generatedAt} PHT</span>
-              <span>This is a system-generated situational report. Conditions change rapidly — verify on the ground.</span>
-            </footer>
+          <div className="report-sheet">
+            <ReportDocument
+              spec={spec}
+              data={data}
+              editing={editing}
+              zoom={zoom}
+              onChange={update}
+              onLetterheadChange={updateLetterhead}
+              onBlockChange={updateBlock}
+              onOptsChange={updateOpts}
+              onMetaChange={updateMeta}
+            />
           </div>
         </div>
+
+        {flash && <div className="report-flash" role="status">{flash}</div>}
       </div>
-    </AdminLayout>
-  )
-}
 
-/* ============================================================
-   Vector situation map — real Cabuyao barangay boundaries (SVG), so it
-   prints sharp. Flood-prone areas, road conditions and evac centres are
-   projected onto the same canvas.
-   ============================================================ */
-const MAP_W = 820
-const MAP_H = 560
-const MAP_PAD = 16
-
-function unionBounds(names) {
-  if (!names || names.length === 0) return CABUYAO_LAND_BBOX
-  let s = Infinity, w = Infinity, n = -Infinity, e = -Infinity
-  for (const name of names) {
-    const b = barangayBounds(name)
-    if (!b) continue
-    s = Math.min(s, b[0][0]); w = Math.min(w, b[0][1])
-    n = Math.max(n, b[1][0]); e = Math.max(e, b[1][1])
-  }
-  if (!Number.isFinite(s)) return CABUYAO_LAND_BBOX
-  // pad ~8%
-  const padLat = (n - s) * 0.08 || 0.005
-  const padLng = (e - w) * 0.08 || 0.005
-  return { s: s - padLat, w: w - padLng, n: n + padLat, e: e + padLng }
-}
-
-function ReportMap({ scope, opts, samples, floodAreas, evac, roadLines }) {
-  const bbox = useMemo(() => unionBounds(scope), [scope])
-
-  const project = useMemo(() => {
-    const latMid = (bbox.s + bbox.n) / 2
-    const kx = Math.cos((latMid * Math.PI) / 180)
-    const geoW = (bbox.e - bbox.w) * kx
-    const geoH = bbox.n - bbox.s
-    const sc = Math.min((MAP_W - 2 * MAP_PAD) / geoW, (MAP_H - 2 * MAP_PAD) / geoH)
-    const offX = MAP_PAD + ((MAP_W - 2 * MAP_PAD) - geoW * sc) / 2
-    const offY = MAP_PAD + ((MAP_H - 2 * MAP_PAD) - geoH * sc) / 2
-    return ([lat, lng]) => [
-      offX + (lng - bbox.w) * kx * sc,
-      offY + (bbox.n - lat) * sc,
-    ]
-  }, [bbox])
-
-  const ringToPath = (ring) => `M${ring.map((pt) => project(pt).map((n) => n.toFixed(1)).join(',')).join('L')}Z`
-
-  // Risk colour per barangay name (for shading).
-  const levelByName = useMemo(() => {
-    const m = {}
-    samples.forEach((b) => { m[b.name] = levelFromDepth(b.floodDepth) })
-    return m
-  }, [samples])
-
-  const inScope = (name) => scope.length === 0 || scope.includes(name)
-
-  return (
-    <svg className="rd-map" viewBox={`0 0 ${MAP_W} ${MAP_H}`} role="img" aria-label="Cabuyao situation map">
-      <rect x="0" y="0" width={MAP_W} height={MAP_H} fill="#f4f1ea" />
-
-      {/* Barangay polygons */}
-      {opts.boundaries && BARANGAY_FEATURES.features.map((f) => {
-        const name = f.properties.name
-        const focus = inScope(name)
-        const rings = barangayOuterRings(name)
-        const fill = opts.barangayRisk && focus
-          ? RISK_META[levelByName[name] || 'safe'].color
-          : '#ffffff'
-        const fillOpacity = opts.barangayRisk && focus ? 0.35 : (focus ? 0.9 : 0.25)
-        return (
-          <g key={name}>
-            {rings.map((ring, i) => (
-              <path
-                key={i}
-                d={ringToPath(ring)}
-                fill={fill}
-                fillOpacity={fillOpacity}
-                stroke={focus ? '#1a2a4a' : '#c9c3b8'}
-                strokeWidth={focus ? 1.1 : 0.5}
-              />
-            ))}
-          </g>
-        )
-      })}
-
-      {/* Barangay labels (scope only, to avoid clutter) */}
-      {opts.boundaries && BARANGAY_FEATURES.features.filter((f) => inScope(f.properties.name)).map((f) => {
-        const [x, y] = project(f.properties.center)
-        return (
-          <text key={f.properties.name} x={x} y={y} className="rd-map-lbl" textAnchor="middle">
-            {f.properties.name}
-          </text>
-        )
-      })}
-
-      {/* Road conditions */}
-      {opts.roads && roadLines.map((r) => (
-        <polyline
-          key={r.id}
-          points={r.latlngs.map((pt) => project(pt).join(',')).join(' ')}
-          fill="none"
-          stroke={ROAD_STATUS[r.status]?.swatch || '#f97316'}
-          strokeWidth={r.status === 'blocked' ? 2.6 : 2.2}
-          strokeLinecap="round"
-          strokeDasharray={r.status === 'blocked' ? 'none' : '5 4'}
-          opacity="0.95"
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          tone={confirm.tone}
+          onConfirm={() => { confirm.onConfirm(); setConfirm(null) }}
+          onCancel={() => setConfirm(null)}
         />
-      ))}
-
-      {/* Evacuation centres */}
-      {opts.evac && evac.filter((c) => Array.isArray(c.coords)).map((c) => {
-        const [x, y] = project(c.coords)
-        const color = c.status === 'closed' ? '#dc2626' : c.status === 'full' ? '#f97316' : '#16a34a'
-        return <rect key={c.id} x={x - 3.5} y={y - 3.5} width="7" height="7" rx="1.5" fill={color} stroke="#fff" strokeWidth="1" />
-      })}
-
-      {/* Flood-prone areas */}
-      {opts.floodAreas && floodAreas.filter((a) => Array.isArray(a.coords)).map((a) => {
-        const [x, y] = project(a.coords)
-        const meta = FLOOD_SEVERITY_META[floodSeverity(a)]
-        const r = { high: 6, moderate: 5, low: 4 }[floodSeverity(a)]
-        return <circle key={a.id} cx={x} cy={y} r={r} fill={meta.color} fillOpacity="0.9" stroke="#fff" strokeWidth="1.2" />
-      })}
-    </svg>
-  )
-}
-
-/* ── Small building blocks ───────────────────────────────────────────────── */
-function ReportSection({ title, children }) {
-  return (
-    <section className="rd-section">
-      <h2 className="rd-sec-title">{title}</h2>
-      {children}
-    </section>
-  )
-}
-function Stat({ n, l }) {
-  return (
-    <div className="rd-stat">
-      <div className="rd-stat-n">{n}</div>
-      <div className="rd-stat-l">{l}</div>
-    </div>
-  )
-}
-function Empty({ msg = 'No records for this scope.' }) {
-  return <div className="rd-empty">{msg}</div>
-}
-function PrintIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <polyline points="6 9 6 2 18 2 18 9" />
-      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-      <rect x="6" y="14" width="12" height="8" />
-    </svg>
+      )}
+    </AdminLayout>
   )
 }
