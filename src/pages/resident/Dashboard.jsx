@@ -22,6 +22,7 @@ import EmergencySmsCard from '../../components/resident/EmergencySmsCard.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
+import AlertStack from '../../components/dash/AlertStack.jsx'
 import DepthGauge from '../../components/dash/DepthGauge.jsx'
 import FloodOutlook from '../../components/dash/FloodOutlook.jsx'
 import './Resident.css'
@@ -267,26 +268,17 @@ export default function Dashboard() {
               <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
               Active Alerts Near You
             </div>
-            {alerts.length === 0 ? (
-              <div className="res-empty">
-                <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
-                <div className="res-empty-title">No active alerts</div>
-                <div className="res-empty-sub">Alerts affecting Brgy. {brgyLabel} will show here.</div>
-              </div>
-            ) : (
-              <div className="res-alert-list">
-                {alerts.slice(0, alertLimit).map((a) => (
-                  <div className="res-alert-row" key={a.id}>
-                    <span className={`res-alert-stripe ${a.level || 'safe'}`} />
-                    <div>
-                      <div className="res-alert-title">{a.title}</div>
-                      {a.message && <div className="res-alert-msg">{a.message}</div>}
-                      {a.issued && <div className="res-alert-time">{a.issued}</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* The newest alert opens on arrival — on a citizen's phone the
+                top alert IS the reason they opened the page. The rest stay
+                collapsed so the forecast, the checklist and the hotlines are
+                not buried under a wall of message text. */}
+            <AlertStack
+              alerts={alerts}
+              limit={alertLimit}
+              defaultOpenFirst
+              emptyTitle="No active alerts"
+              emptyHint={`Alerts affecting Brgy. ${brgyLabel} will show here.`}
+            />
             {hiddenAlerts > 0 && (
               <Link className="res-see-all" to="/resident/alerts">
                 View all {alerts.length} alerts

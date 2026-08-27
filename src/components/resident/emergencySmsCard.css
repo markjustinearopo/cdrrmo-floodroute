@@ -10,7 +10,7 @@
 .esms {
   border: 1px solid #e2e8f0;
   border-left: 4px solid #c0181b;
-  border-radius: 14px;
+  border-radius: 4px;
   background: #fff;
   padding: 18px;
   margin-bottom: 16px;
@@ -32,7 +32,7 @@
   width: 34px;
   height: 34px;
   padding: 6px;
-  border-radius: 10px;
+  border-radius: 3px;
   background: #fef2f2;
   fill: none;
   stroke: #c0181b;
@@ -56,7 +56,7 @@
 
 .esms-badge {
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: 3px;
   background: #dcfce7;
   color: #15803d;
   font-size: 0.5625rem;
@@ -75,7 +75,7 @@
 .esms-sim {
   margin-top: 12px;
   padding: 9px 12px;
-  border-radius: 9px;
+  border-radius: 3px;
   background: #faf5ff;
   border: 1px solid #e9d5ff;
   font-size: 0.75rem;
@@ -108,7 +108,7 @@
   align-items: center;
   padding: 0 12px;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 3px;
   background: #f8fafc;
   font-size: 0.875rem;
   font-weight: 700;
@@ -120,7 +120,7 @@
   min-width: 0;
   padding: 11px 13px;
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
+  border-radius: 3px;
   /* 16px keeps iOS Safari from zooming the whole page on focus. */
   font-size: 1rem;
   font-family: inherit;
@@ -147,7 +147,7 @@
   flex: 0 0 auto;
   padding: 11px 18px;
   border: none;
-  border-radius: 10px;
+  border-radius: 3px;
   background: #c0181b;
   color: #fff;
   font-size: 0.8125rem;
@@ -203,7 +203,7 @@
   align-items: center;
   gap: 9px;
   padding: 10px 13px;
-  border-radius: 10px;
+  border-radius: 3px;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   font-size: 0.8125rem;
@@ -225,7 +225,7 @@
 .esms-optout {
   padding: 10px 15px;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 3px;
   background: #fff;
   color: #64748b;
   font-size: 0.75rem;
@@ -241,7 +241,7 @@
 .esms-notice {
   margin-top: 11px;
   padding: 9px 12px;
-  border-radius: 9px;
+  border-radius: 3px;
   font-size: 0.75rem;
   line-height: 1.55;
 }

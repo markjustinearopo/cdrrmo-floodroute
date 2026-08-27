@@ -52,7 +52,7 @@
   text-transform: uppercase;
   color: #c0181b;
   background: #fef2f2;
-  border-radius: 9999px;
+  border-radius: 3px;
   padding: 2px 8px;
 }
 
@@ -72,7 +72,7 @@
   align-items: center;
   gap: 5px;
   padding: 5px 11px;
-  border-radius: 9999px;
+  border-radius: 3px;
   border: 1.5px solid #e5e2dd;
   background: #fafafa;
   color: #5a5a5a;
@@ -97,7 +97,7 @@
   font-size: 0.6875rem;
   font-weight: 700;
   background: rgba(255, 255, 255, 0.28);
-  border-radius: 9999px;
+  border-radius: 3px;
   padding: 0 5px;
   line-height: 1.4;
 }
@@ -151,7 +151,7 @@
 .sr-page .sr-item {
   display: flex;
   align-items: stretch;
-  border-radius: 9px;
+  border-radius: 3px;
   border: 1.5px solid #f0eee9;
   background: #fafafa;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
@@ -224,7 +224,7 @@
   border-left: 1px solid #f0eee9;
   cursor: pointer;
   color: #bcbab7;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 3px 3px 0;
   transition: color 0.12s, background 0.12s;
 }
 .sr-page .sr-item-del:hover { color: #c0181b; background: #fef2f2; }
@@ -261,7 +261,7 @@
   padding: 14px 24px;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid #e5e2dd;
-  border-radius: 12px;
+  border-radius: 4px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
   text-align: center;
   pointer-events: none;
@@ -303,7 +303,7 @@
   right: 60px;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid #e5e2dd;
-  border-radius: 10px;
+  border-radius: 3px;
   padding: 10px 14px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.11);
   backdrop-filter: blur(6px);
@@ -342,7 +342,7 @@
   gap: 12px;
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #e5e2dd;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 6px 12px;
   z-index: 1000;
   backdrop-filter: blur(4px);
@@ -356,7 +356,7 @@
   font-weight: 600;
   color: #5a5a5a;
 }
-.sr-page .sr-key-line { width: 20px; height: 3px; border-radius: 2px; }
+.sr-page .sr-key-line { width: 3px; height: 3px; border-radius: 2px; }
 
 /* ── Coords pill (bottom-left, matches Route Planning rp-coords) ── */
 .sr-page .sr-coords {
@@ -365,7 +365,7 @@
   left: 16px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid #e5e2dd;
-  border-radius: 6px;
+  border-radius: 3px;
   padding: 4px 10px;
   font-size: 0.6875rem;
   color: #7a7a7a;
@@ -393,7 +393,7 @@
   .sr-page .sr-hint {
     padding: 11px 17px;
     gap: 4px;
-    border-radius: 10px;
+    border-radius: 3px;
   }
   .sr-page .sr-hint svg { width: 19px; height: 19px; }
   .sr-page .sr-hint span { font-size: 0.75rem; }

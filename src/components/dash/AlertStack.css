@@ -1,0 +1,182 @@
+/* ============================================================
+   Collapsible alert feed. Prefixed `as-`.
+   Rows are a severity bar, a title and a time on ONE line; the message
+   opens underneath on click.
+   ============================================================ */
+
+.as-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.as-row + .as-row { border-top: 1px solid var(--rule-hair); }
+
+/* ── The always-visible line ─────────────────────────────────────────────── */
+.as-head {
+  display: grid;
+  grid-template-columns: 3px auto minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 2px 9px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+.as-head:hover { background: var(--paper-2); }
+.as-head:focus-visible { outline: 2px solid var(--cdrrmo-red); outline-offset: -2px; }
+
+/* The severity bar is the whole colour story — one 3px stripe, full height
+   of the row, so a stack of alerts reads as a bar chart of how bad the day is. */
+.as-bar {
+  align-self: stretch;
+  min-height: 20px;
+  background: #22c55e;
+}
+.as-row.low .as-bar { background: #eab308; }
+.as-row.moderate .as-bar { background: #f97316; }
+.as-row.high .as-bar { background: #dc2626; }
+.as-row.emergency .as-bar { background: #7f1d1d; }
+
+.as-sev {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  min-width: 62px;
+}
+.as-row.high .as-sev { color: #b91c1c; }
+.as-row.emergency .as-sev { color: #7f1d1d; }
+.as-row.moderate .as-sev { color: #c2410c; }
+
+.as-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.as-row.emergency .as-title,
+.as-row.high .as-title { font-weight: 700; }
+
+.as-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  white-space: nowrap;
+}
+.as-scope {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.as-time {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.as-chev {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.18s ease;
+}
+.as-row.open .as-chev { transform: rotate(180deg); }
+
+/* ── The opened message ──────────────────────────────────────────────────── */
+.as-body {
+  padding: 0 4px 11px 12px;
+  border-left: 3px solid transparent;
+  margin-left: 0;
+}
+.as-row.low .as-body { border-left-color: #fde68a; }
+.as-row.moderate .as-body { border-left-color: #fed7aa; }
+.as-row.high .as-body { border-left-color: #fecaca; }
+.as-row.emergency .as-body { border-left-color: #fca5a5; }
+.as-row.safe .as-body { border-left-color: #bbf7d0; }
+
+.as-msg {
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0;
+}
+.as-msg.muted { color: var(--ink-3); font-style: italic; }
+
+.as-acts {
+  display: flex;
+  gap: 7px;
+  margin-top: 9px;
+}
+.as-act {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.as-act:hover { border-color: var(--ink-2); color: var(--ink); }
+.as-act.danger { color: var(--cdrrmo-red); border-color: #e8b3b4; }
+.as-act.danger:hover { background: var(--cdrrmo-red); color: #fff; border-color: var(--cdrrmo-red); }
+
+/* ── Empty ───────────────────────────────────────────────────────────────── */
+.as-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px 4px 14px;
+  color: var(--ink-2);
+}
+.as-empty svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  stroke: var(--rule-strong);
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.as-empty b { display: block; font-size: 0.8rem; color: var(--ink); }
+.as-empty em { font-style: normal; font-size: 0.72rem; line-height: 1.5; color: var(--ink-3); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .as-body { animation: as-open 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .as-head { transition: background 0.13s ease; }
+}
+@keyframes as-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Phone ───────────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  /* The severity word and the scope both cost a line's worth of width on a
+     phone; the colour bar already carries severity, so they drop. */
+  .as-head { grid-template-columns: 3px minmax(0, 1fr) auto 14px; gap: 8px; }
+  .as-sev { display: none; }
+  .as-scope { display: none; }
+  .as-title { white-space: normal; }
+}

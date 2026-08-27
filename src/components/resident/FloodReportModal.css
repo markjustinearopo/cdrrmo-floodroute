@@ -18,7 +18,7 @@
   width: 100%;
   max-width: 480px;
   background: #fff;
-  border-radius: 14px;
+  border-radius: 4px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
   overflow: hidden;
   animation: fr-pop 0.16s ease-out;
@@ -54,7 +54,7 @@
   color: #fff;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: 3px;
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
@@ -85,7 +85,7 @@
   border: 1px solid #1a3a7a;
   color: #1a3a7a;
   background: #eef3fb;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 5px 10px;
   font-size: 0.72rem;
   font-weight: 700;
@@ -97,7 +97,7 @@
 .fr-map {
   position: relative;
   height: 190px;
-  border-radius: 10px;
+  border-radius: 3px;
   overflow: hidden;
   border: 1px solid #e5e2db;
 }
@@ -113,7 +113,7 @@
   font-size: 0.68rem;
   font-weight: 600;
   padding: 5px 10px;
-  border-radius: 20px;
+  border-radius: 3px;
   pointer-events: none;
   white-space: nowrap;
 }
@@ -129,7 +129,7 @@
   gap: 6px;
   border: 1.5px solid #e5e2db;
   background: #fff;
-  border-radius: 20px;
+  border-radius: 3px;
   padding: 6px 12px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -144,7 +144,7 @@
 .fr-depth input {
   flex: 1;
   border: 1px solid #e5e2db;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 9px 11px;
   font-size: 0.85rem;
   font-family: inherit;
@@ -153,7 +153,7 @@
 
 .fr-form textarea {
   border: 1px solid #e5e2db;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 9px 11px;
   font-size: 0.82rem;
   font-family: inherit;
@@ -169,7 +169,7 @@
   width: 100%;
   max-height: 180px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 3px;
   display: block;
 }
 .fr-link {
@@ -186,7 +186,7 @@
   font-size: 0.72rem;
   color: #7a7a7a;
   background: #f7f5f0;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 8px 11px;
 }
 .fr-stamp b { color: #1a1a1a; }
@@ -194,7 +194,7 @@
 .fr-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 2px; }
 .fr-btn {
   border: none;
-  border-radius: 9px;
+  border-radius: 3px;
   padding: 10px 18px;
   font-size: 0.82rem;
   font-weight: 800;

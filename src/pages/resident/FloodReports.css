@@ -36,7 +36,7 @@
   border: none;
   background: #c0181b;
   color: #fff;
-  border-radius: 10px;
+  border-radius: 3px;
   padding: 11px 18px;
   font-size: 0.85rem;
   font-weight: 800;
@@ -55,7 +55,7 @@
 .frp-stat {
   background: #fff;
   border: 1px solid #ece9e2;
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 14px 16px;
   text-align: center;
 }
@@ -83,7 +83,7 @@
 .frp-empty {
   background: #fff;
   border: 1px dashed #ddd8ce;
-  border-radius: 14px;
+  border-radius: 4px;
   padding: 34px 20px;
   text-align: center;
   display: flex;
@@ -100,7 +100,7 @@
   display: flex;
   background: #fff;
   border: 1px solid #ece9e2;
-  border-radius: 12px;
+  border-radius: 4px;
   overflow: hidden;
 }
 .frp-card-stripe { width: 5px; flex: none; }
@@ -117,13 +117,13 @@
   color: #1a1a1a;
 }
 .frp-level-dot { width: 11px; height: 11px; border-radius: 50%; }
-.frp-status { font-size: 0.7rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.frp-status { font-size: 0.7rem; font-weight: 800; padding: 4px 3px; border-radius: 3px; white-space: nowrap; }
 
 .frp-meta { font-size: 0.74rem; color: #7a7a7a; font-weight: 600; }
 .frp-desc { font-size: 0.82rem; color: #3a3a3a; line-height: 1.5; }
 .frp-photo { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; }
 
-.frp-note { font-size: 0.75rem; font-weight: 600; padding: 8px 11px; border-radius: 8px; line-height: 1.4; }
+.frp-note { font-size: 0.75rem; font-weight: 600; padding: 3px 3px; border-radius: 3px; line-height: 1.4; }
 .frp-note.approved { color: #15803d; background: #f0fdf4; }
 .frp-note.rejected { color: #b91c1c; background: #fef2f2; }
 .frp-note.pending { color: #b45309; background: #fffbeb; }
@@ -142,7 +142,7 @@
   background: #16a34a;
   color: #fff;
   padding: 11px 20px;
-  border-radius: 10px;
+  border-radius: 3px;
   font-size: 0.82rem;
   font-weight: 700;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);

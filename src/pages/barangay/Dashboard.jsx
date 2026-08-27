@@ -22,6 +22,7 @@ import {
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
+import AlertStack from '../../components/dash/AlertStack.jsx'
 import FloodOutlook from '../../components/dash/FloodOutlook.jsx'
 import DepthGauge from '../../components/dash/DepthGauge.jsx'
 import PulseTicker from '../../components/dash/PulseTicker.jsx'
@@ -261,26 +262,12 @@ export default function Dashboard() {
                   <button type="button" className="bq-mini-btn" onClick={go('/barangay/alerts')}>View all</button>
                 )}
               </div>
-              {alerts.length === 0 ? (
-                <div className="bq-empty">
-                  <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
-                  <div className="bq-empty-title">No active alerts</div>
-                  <div className="bq-empty-sub">Alerts affecting Brgy. {brgyLabel} will appear here.</div>
-                </div>
-              ) : (
-                <div className="bq-feed">
-                  {alerts.slice(0, 5).map((a) => (
-                    <div className="bq-feed-item" key={a.id}>
-                      <span className={`bq-feed-stripe ${a.level || 'safe'}`} />
-                      <div>
-                        <div className="bq-feed-title">{a.title}</div>
-                        {a.message && <div className="bq-feed-msg">{a.message}</div>}
-                        {a.issued && <div className="bq-feed-time">{a.issued}</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <AlertStack
+                alerts={alerts}
+                limit={5}
+                emptyTitle="No active alerts"
+                emptyHint={`Alerts affecting Brgy. ${brgyLabel} will appear here.`}
+              />
             </div>
 
             {/* Everything happening in this barangay, in one column: the

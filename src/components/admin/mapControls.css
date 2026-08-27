@@ -7,7 +7,7 @@
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(4px);
   border: 1px solid #e7e3da;
-  border-radius: 12px;
+  border-radius: 4px;
   box-shadow: 0 8px 26px rgba(15, 23, 42, 0.16);
   padding: 10px;
   width: 188px;
@@ -98,7 +98,7 @@
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 6px;
+  border-radius: 3px;
   background: none;
   color: #bcbab7;
   font-size: 0.8rem;
@@ -149,14 +149,14 @@
   border: none;
   padding: 5px 4px;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 3px;
   text-align: left;
 }
 .map-toggle:hover { background: #f6f3ee; }
 .mt-sw {
   width: 30px;
   height: 17px;
-  border-radius: 999px;
+  border-radius: 3px;
   background: #d4d0c7;
   position: relative;
   flex: none;

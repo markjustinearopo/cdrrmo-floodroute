@@ -11,7 +11,7 @@
   align-items: center;
   gap: 18px;
   padding: 14px 18px;
-  border-radius: 16px;
+  border-radius: 4px;
   color: #fff;
   background: linear-gradient(120deg, #0f172a 0%, #1e293b 55%, #334155 100%);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
@@ -50,7 +50,7 @@
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: 13px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.12);
   flex: 0 0 auto;
 }
@@ -99,7 +99,7 @@
   flex: 1 1 88px;
   min-width: 0;
   padding: 7px 10px;
-  border-radius: 10px;
+  border-radius: 3px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.09);
   display: flex;
@@ -209,7 +209,7 @@
     grid-template-areas: 'posture' 'clock' 'stats';
     gap: 12px;
     padding: 13px 14px;
-    border-radius: 14px;
+    border-radius: 4px;
   }
   .cb-clock { text-align: left; }
   .cb-sync { justify-content: flex-start; }

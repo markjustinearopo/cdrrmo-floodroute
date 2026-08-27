@@ -18,7 +18,7 @@
    checking a text someone will read on a phone, not proofreading a form. */
 .tsm-preview {
   border: 1px solid #e5e2db;
-  border-radius: 10px;
+  border-radius: 3px;
   padding: 12px;
   background: #f8fafc;
 }
@@ -34,7 +34,7 @@
 .tsm-bubble {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px 14px 14px 4px;
+  border-radius: 4px 4px 4px 4px;
   padding: 10px 13px;
   font-size: 14px;
   line-height: 1.5;
@@ -71,7 +71,7 @@
   font-size: 13px;
   color: #334155;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 3px;
   background: #f1f5f9;
 }
 
@@ -83,7 +83,7 @@
   background: #1a7a4a;
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 10px 18px;
   font-size: 14px;
   font-weight: 700;

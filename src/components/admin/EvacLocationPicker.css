@@ -29,7 +29,7 @@
   padding: 8px 14px;
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #e5e2dd;
-  border-radius: 9999px;
+  border-radius: 3px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
   pointer-events: none;
   z-index: 1000;
@@ -53,7 +53,7 @@
   left: 12px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #e5e2dd;
-  border-radius: 6px;
+  border-radius: 3px;
   padding: 4px 10px;
   font-size: 0.6875rem;
   color: #5a5a5a;

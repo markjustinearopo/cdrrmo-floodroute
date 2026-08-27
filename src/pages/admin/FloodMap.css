@@ -60,7 +60,7 @@
   gap: 7px;
   padding: 7px 15px;
   border: none;
-  border-radius: 8px;
+  border-radius: 3px;
   background: #c0181b;
   color: #fff;
   font-family: var(--font-display, var(--font-body));
@@ -85,7 +85,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: 3px;
   font-family: var(--font-body);
   font-size: 0.8125rem;
   font-weight: 500;
@@ -151,7 +151,7 @@
   transform: translateX(-50%);
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #e5e2dd;
-  border-radius: 20px;
+  border-radius: 3px;
   padding: 5px 16px;
   display: flex;
   align-items: center;
@@ -202,7 +202,7 @@
   left: 16px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #e5e2dd;
-  border-radius: 6px;
+  border-radius: 3px;
   padding: 4px 10px;
   font-size: 0.6875rem;
   color: #7a7a7a;
@@ -283,7 +283,7 @@
   gap: 8px;
 }
 .floodmap .stat-card {
-  border-radius: 10px;
+  border-radius: 3px;
   padding: 14px 10px;
   display: flex;
   flex-direction: column;
@@ -329,7 +329,7 @@
   gap: 7px;
   margin-top: 8px;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: 3px;
   background: #fef2f2;
   border: 1px solid #fecaca;
   font-size: 0.6875rem;
@@ -420,7 +420,7 @@
   color: #16a34a;
   background: #dcfce7;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: 3px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -515,7 +515,7 @@
 }
 .floodmap .forecast-day {
   background: #f7f5f2;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 7px 4px;
   text-align: center;
   display: flex;
@@ -567,7 +567,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 8px;
-  border-radius: 7px;
+  border-radius: 3px;
   border-bottom: 1px solid #f5f3ef;
 }
 .floodmap .brgy-row:last-child {
@@ -584,7 +584,7 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   padding: 2px 7px;
-  border-radius: 10px;
+  border-radius: 3px;
 }
 .floodmap .risk-badge.high { background: #fee2e2; color: #b91c1c; }
 .floodmap .risk-badge.moderate { background: #ffedd5; color: #c2410c; }
@@ -704,13 +704,13 @@
 .fm-popup strong { font-size: 0.85rem; color: #1a1a1a; }
 .fm-popup-sub { font-size: 0.72rem; color: #7a7a7a; margin: 2px 0 6px; }
 .fm-popup-row { font-size: 0.72rem; color: #4a4a4a; margin-top: 2px; }
-.fm-occ-track { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin: 4px 0; }
+.fm-occ-track { height: 3px; background: #eee; border-radius: 3px; overflow: hidden; margin: 4px 0; }
 .fm-occ-fill { height: 100%; background: #16a34a; }
 .fm-popup-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .fm-popup-actions button {
   border: 1px solid #e0ddd6;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 3px;
   padding: 4px 9px;
   font-family: var(--font-body);
   font-size: 0.72rem;
@@ -721,7 +721,7 @@
 .fm-popup-actions button:hover { background: #fef2f2; }
 
 /* Alerts panel rows (right panel → Alerts tab) */
-.fm-alert-row { display: flex; gap: 0; background: #fff; border: 1px solid #f0eee9; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+.fm-alert-row { display: flex; gap: 0; background: #fff; border: 1px solid #f0eee9; border-radius: 3px; overflow: hidden; margin-bottom: 3px; }
 .fm-alert-stripe { width: 3px; flex-shrink: 0; }
 .fm-alert-stripe.high { background: #dc2626; }
 .fm-alert-stripe.moderate { background: #f97316; }
@@ -776,7 +776,7 @@
 .fm-hazard-stat {
   background: #faf9f7;
   border: 1px solid #f0eee9;
-  border-radius: 9px;
+  border-radius: 3px;
   padding: 10px;
 }
 .fm-hazard-stat-val {
@@ -826,7 +826,7 @@
   gap: 8px;
   padding: 10px;
   border: 1px solid #f0eee9;
-  border-radius: 9px;
+  border-radius: 3px;
   background: #faf9f7;
 }
 .fm-hazard-feed-val {
@@ -843,7 +843,7 @@
   padding: 8px;
   border: 1px solid #e5e2dd;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 3px;
   font: inherit;
   font-size: 0.75rem;
   font-weight: 600;
@@ -882,7 +882,7 @@
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   box-shadow: 0 8px 26px rgba(15, 23, 42, 0.16);
-  border-radius: 8px;
+  border-radius: 3px;
   font: inherit;
   font-size: 0.75rem;
   font-weight: 600;
@@ -940,7 +940,7 @@
   max-width: 172px;
   border: none;
   border-left: 3px solid #dc2626;
-  border-radius: 9px;
+  border-radius: 3px;
   background: rgba(127, 29, 29, 0.94);
   color: #fff;
   padding: 7px 11px;
@@ -992,7 +992,7 @@
 .fm-cut-sw span {
   position: relative;
   width: 28px; height: 16px;
-  border-radius: 999px;
+  border-radius: 3px;
   background: #d8d4cd;
   transition: background 0.2s;
   flex-shrink: 0;
@@ -1146,7 +1146,7 @@
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   border: 1px solid #e7e3da;
-  border-radius: 12px;
+  border-radius: 4px;
   box-shadow: 0 8px 26px rgba(15, 23, 42, 0.16);
 }
 .fm-hz-head { display: flex; align-items: center; }
@@ -1165,7 +1165,7 @@
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 6px;
+  border-radius: 3px;
   background: none;
   color: #bcbab7;
   font-size: 1rem;

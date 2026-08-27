@@ -7,7 +7,7 @@
 .fo-card {
   background: #fff;
   border: 1px solid #ececec;
-  border-radius: 14px;
+  border-radius: 4px;
   padding: 12px 14px 10px;
   display: flex;
   flex-direction: column;
@@ -46,7 +46,7 @@
   text-transform: uppercase;
   color: #64748b;
   background: #f1f5f9;
-  border-radius: 20px;
+  border-radius: 3px;
   padding: 3px 9px;
   white-space: nowrap;
 }
@@ -91,7 +91,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  border-radius: 20px;
+  border-radius: 3px;
   padding: 4px 10px;
   white-space: nowrap;
 }
@@ -170,7 +170,7 @@
   transform: translateX(-50%);
   background: #0f172a;
   color: #fff;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 6px 9px;
   font-size: 0.66rem;
   line-height: 1.45;

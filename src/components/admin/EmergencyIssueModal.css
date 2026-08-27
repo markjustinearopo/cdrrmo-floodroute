@@ -26,7 +26,7 @@
 .eim-warn {
   margin: 8px 18px 4px;
   padding: 11px 13px;
-  border-radius: 10px;
+  border-radius: 3px;
   background: #fef2f2;
   border: 1px solid #fecaca;
   font-size: 0.75rem;
@@ -47,7 +47,7 @@
 
 .eim-go {
   border: none;
-  border-radius: 9px;
+  border-radius: 3px;
   background: #dc2626;
   color: #fff;
   padding: 10px 18px;

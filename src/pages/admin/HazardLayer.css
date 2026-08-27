@@ -99,7 +99,7 @@
   margin-top: 6px;
   padding: 6px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 3px;
   background: #c0181b;
   color: #fff;
   font-weight: 700;
@@ -113,7 +113,7 @@
   padding: 8px;
   border: 1px solid #e5e2dd;
   background: #fafafa;
-  border-radius: 8px;
+  border-radius: 3px;
   font-size: 0.75rem;
   font-weight: 600;
   color: #5a5a5a;
@@ -163,7 +163,7 @@
   padding: 18px 26px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid #e5e2dd;
-  border-radius: 12px;
+  border-radius: 4px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   text-align: center;
   pointer-events: none;
@@ -198,7 +198,7 @@
   left: 16px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #e5e2dd;
-  border-radius: 6px;
+  border-radius: 3px;
   padding: 4px 10px;
   font-size: 0.6875rem;
   color: #7a7a7a;
@@ -258,7 +258,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 13px 8px;
-  border-radius: 8px;
+  border-radius: 3px;
   cursor: pointer;
   transition: background 0.15s;
   /* Reset the global <label> uppercase so only the section title is caps */
@@ -314,7 +314,7 @@
   font-weight: 700;
   color: #7a7a7a;
   background: #f0eee9;
-  border-radius: 9999px;
+  border-radius: 3px;
   padding: 1px 6px;
   font-variant-numeric: tabular-nums;
 }
@@ -440,7 +440,7 @@
 .hazard .hz-stat {
   background: #faf9f7;
   border: 1px solid #f0eee9;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 9px 10px;
 }
 .hazard .hz-stat-val {
@@ -490,7 +490,7 @@
   text-transform: uppercase;
   color: #2563eb;
   background: #eff6ff;
-  border-radius: 9999px;
+  border-radius: 3px;
   padding: 2px 7px;
 }
 .hazard .hz-feed-note {

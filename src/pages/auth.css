@@ -120,7 +120,7 @@
   width: 44px;
   height: 44px;
   background: var(--cdrrmo-red);
-  border-radius: 10px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -236,7 +236,7 @@ select {
   background: #FEF2F2;
   border: 1px solid #FCA5A5;
   color: #991B1B;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 10px 14px;
   font-size: 0.8125rem;
   font-weight: 500;
