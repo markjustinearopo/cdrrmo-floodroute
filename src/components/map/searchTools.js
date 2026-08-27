@@ -123,6 +123,8 @@ export function buildLocalIndex({ evacCenters = [], floodAreas = [] } = {}) {
     out.push({
       id: `brgy-${b.name}`,
       label: `Barangay ${b.name}`,
+      // Searchable without the "Barangay " prefix — see searchLocal.
+      alt: b.name,
       sub: 'Cabuyao City',
       type: 'barangay',
       lat: b.coords[0],
@@ -161,21 +163,39 @@ export function buildLocalIndex({ evacCenters = [], floodAreas = [] } = {}) {
   return out.filter((e) => e.lat != null && e.lng != null)
 }
 
+/* Which kind of answer wins when two entries match a query equally well.
+   A barangay, a shelter or a documented flood-prone area is what somebody
+   typing a place name is usually after; a street is the long tail. This only
+   breaks ties — a better textual match still wins outright. */
+const TYPE_RANK = { barangay: 0, evac: 1, flood: 2, road: 3 }
+
 /** Rank local entries against the query: prefix > word-prefix > substring. */
 export function searchLocal(index, query, limit = 5) {
   const q = query.trim().toLowerCase()
   if (!q) return []
   const scored = []
   index.forEach((e) => {
-    const l = e.label.toLowerCase()
+    /* `alt` carries the bare name for entries whose label is prefixed —
+       "Barangay San Isidro" can never prefix-match "san", so before the road
+       index existed it scraped in on a word-prefix and was the only answer.
+       With 728 streets alongside it, half a dozen of which genuinely start
+       with "San", it fell off the end of the list entirely. */
+    const fields = e.alt ? [e.label.toLowerCase(), e.alt.toLowerCase()] : [e.label.toLowerCase()]
     let score = -1
-    if (l.startsWith(q)) score = 0
-    else if (l.split(/\s+/).some((w) => w.startsWith(q))) score = 1
-    else if (l.includes(q)) score = 2
-    else if ((e.sub || '').toLowerCase().includes(q)) score = 3
-    if (score >= 0) scored.push([score, e])
+    for (const l of fields) {
+      let s = -1
+      if (l.startsWith(q)) s = 0
+      else if (l.split(/\s+/).some((w) => w.startsWith(q))) s = 1
+      else if (l.includes(q)) s = 2
+      if (s >= 0 && (score < 0 || s < score)) score = s
+    }
+    if (score < 0 && (e.sub || '').toLowerCase().includes(q)) score = 3
+    if (score >= 0) scored.push([score, TYPE_RANK[e.type] ?? 4, e])
   })
-  return scored.sort((a, b) => a[0] - b[0]).slice(0, limit).map(([, e]) => e)
+  return scored
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+    .slice(0, limit)
+    .map((row) => row[2])
 }
 
 /* ── OpenStreetMap (Nominatim) ───────────────────────────────────────────── */
