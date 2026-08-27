@@ -15,7 +15,7 @@
 .rrp-metric {
   background: #faf9f7;
   border: 1px solid #f0eee9;
-  border-radius: 3px;
+  border-radius: 9px;
   padding: 9px 6px;
   text-align: center;
 }
@@ -42,7 +42,7 @@
   gap: 7px;
   margin-top: 10px;
   padding: 8px 10px;
-  border-radius: 3px;
+  border-radius: 8px;
   font-size: 0.6875rem;
   font-weight: 600;
   color: #5a5a5a;
@@ -60,7 +60,7 @@
   gap: 7px;
   margin-top: 7px;
   padding: 8px 10px;
-  border-radius: 3px;
+  border-radius: 8px;
   font-size: 0.6875rem;
   font-weight: 600;
   color: #6b5300;
@@ -73,7 +73,7 @@
   margin-top: 10px;
   padding: 10px;
   border: 1px solid #f0eee9;
-  border-radius: 3px;
+  border-radius: 9px;
   background: #fff;
 }
 .rrp-compare-note { font-size: 0.6875rem; color: #7a7a7a; line-height: 1.5; }
@@ -103,7 +103,7 @@
   margin-top: 10px;
   padding: 10px;
   border: 1px solid #f0eee9;
-  border-radius: 3px;
+  border-radius: 9px;
   background: #faf9f7;
 }
 .rrp-via-title {
@@ -227,7 +227,7 @@
   margin-top: 10px;
   padding: 10px;
   border: 1px dashed #f0c9ca;
-  border-radius: 3px;
+  border-radius: 9px;
   background: #fff7f7;
 }
 .rrp-avoided-title {
@@ -249,7 +249,7 @@
   gap: 6px;
   border: 1px solid #f0c9ca;
   background: #fff;
-  border-radius: 3px;
+  border-radius: 999px;
   padding: 4px 9px;
   font: inherit;
   font-size: 0.6875rem;

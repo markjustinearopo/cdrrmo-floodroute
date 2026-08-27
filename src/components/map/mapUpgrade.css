@@ -47,7 +47,7 @@
   gap: 8px;
   height: 46px;
   padding: 0 6px 0 14px;
-  border-radius: 3px;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(14px) saturate(1.4);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
@@ -121,7 +121,7 @@
 /* Dropdown */
 .msb-drop {
   margin-top: 8px;
-  border-radius: 4px;
+  border-radius: 16px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(14px);
@@ -261,7 +261,7 @@
 .msr-card-action {
   margin-top: 9px;
   padding: 7px 9px;
-  border-radius: 3px;
+  border-radius: 9px;
   font-size: 0.7rem;
   font-weight: 600;
   line-height: 1.35;
@@ -278,7 +278,7 @@
   justify-content: center;
   gap: 7px;
   border: none;
-  border-radius: 3px;
+  border-radius: 999px;
   padding: 8px 0;
   background: #1a3a7a;
   color: #fff;
@@ -307,7 +307,7 @@
 .fsc-card {
   width: 236px;
   box-sizing: border-box; /* keep the card's outer width at 236, padding included */
-  border-radius: 4px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(14px) saturate(1.4);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
@@ -327,7 +327,7 @@
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 3px;
+  border-radius: 6px;
   background: none;
   color: #bcbab7;
   font-size: 0.8rem;
@@ -345,7 +345,7 @@
   gap: 7px;
   margin-left: auto;
   padding: 7px 13px;
-  border-radius: 3px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.65);
   background: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(14px) saturate(1.4);
@@ -383,7 +383,7 @@
   font-size: 0.72rem;
   font-weight: 800;
   padding: 3px 11px;
-  border-radius: 3px;
+  border-radius: 999px;
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
@@ -397,7 +397,7 @@
   font-size: 0.6rem;
   font-weight: 700;
   padding: 2px 7px;
-  border-radius: 3px;
+  border-radius: 8px;
   white-space: nowrap;
 }
 .fsc-count--red { background: #fef2f2; color: #b91c1c; }
@@ -421,7 +421,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  border-radius: 4px;
+  border-radius: 13px;
   padding: 9px 12px;
   background: #1a1a1a;
   color: #fff;
@@ -447,7 +447,7 @@
   right: 12px;
   z-index: 1140;
   width: 236px;
-  border-radius: 4px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(14px) saturate(1.4);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
@@ -461,7 +461,7 @@
   align-items: center;
   gap: 6px;
   padding: 7px 12px;
-  border-radius: 3px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.65);
   cursor: pointer;
   font-family: var(--font-body);
@@ -507,7 +507,7 @@
 }
 .wxc-cell {
   background: rgba(0, 0, 0, 0.035);
-  border-radius: 3px;
+  border-radius: 9px;
   padding: 6px 4px;
   text-align: center;
 }
@@ -583,7 +583,7 @@
   align-items: center;
   gap: 8px;
   border: none;
-  border-radius: 3px;
+  border-radius: 999px;
   padding: 9px 15px;
   background: #c0181b;
   color: #fff;
@@ -602,7 +602,7 @@
   margin-bottom: 8px;
   max-height: 46vh;
   overflow-y: auto;
-  border-radius: 4px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -629,7 +629,7 @@
   border: none;
   background: none;
   padding: 6px 6px;
-  border-radius: 3px;
+  border-radius: 9px;
   cursor: pointer;
   text-align: left;
   text-decoration: none;
@@ -665,7 +665,7 @@
   color: #fff;
   background: #16a34a;
   padding: 3px 10px;
-  border-radius: 3px;
+  border-radius: 999px;
 }
 .emg-empty { font-size: 0.7rem; color: #9a9a9a; padding: 4px 6px; }
 
@@ -698,7 +698,7 @@
   width: 160px;
   height: 4px;
   margin: 10px auto 0;
-  border-radius: 3px;
+  border-radius: 999px;
   background: rgba(0, 0, 0, 0.08);
   overflow: hidden;
 }
@@ -707,7 +707,7 @@
   display: block;
   width: 40%;
   height: 100%;
-  border-radius: 3px;
+  border-radius: 999px;
   background: #c0181b;
   animation: map-bar 1.1s ease-in-out infinite;
 }
@@ -759,7 +759,7 @@
   font-size: 0.64rem;
   font-weight: 800;
   padding: 5px 4px;
-  border-radius: 3px;
+  border-radius: 9px;
   white-space: nowrap;
 }
 .fsp-chip--red { background: #fee2e2; color: #b91c1c; }
@@ -772,7 +772,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 3px;
+  border-radius: 8px;
   border-bottom: 1px solid #f5f3ef;
 }
 .fsp-row:last-child { border-bottom: none; }
@@ -804,7 +804,7 @@
   font-size: 0.58rem;
   font-weight: 800;
   padding: 2px 8px;
-  border-radius: 3px;
+  border-radius: 9px;
   letter-spacing: 0.03em;
   white-space: nowrap;
 }
@@ -825,7 +825,7 @@
   gap: 10px;
   width: min(400px, calc(100% - 24px));
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 14px;
   color: #fff;
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
   animation: nfa-in 0.45s cubic-bezier(0.2, 1.2, 0.4, 1);
@@ -862,7 +862,7 @@
   align-items: flex-start;
   margin-top: 10px;
   padding: 9px 11px;
-  border-radius: 3px;
+  border-radius: 10px;
   font-size: 0.7rem;
   line-height: 1.45;
 }
@@ -886,7 +886,7 @@
   align-items: center;
   margin-top: 10px;
   padding: 8px 11px;
-  border-radius: 3px;
+  border-radius: 10px;
   font-size: 0.7rem;
   background: #f0fdf4;
   color: #15803d;

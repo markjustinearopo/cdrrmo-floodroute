@@ -21,7 +21,7 @@
   align-items: stretch;
   gap: 4px;
   border: 1px solid #e5e2dd;
-  border-radius: 3px;
+  border-radius: 10px;
   background: #fff;
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -123,7 +123,7 @@
   line-height: 1.55;
   padding: 14px 12px;
   border: 1px dashed #e5e2dd;
-  border-radius: 3px;
+  border-radius: 10px;
   background: #faf9f7;
 }
 
@@ -140,7 +140,7 @@
   gap: 6px;
   border: 1px solid #e5e2dd;
   background: #fff;
-  border-radius: 3px;
+  border-radius: 999px;
   padding: 5px 11px;
   font: inherit;
   font-size: 0.75rem;

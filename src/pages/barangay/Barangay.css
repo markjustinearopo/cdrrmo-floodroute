@@ -24,7 +24,7 @@
   background: #fff;
   border: 1px solid #e5e2dd;
   border-left: 5px solid #16a34a;
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 18px 20px;
 }
 .bq-banner.low { border-left-color: #eab308; }
@@ -33,7 +33,7 @@
 .bq-banner-icon {
   width: 46px;
   height: 46px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: #f0fdf4;
   display: flex;
   align-items: center;
@@ -72,7 +72,7 @@
   flex-shrink: 0;
   text-align: center;
   padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: 12px;
   background: #f0fdf4;
 }
 .bq-banner.low .bq-banner-level { background: #fefce8; }
@@ -108,7 +108,7 @@
   position: relative;
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 15px 16px;
   overflow: hidden;
 }
@@ -128,7 +128,7 @@
 .bq-stat-icon {
   width: 34px;
   height: 34px;
-  border-radius: 3px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -191,7 +191,7 @@
 .bq-panel {
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 16px;
 }
 .bq-panel-head {
@@ -232,7 +232,7 @@
   padding: 6px 11px;
   border: 1px solid #e5e2dd;
   background: #fafafa;
-  border-radius: 3px;
+  border-radius: 8px;
   font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 700;
@@ -266,7 +266,7 @@
   font-size: 0.6875rem;
   font-weight: 700;
   padding: 5px 11px;
-  border-radius: 3px;
+  border-radius: 7px;
   letter-spacing: 0.02em;
 }
 .bq-map-legend {
@@ -279,7 +279,7 @@
   gap: 5px;
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid #e5e2dd;
-  border-radius: 3px;
+  border-radius: 9px;
   padding: 9px 11px;
 }
 .bq-legend-item {
@@ -290,7 +290,7 @@
   font-weight: 600;
   color: #3a3a3a;
 }
-.bq-legend-line { width: 4px; height: 3px; border-radius: 2px; }
+.bq-legend-line { width: 16px; height: 3px; border-radius: 2px; }
 
 /* ── Quick actions ───────────────────────────────────────────────────────── */
 .bq-actions {
@@ -306,7 +306,7 @@
   text-align: left;
   padding: 11px 13px;
   border: 1px solid #e5e2dd;
-  border-radius: 3px;
+  border-radius: 10px;
   background: #fff;
   font-family: var(--font-body);
   font-size: 0.8125rem;
@@ -319,7 +319,7 @@
 .bq-action-icon {
   width: 30px;
   height: 30px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: #fef2f2;
   display: flex;
   align-items: center;
@@ -334,8 +334,22 @@
 .bq-action-arrow { margin-left: auto; color: #cbb9b9; font-weight: 800; }
 .bq-action.primary .bq-action-arrow { color: rgba(255, 255, 255, 0.7); }
 
-/* The recent-alerts feed moved to the shared collapsible AlertStack
-   (components/dash/AlertStack.css). */
+/* ── Feed / activity list (empty by default) ─────────────────────────────── */
+.bq-feed { display: flex; flex-direction: column; gap: 8px; }
+.bq-feed-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid #f0eee9;
+  border-radius: 10px;
+}
+.bq-feed-stripe { width: 3px; border-radius: 2px; flex-shrink: 0; background: #9a9a9a; }
+.bq-feed-stripe.high { background: #dc2626; }
+.bq-feed-stripe.moderate { background: #f97316; }
+.bq-feed-stripe.safe { background: #16a34a; }
+.bq-feed-title { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
+.bq-feed-msg { font-size: 0.75rem; color: #5a5a5a; line-height: 1.4; }
+.bq-feed-time { font-size: 0.6875rem; color: #9a9a9a; margin-top: 2px; }
 .bq-empty {
   display: flex;
   flex-direction: column;
@@ -357,7 +371,7 @@
 }
 .bq-kv {
   background: #f7f5f2;
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 11px 13px;
 }
 .bq-kv-label {
@@ -397,7 +411,7 @@
   gap: 11px;
   padding: 10px 12px;
   border: 1px solid #f0eee9;
-  border-radius: 3px;
+  border-radius: 11px;
 }
 .bq-contact-avatar {
   width: 34px;
@@ -432,7 +446,7 @@
   cursor: pointer;
   width: 24px;
   height: 24px;
-  border-radius: 3px;
+  border-radius: 6px;
   line-height: 1;
 }
 .bq-icon-x:hover { background: #fef2f2; color: #c0181b; }
@@ -445,7 +459,7 @@
   font-weight: 700;
   color: #c0181b;
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .bq-link:hover { background: #fef2f2; }
 
@@ -467,7 +481,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 3px 9px;
-  border-radius: 3px;
+  border-radius: 9999px;
   background: #f0eee9;
   color: #6b7280;
   white-space: nowrap;
@@ -515,7 +529,7 @@
 }
 .bq-insight > .fo-card {
   border-color: #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
 }
 .bq-depth-panel { display: flex; flex-direction: column; }
 .bq-panel-note {
@@ -525,7 +539,7 @@
   text-transform: uppercase;
   color: #64748b;
   background: #f1f5f9;
-  border-radius: 3px;
+  border-radius: 20px;
   padding: 3px 9px;
   white-space: nowrap;
 }
@@ -557,7 +571,7 @@
 /* The live feed sits in the right-hand column with the other cards. */
 .bq-grid .pt-card {
   border-color: #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
 }
 
 /* ── Motion ─────────────────────────────────────────────────────────────── */

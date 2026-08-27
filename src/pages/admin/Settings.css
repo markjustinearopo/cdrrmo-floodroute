@@ -28,7 +28,7 @@
   flex-wrap: wrap;
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 12px;
   padding: 12px 16px;
 }
 .set-savebar-note {
@@ -56,7 +56,7 @@
 .set-panel {
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 12px;
   overflow: hidden;
 }
 .set-panel-head {
@@ -69,7 +69,7 @@
 .set-panel-icon {
   width: 34px;
   height: 34px;
-  border-radius: 3px;
+  border-radius: 9px;
   background: #fef2f2;
   display: flex;
   align-items: center;
@@ -156,7 +156,7 @@
 .set-panel .set-field > input,
 .set-panel .set-field > select,
 .set-panel .set-field > textarea {
-  border-radius: 3px;
+  border-radius: 8px;
 }
 .set-panel .set-field textarea { resize: vertical; min-height: 74px; }
 .set-field-hint {
@@ -252,7 +252,7 @@
 .set-int {
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 12px;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -266,7 +266,7 @@
 .set-int-icon {
   width: 40px;
   height: 40px;
-  border-radius: 3px;
+  border-radius: 10px;
   background: #f7f5f2;
   display: flex;
   align-items: center;
@@ -338,7 +338,7 @@
   align-items: center;
   gap: 6px;
   padding: 3px 10px 3px 8px;
-  border-radius: 3px;
+  border-radius: 9999px;
   font-size: 0.625rem;
   font-weight: 800;
   letter-spacing: 0.03em;
@@ -372,7 +372,7 @@
   text-align: left;
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 3px;
+  border-radius: 11px;
   padding: 12px 13px;
   cursor: pointer;
   transition: all 0.15s;
@@ -402,7 +402,7 @@
   font-weight: 700;
   color: #9a9a9a;
   background: #f7f5f2;
-  border-radius: 3px;
+  border-radius: 9999px;
   padding: 2px 8px;
   white-space: nowrap;
 }
@@ -439,7 +439,7 @@
 .set-user-av {
   width: 34px;
   height: 34px;
-  border-radius: 3px;
+  border-radius: 9px;
   background: #1a2a4a;
   color: #fff;
   display: flex;
@@ -556,7 +556,7 @@
 .set-readonly {
   margin-top: 14px;
   border: 1px dashed #e5e2dd;
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 10px 12px;
   background: #faf9f7;
 }
@@ -614,7 +614,7 @@
 .set-sms-state {
   margin-top: 12px;
   padding: 10px 12px;
-  border-radius: 3px;
+  border-radius: 9px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   font-size: 0.75rem;
@@ -668,7 +668,7 @@
   min-width: 0;
   padding: 9px 12px;
   border: 1px solid #cbd5e1;
-  border-radius: 3px;
+  border-radius: 8px;
   font-size: 0.8125rem;
   font-family: inherit;
 }

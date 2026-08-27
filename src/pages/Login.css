@@ -8,7 +8,7 @@
   width: 100%;
   max-width: 420px;
   background: #FFFFFF;
-  border-radius: 3px;
+  border-radius: 20px;
   box-shadow: 0 24px 64px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.1);
   padding: 32px;
   animation: slideInRight 0.7s cubic-bezier(.22,1,.36,1) 0.1s both;

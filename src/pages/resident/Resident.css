@@ -30,7 +30,7 @@
 
 /* ── Personal flood-risk hero ────────────────────────────────────────────── */
 .res-risk-card {
-  border-radius: 4px;
+  border-radius: 16px;
   padding: 22px 24px;
   color: #fff;
   background: linear-gradient(135deg, #16a34a, #15803d);
@@ -64,7 +64,7 @@
   background: #fff;
   border: 1px solid #e5e2dd;
   border-left: 4px solid #16a34a;
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 16px 18px;
 }
 .res-steps-card.low { border-left-color: #eab308; }
@@ -110,14 +110,14 @@
 .res-prep-track {
   height: 6px;
   background: #f0eee9;
-  border-radius: 3px;
+  border-radius: 9999px;
   overflow: hidden;
   margin-bottom: 12px;
 }
 .res-prep-fill {
   height: 100%;
   background: #16a34a;
-  border-radius: 3px;
+  border-radius: 9999px;
   transition: width 0.25s ease;
 }
 .res-prep-list { display: flex; flex-direction: column; gap: 4px; }
@@ -126,7 +126,7 @@
   align-items: center;
   gap: 10px;
   padding: 7px 8px;
-  border-radius: 3px;
+  border-radius: 9px;
   cursor: pointer;
   transition: background 0.12s;
 }
@@ -136,7 +136,7 @@
   width: 18px;
   height: 18px;
   border: 1.5px solid #cbd5e1;
-  border-radius: 3px;
+  border-radius: 6px;
   flex-shrink: 0;
   position: relative;
   transition: all 0.12s;
@@ -163,7 +163,7 @@
 .res-evac-card {
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 16px 18px;
 }
 .res-card-head {
@@ -204,7 +204,7 @@
   width: 100%;
   padding: 14px 18px;
   border: none;
-  border-radius: 4px;
+  border-radius: 12px;
   background: #c0181b;
   color: #fff;
   font-family: var(--font-body);
@@ -220,7 +220,7 @@
 .res-map-card {
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
   overflow: hidden;
   /* Grow to absorb the feed column's leftover height so the map's bottom edge
      aligns with the side panel beside it. */
@@ -246,7 +246,7 @@
   font-size: 0.6875rem;
   font-weight: 700;
   padding: 5px 11px;
-  border-radius: 3px;
+  border-radius: 7px;
 }
 .res-map-legend {
   position: absolute;
@@ -258,17 +258,17 @@
   gap: 5px;
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid #e5e2dd;
-  border-radius: 3px;
+  border-radius: 9px;
   padding: 9px 11px;
 }
 .res-legend-item { display: flex; align-items: center; gap: 7px; font-size: 0.6875rem; font-weight: 600; color: #3a3a3a; }
-.res-legend-line { width: 4px; height: 3px; border-radius: 2px; }
+.res-legend-line { width: 16px; height: 3px; border-radius: 2px; }
 
 /* ── Side cards ──────────────────────────────────────────────────────────── */
 .res-side-card {
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 16px;
 }
 .res-side-title {
@@ -283,16 +283,29 @@
 }
 .res-side-title svg { width: 15px; height: 15px; stroke: #c0181b; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 
-/* The dashboard alert rows moved to the shared collapsible AlertStack
-   (components/dash/AlertStack.css) — a row is now a severity bar, a title
-   and a time, and the message opens on click instead of printing in full. */
+/* mini alert rows on the dashboard */
+.res-alert-list { display: flex; flex-direction: column; gap: 8px; }
+.res-alert-row {
+  display: flex;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid #f0eee9;
+  border-radius: 10px;
+}
+.res-alert-stripe { width: 3px; border-radius: 2px; flex-shrink: 0; background: #9a9a9a; }
+.res-alert-stripe.high { background: #dc2626; }
+.res-alert-stripe.moderate { background: #f97316; }
+.res-alert-stripe.safe { background: #16a34a; }
+.res-alert-title { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
+.res-alert-msg { font-size: 0.75rem; color: #5a5a5a; line-height: 1.4; }
+.res-alert-time { font-size: 0.6875rem; color: #9a9a9a; margin-top: 2px; }
 
 /* forecast */
 .res-forecast { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .res-fc-day {
   text-align: center;
   background: #f7f5f2;
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 10px 6px;
 }
 .res-fc-day.today { background: #fef2f2; border: 1px solid #fbcaca; }
@@ -309,7 +322,7 @@
   gap: 4px;
   margin-top: 10px;
   padding: 10px;
-  border-radius: 3px;
+  border-radius: 9px;
   background: #fafafa;
   border: 1px solid #f0eee9;
   font-size: 0.8125rem;
@@ -383,14 +396,14 @@
   flex-wrap: wrap;
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 12px;
   padding: 10px 12px;
 }
 .res-filter-tab {
   padding: 7px 13px;
   border: 1px solid #e5e2dd;
   background: #fff;
-  border-radius: 3px;
+  border-radius: 9999px;
   font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 600;
@@ -426,7 +439,7 @@
   max-width: 220px;
   padding: 7px 12px;
   border: 1px solid #e5e2dd;
-  border-radius: 3px;
+  border-radius: 8px;
   font-family: var(--font-body);
   font-size: 0.8125rem;
 }
@@ -446,7 +459,7 @@
   gap: 11px;
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 12px;
   padding: 13px 15px;
   cursor: default;
 }
@@ -467,7 +480,7 @@
   background: #f0eee9;
   color: #6b7280;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 9999px;
 }
 .res-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: #c0181b; flex-shrink: 0; align-self: center; }
 
@@ -480,7 +493,7 @@
 .res-shelter-card {
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 15px 16px;
   display: flex;
   flex-direction: column;
@@ -500,7 +513,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 3px 9px;
-  border-radius: 3px;
+  border-radius: 9999px;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -508,7 +521,7 @@
 .res-shelter-status.full { background: #fee2e2; color: #b91c1c; }
 .res-shelter-status.closed { background: #f0eee9; color: #6b7280; }
 .res-occ { display: flex; align-items: center; gap: 9px; }
-.res-occ-track { flex: 1; height: 3px; background: #f0eee9; border-radius: 3px; overflow: hidden; }
+.res-occ-track { flex: 1; height: 8px; background: #f0eee9; border-radius: 9999px; overflow: hidden; }
 .res-occ-fill { height: 100%; border-radius: 9999px; background: #16a34a; }
 .res-occ-fill.warn { background: #f59e0b; }
 .res-occ-fill.full { background: #dc2626; }
@@ -522,7 +535,7 @@
   padding: 7px 12px;
   border: 1px solid #e5e2dd;
   background: #fafafa;
-  border-radius: 3px;
+  border-radius: 8px;
   font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 700;
@@ -536,7 +549,7 @@
 /* ── Page header (shared, light) ─────────────────────────────────────────── */
 .res-head { display: flex; align-items: center; gap: 11px; }
 .res-head-icon {
-  width: 3px; height: 3px; border-radius: 3px;
+  width: 38px; height: 38px; border-radius: 10px;
   background: #fef2f2; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .res-head-icon svg { width: 19px; height: 19px; stroke: #c0181b; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -595,14 +608,14 @@
 
   /* Hero: 178px of mostly padding. Still the loudest thing on the screen,
      just not a screenful of it. */
-  .res-risk-card { padding: 4px 4px 4px; border-radius: 4px; }
+  .res-risk-card { padding: 16px 16px 18px; border-radius: 14px; }
   .res-risk-level { font-size: 2rem; }
   .res-risk-label { font-size: 0.6875rem; }
   .res-risk-sub { font-size: 0.8125rem; line-height: 1.45; }
 
   .res-steps-card,
   .res-evac-card,
-  .res-side-card { padding: 4px 4px; border-radius: 4px; }
+  .res-side-card { padding: 14px 14px; border-radius: 13px; }
 
   /* The instructions a resident is meant to act on — the one place to spend
      size rather than save it. */
@@ -624,7 +637,20 @@
   .res-map-legend { padding: 8px 10px; gap: 6px; }
   .res-legend-item { font-size: 0.6875rem; }
 
-
+  /* Alert rows. This card is a digest, not the feed — a 275-character alert
+     body rendered in full made one row 205px tall. Three lines is enough to
+     recognise which alert it is; the whole text is one tap away on the Alerts
+     page, where nothing is clamped. */
+  .res-alert-title { font-size: 0.875rem; line-height: 1.3; }
+  .res-alert-msg {
+    font-size: 0.8125rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .res-alert-time { font-size: 0.75rem; }
 
   /* Order on a phone follows urgency, not the desktop column order. The
      preparedness checklist is a calm-weather task and the tallest card on the
@@ -648,7 +674,7 @@
   /* Checklist rows were 32px tall with an 18px box — a genuine mis-tap risk,
      and this is the one interactive thing on the dashboard. */
   .res-prep-row { padding: 11px 8px; gap: 12px; min-height: 46px; }
-  .res-prep-box { width: 3px; height: 3px; border-radius: 3px; }
+  .res-prep-box { width: 22px; height: 22px; border-radius: 7px; }
   .res-prep-row input:checked + .res-prep-box::after {
     left: 7px; top: 2px; width: 6px; height: 12px;
   }
@@ -818,7 +844,7 @@
 .res-depth-card {
   background: #fff;
   border: 1px solid #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 16px 18px;
 }
 .res-depth-note {
@@ -833,7 +859,7 @@
 /* The shared outlook card, matched to the resident card family. */
 .res-feed > .fo-card {
   border-color: #e5e2dd;
-  border-radius: 4px;
+  border-radius: 14px;
   padding: 16px 18px 12px;
 }
 

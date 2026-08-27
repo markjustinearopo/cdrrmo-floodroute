@@ -33,7 +33,7 @@
   flex-direction: column;
   background: #fff;
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: 14px;
   box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
@@ -62,11 +62,11 @@
   display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
   margin-top: 12px; padding: 3px;
   background: var(--color-bg-secondary);
-  border-radius: 3px;
+  border-radius: 9px;
 }
 .rb-mode-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 3px 3px; border: none; border-radius: 3px;
+  padding: 7px 6px; border: none; border-radius: 7px;
   background: transparent; cursor: pointer;
   font-family: var(--font-body); font-size: 0.75rem; font-weight: 700;
   color: var(--color-text-secondary);
@@ -116,7 +116,7 @@
 .rb-input {
   width: 100%; min-width: 0;
   padding: 8px 10px;
-  border: 1px solid var(--color-border); border-radius: 3px;
+  border: 1px solid var(--color-border); border-radius: 8px;
   font-family: var(--font-body); font-size: 0.8125rem;
   color: var(--color-text-primary); background: var(--color-bg-secondary);
 }
@@ -124,7 +124,7 @@
 
 .rb-btn {
   padding: 8px 12px;
-  border: 1px solid var(--color-border); border-radius: 3px;
+  border: 1px solid var(--color-border); border-radius: 8px;
   background: #fff; cursor: pointer;
   font-family: var(--font-body); font-size: 0.75rem; font-weight: 700;
   color: var(--color-text-primary);
@@ -147,7 +147,7 @@
 .rb-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; flex-shrink: 0;
-  border: none; background: none; border-radius: 3px; cursor: pointer;
+  border: none; background: none; border-radius: 6px; cursor: pointer;
   color: var(--color-text-muted);
   transition: background var(--transition-fast), color var(--transition-fast);
 }
@@ -168,11 +168,11 @@
 
 .rb-seg {
   display: flex; gap: 3px; padding: 3px;
-  background: var(--color-bg-secondary); border-radius: 3px;
+  background: var(--color-bg-secondary); border-radius: 8px;
 }
 .rb-seg button {
   flex: 1 1 0; min-width: 0;
-  padding: 3px 4px; border: none; border-radius: 3px; background: transparent; cursor: pointer;
+  padding: 6px 4px; border: none; border-radius: 6px; background: transparent; cursor: pointer;
   font-family: var(--font-body); font-size: 0.6875rem; font-weight: 700;
   color: var(--color-text-secondary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -189,7 +189,7 @@
 .rb-select select {
   width: 100%;
   padding: 7px 9px;
-  border: 1px solid var(--color-border); border-radius: 3px;
+  border: 1px solid var(--color-border); border-radius: 8px;
   background: var(--color-bg-secondary);
   font-family: var(--font-body); font-size: 0.75rem; color: var(--color-text-primary);
   cursor: pointer;
@@ -200,7 +200,7 @@
 .rb-mini { display: inline-flex; align-items: center; gap: 6px; font-size: 0.6875rem; color: var(--color-text-secondary); }
 .rb-num {
   width: 52px; padding: 5px 6px; text-align: center;
-  border: 1px solid var(--color-border); border-radius: 3px;
+  border: 1px solid var(--color-border); border-radius: 6px;
   font-family: var(--font-body); font-size: 0.75rem; color: var(--color-text-primary);
   background: var(--color-bg-secondary);
 }
@@ -211,7 +211,7 @@
 .rb-chips.tight { gap: 4px; }
 .rb-chip {
   padding: 5px 9px;
-  border: 1.3px solid var(--color-border); border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-border); border-radius: var(--radius-full);
   background: var(--color-bg-secondary); cursor: pointer;
   font-family: var(--font-body); font-size: 0.6875rem; font-weight: 600;
   color: var(--color-text-secondary);
@@ -225,7 +225,7 @@
 .rb-preset {
   display: block; width: 100%; text-align: left;
   padding: 9px 11px;
-  border: 1px solid var(--color-border); border-radius: 3px;
+  border: 1px solid var(--color-border); border-radius: 10px;
   background: #fff; cursor: pointer;
   transition: border-color var(--transition-fast), background var(--transition-fast);
 }
@@ -246,7 +246,7 @@
   flex: 1 1 auto; min-width: 0; text-align: left;
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   padding: 7px 10px;
-  border: 1px solid var(--color-border); border-radius: 3px;
+  border: 1px solid var(--color-border); border-radius: 8px;
   background: var(--color-bg-secondary); cursor: pointer;
 }
 .rb-tpl-load:hover { border-color: var(--cdrrmo-red); background: #fff; }
@@ -267,7 +267,7 @@
 .rb-auto {
   flex-shrink: 0; font-size: 0.5625rem; font-weight: 800; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--color-text-muted);
-  background: var(--color-bg-tertiary); border-radius: 4px; padding: 2px 3px;
+  background: var(--color-bg-tertiary); border-radius: 4px; padding: 2px 6px;
 }
 .rb-sig-label {
   flex: 1 1 auto; min-width: 0; font-size: 0.7rem; color: var(--color-text-secondary);
@@ -277,7 +277,7 @@
 /* ── Contents tab: the block list ── */
 .rb-blocks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 .rb-block {
-  border: 1px solid var(--color-border); border-radius: 3px;
+  border: 1px solid var(--color-border); border-radius: 10px;
   background: #fff;
   transition: border-color var(--transition-fast), opacity var(--transition-fast);
 }
@@ -307,20 +307,20 @@
   padding: 10px 12px 12px;
   border-top: 1px dashed var(--color-border);
   background: var(--color-bg-secondary);
-  border-radius: 0 0 3px 3px;
+  border-radius: 0 0 9px 9px;
 }
 .rb-block-opts .rb-sublabel:first-child { margin-top: 0; }
 
 .rb-add { margin-top: 10px; }
 .rb-addmenu {
   list-style: none; margin: 6px 0 0; padding: 5px;
-  border: 1px solid var(--color-border); border-radius: 3px;
+  border: 1px solid var(--color-border); border-radius: 10px;
   background: var(--color-bg-secondary);
   display: flex; flex-direction: column; gap: 2px;
 }
 .rb-addmenu button {
   display: block; width: 100%; text-align: left;
-  padding: 3px 3px; border: none; border-radius: 3px; background: none; cursor: pointer;
+  padding: 7px 9px; border: none; border-radius: 7px; background: none; cursor: pointer;
 }
 .rb-addmenu button:hover { background: #fff; }
 .rb-add-name { display: block; font-size: 0.75rem; font-weight: 700; color: var(--color-text-primary); }
@@ -336,7 +336,7 @@
 .rb-print {
   width: 100%;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 3px; border: none; border-radius: 3px;
+  padding: 11px; border: none; border-radius: 10px;
   background: var(--cdrrmo-red); color: #fff; cursor: pointer;
   font-family: var(--font-body); font-size: 0.875rem; font-weight: 800;
   transition: background var(--transition-fast);
@@ -371,7 +371,7 @@
 }
 .rs-zoom button {
   border: none; background: none; cursor: pointer;
-  padding: 3px 3px; border-radius: var(--radius-full);
+  padding: 3px 10px; border-radius: var(--radius-full);
   font-family: var(--font-body); font-size: 0.6875rem; font-weight: 700;
   color: var(--color-text-secondary);
 }
@@ -379,7 +379,7 @@
 .rs-chip {
   font-weight: 700; color: var(--color-text-secondary);
   background: #fff; border: 1px solid var(--color-border);
-  border-radius: var(--radius-full); padding: 3px 3px;
+  border-radius: var(--radius-full); padding: 3px 9px;
 }
 .rs-sep { width: 1px; height: 12px; background: var(--color-border); }
 .rs-mode.edit { color: var(--cdrrmo-red); font-weight: 700; }
@@ -388,7 +388,7 @@
   position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
   z-index: 60;
   background: var(--cdrrmo-navy); color: #fff;
-  padding: 3px 4px; border-radius: var(--radius-full);
+  padding: 10px 18px; border-radius: var(--radius-full);
   font-size: 0.8125rem; font-weight: 700;
   box-shadow: var(--shadow-lg);
 }
@@ -511,7 +511,7 @@
 .rd-sec-count {
   flex: 0 0 auto; font-size: 0.72em; font-weight: 700; letter-spacing: 0.04em;
   background: var(--accent-soft); color: var(--accent);
-  border-radius: 3px; padding: 1px 3px;
+  border-radius: 3px; padding: 1px 7px;
 }
 
 .rd-prose { font-size: 0.92em; line-height: 1.62; color: #23272E; white-space: pre-wrap; text-align: justify; }
@@ -578,7 +578,7 @@
 .rd-tag {
   display: inline-block;
   font-size: 0.86em; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
-  padding: 0 3px; border-radius: 3px; border: 1px solid; white-space: nowrap;
+  padding: 0 6px; border-radius: 3px; border: 1px solid; white-space: nowrap;
 }
 .rd-tag.tone-high { color: #8B0F11; background: #FBEAEA; border-color: #E3B3B3; }
 .rd-tag.tone-moderate { color: #92400E; background: #FEF2E4; border-color: #F0C79B; }

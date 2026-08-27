@@ -8,7 +8,7 @@
   width: 100%;
   max-width: 440px;
   background: #FFFFFF;
-  border-radius: 3px;
+  border-radius: 20px;
   box-shadow: 0 24px 64px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.1);
   padding: 32px;
   animation: slideInRight 0.7s cubic-bezier(.22,1,.36,1) 0.1s both;
@@ -78,7 +78,7 @@
 .strength-seg {
   flex: 1;
   height: 3px;
-  border-radius: 3px;
+  border-radius: 99px;
   background: var(--color-border);
   transition: background 0.3s ease;
 }
@@ -102,7 +102,7 @@
   background: #F0FDF4;
   border: 1px solid #86EFAC;
   color: #166534;
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 10px 14px;
   font-size: 0.8125rem;
   font-weight: 500;

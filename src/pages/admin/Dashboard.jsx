@@ -21,7 +21,6 @@ import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock } from '../../components/admi
 import {
   useAlerts, useIncidents, useRoadReports, useEvacCenters, useFloodReports, useAdminData,
 } from '../../context/AdminDataContext.jsx'
-import AlertStack from '../../components/dash/AlertStack.jsx'
 import CommandBar from '../../components/dash/CommandBar.jsx'
 import FloodOutlook from '../../components/dash/FloodOutlook.jsx'
 import PulseTicker from '../../components/dash/PulseTicker.jsx'
@@ -505,17 +504,33 @@ export default function Dashboard() {
               {t('Issue Alert')}
             </button>
           </div>
-          {/* Headlines first, message on demand. The full record — including
-              resolve — is still one click away inside the opened row. */}
           <div className="alert-list">
-            <AlertStack
-              alerts={activeAlertList}
-              limit={8}
-              emptyTitle={t('No active alerts.')}
-              emptyHint={t('Alerts issued from this screen or the Alerts page appear here.')}
-              onDetail={(a) => setAlertDetail(a.id)}
-              onResolve={resolveAlertConfirmed}
-            />
+            {activeAlertList.length === 0 ? (
+              <div className="empty-state">{t('No active alerts.')}</div>
+            ) : (
+              activeAlertList.map((a) => (
+                <div
+                  className={`alert-item sev-${a.level}`}
+                  key={a.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setAlertDetail(a.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') setAlertDetail(a.id) }}
+                >
+                  <div className={`alert-stripe ${a.level}`} />
+                  <div className="alert-body">
+                    <div className="alert-title-row">
+                      <span className="alert-name">
+                        {a.level === 'high' && <SirenIcon />}
+                        {a.title}
+                      </span>
+                      <span className="alert-time">{a.issued}</span>
+                    </div>
+                    <div className="alert-desc">{a.barangay} — {a.message}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <button

@@ -3,20 +3,8 @@
    (ported from the original static codebase: assets/css/global.css)
    ============================================================ */
 
-/* --- Typefaces ---------------------------------------------------------
-   Archivo, not Poppins.
-
-   Poppins is a geometric sans with circular bowls and a wide, friendly
-   rhythm. It is the house face of every template dashboard on the internet,
-   and it was the single biggest reason this system looked like every other
-   system. Archivo is a grotesque cut for print and signage: tighter, squarer,
-   with real weight at the top end and numerals that hold a column.
-
-   IBM Plex Mono carries the DATA — timestamps, depths, coordinates, IDs,
-   counts. A figure set in mono reads as an instrument reading rather than as
-   body copy, and it is the detail that makes a console look like a console.
-   ---------------------------------------------------------------------- */
-@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+/* --- Google Fonts --- */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 
 /* --- CSS Variables --- */
 :root {
@@ -46,34 +34,15 @@
   --color-danger:   #C0181B;
   --color-info:     #1A3A7A;
 
-  /* Shadows.
-     A console is drawn with RULES, not with depth. Everything here is one
-     hairline plus, at most, a whisper of lift on something genuinely floating
-     (a modal, a dropdown). Soft 32px drop-shadows under every card are what
-     made the screen look like a pile of loose paper. */
-  --shadow-sm:  0 1px 0 rgba(15, 23, 42, 0.04);
-  --shadow-md:  0 2px 6px rgba(15, 23, 42, 0.07);
-  --shadow-lg:  0 8px 24px rgba(15, 23, 42, 0.13);
-  --shadow-xl:  0 18px 44px rgba(15, 23, 42, 0.20);
+  /* Shadows */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.16);
+  --shadow-xl:  0 16px 48px rgba(0,0,0,0.20);
 
   /* Typography */
-  --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
-  --font-body:    'Archivo', 'Helvetica Neue', Arial, sans-serif;
-  --font-mono:    'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace;
-
-  /* ── Console surface ──────────────────────────────────────────────────
-     The hairline palette the whole product is drawn with. `--rule` is the
-     one border colour; `--rule-strong` is reserved for the line that closes
-     a panel header, so a heading always has a visible foot. */
-  --rule:         #E3E0DA;
-  --rule-strong:  #C9C4BC;
-  --rule-hair:    #EFEDE9;
-  --ink:          #14181F;
-  --ink-2:        #4A5160;
-  --ink-3:        #858C99;
-  --paper:        #FFFFFF;
-  --paper-2:      #F7F5F2;
-  --paper-sunk:   #F1EEE9;
+  --font-display: 'Poppins', sans-serif;
+  --font-body:    'Poppins', sans-serif;
 
   /* Spacing Scale */
   --space-1:  4px;
@@ -87,15 +56,11 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* Border Radius.
-     Flattened hard and on purpose. Pill chips and 16px cards are the visual
-     signature of a template; a 2–4px corner reads as an instrument panel.
-     `--radius-full` survives only for things that are genuinely circular —
-     avatars, status dots, progress rings. */
-  --radius-sm:  2px;
-  --radius-md:  3px;
-  --radius-lg:  4px;
-  --radius-xl:  6px;
+  /* Border Radius */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+  --radius-xl:  24px;
   --radius-full: 9999px;
 
   /* Transitions */

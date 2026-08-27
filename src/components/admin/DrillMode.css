@@ -24,7 +24,7 @@
   gap: 6px;
   border: 1px solid #e5e2dd;
   background: #fff;
-  border-radius: 3px;
+  border-radius: 999px;
   padding: 6px 12px;
   font: inherit;
   font-size: 0.75rem;
@@ -68,7 +68,7 @@
   gap: 7px;
   background: #fff;
   color: #991b1b;
-  border-radius: 3px;
+  border-radius: 6px;
   padding: 4px 10px;
   font-size: 0.75rem;
   font-weight: 900;
@@ -100,7 +100,7 @@
   border: 1px solid rgba(255, 255, 255, 0.5);
   background: #fff;
   color: #991b1b;
-  border-radius: 3px;
+  border-radius: 7px;
   padding: 6px 13px;
   font: inherit;
   font-size: 0.75rem;

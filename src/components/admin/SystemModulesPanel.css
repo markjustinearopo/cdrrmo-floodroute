@@ -32,7 +32,7 @@
   flex-shrink: 0;
   border: 1px solid #e5e2dd;
   background: #fff;
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 8px 14px;
   font-family: var(--font-body);
   font-size: 0.78rem;
@@ -54,7 +54,7 @@
 .sysmod-metric {
   background: #fff;
   border: 1px solid #ece9e3;
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 12px;
   text-align: center;
 }
@@ -87,7 +87,7 @@
   background: #fff;
   border: 1px solid #ece9e3;
   border-left: 3px solid #cbd5e1;
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 13px 14px;
   display: flex;
   flex-direction: column;
@@ -127,7 +127,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 8px;
-  border-radius: 3px;
+  border-radius: 9999px;
   white-space: nowrap;
 }
 .sysmod-status.connected { background: #dcfce7; color: #15803d; }
@@ -150,7 +150,7 @@
   font-size: 0.6rem;
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 3px;
+  border-radius: 99px;
   letter-spacing: 0.02em;
   cursor: help;
 }

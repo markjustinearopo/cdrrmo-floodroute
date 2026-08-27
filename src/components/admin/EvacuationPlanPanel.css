@@ -24,7 +24,7 @@
 
 .ep-note {
   padding: 11px 13px;
-  border-radius: 3px;
+  border-radius: 10px;
   background: #fffbeb;
   border: 1px solid #fde68a;
   font-size: 0.75rem;
@@ -42,7 +42,7 @@
 .ep-tot {
   background: #faf9f7;
   border: 1px solid #ece9e3;
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 10px 12px;
 }
 .ep-tot.muted { opacity: 0.55; }
@@ -73,7 +73,7 @@
 
 .ep-unassigned {
   padding: 11px 13px;
-  border-radius: 3px;
+  border-radius: 10px;
   background: #fef2f2;
   border: 1px solid #fecaca;
   font-size: 0.75rem;

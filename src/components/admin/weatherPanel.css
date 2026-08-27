@@ -8,7 +8,7 @@
   gap: 12px;
   padding: 12px 14px;
   background: linear-gradient(135deg, #1a2a4a, #2a3f6a);
-  border-radius: 4px;
+  border-radius: 12px;
   color: #fff;
 }
 .wx-hero-emoji { font-size: 2.6rem; line-height: 1; }
@@ -27,7 +27,7 @@
   flex-direction: column;
   background: #faf8f4;
   border: 1px solid #efeae1;
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 8px 9px;
 }
 .wx-cell-top { display: flex; align-items: center; gap: 5px; color: #c0181b; }
@@ -39,7 +39,7 @@
 .wx-cell-sub { font-size: 0.58rem; color: #8a8a8a; margin-top: 1px; min-height: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .wx-today { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
-.wx-pill { background: #fff; border: 1px solid #eee7dc; border-radius: 3px; padding: 3px 4px; text-align: center; }
+.wx-pill { background: #fff; border: 1px solid #eee7dc; border-radius: 9px; padding: 7px 4px; text-align: center; }
 .wx-pill-val { font-weight: 800; font-size: 0.82rem; color: #1a2a4a; }
 .wx-pill-lbl { font-size: 0.55rem; color: #8a8a8a; margin-top: 1px; }
 
@@ -62,7 +62,7 @@
 .wx-rain-ticks span { font-size: 0.52rem; color: #b0b0b0; flex: 1; text-align: center; }
 
 .wx-forecast { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-.wx-day { background: #faf8f4; border: 1px solid #efeae1; border-radius: 3px; padding: 3px 2px; text-align: center; }
+.wx-day { background: #faf8f4; border: 1px solid #efeae1; border-radius: 10px; padding: 8px 2px; text-align: center; }
 .wx-day.today { background: #1a2a4a; border-color: #1a2a4a; }
 .wx-day.today .wx-day-name, .wx-day.today .wx-day-temp b, .wx-day.today .wx-day-pop { color: #fff; }
 .wx-day.today .wx-day-temp span { color: #c5cee0; }

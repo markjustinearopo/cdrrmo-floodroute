@@ -16,7 +16,7 @@
 .otp-icon {
   width: 52px;
   height: 52px;
-  border-radius: 4px;
+  border-radius: 14px;
   background: #fef2f2;
   display: grid;
   place-items: center;
@@ -58,7 +58,7 @@
   font-weight: 600;
   line-height: 1.45;
   padding: 10px 12px;
-  border-radius: 3px;
+  border-radius: 9px;
   margin-bottom: 14px;
   text-align: left;
 }
@@ -102,7 +102,7 @@
   color: var(--color-text-primary);
   background: var(--color-bg-tertiary);
   border: 1.5px solid var(--color-border);
-  border-radius: 3px;
+  border-radius: 11px;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 .otp-box.filled {
@@ -201,7 +201,7 @@
   padding: 11px 13px;
   margin-bottom: 16px;
   border: 1px solid var(--color-border);
-  border-radius: 3px;
+  border-radius: 10px;
   background: var(--color-bg-tertiary);
   font-size: 0.8125rem;
   color: var(--color-text-secondary);
@@ -260,6 +260,6 @@
 @media (max-width: 480px) {
   .otp-title { font-size: 1.15rem; }
   .otp-boxes { gap: 6px; }
-  .otp-box { height: 3px; font-size: 1.2rem; border-radius: 3px; }
+  .otp-box { height: 50px; font-size: 1.2rem; border-radius: 10px; }
   .otp-icon { width: 46px; height: 46px; }
 }

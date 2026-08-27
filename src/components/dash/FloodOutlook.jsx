@@ -22,19 +22,14 @@ import './FloodOutlook.css'
    warning under that scale reads this chart without being taught it.
    ============================================================ */
 
-/* PAGASA rainfall-warning bands, in mm per hour.
-
-   `color` fills a bar against white and can be as pale as the scale wants.
-   `ink` is the same band dark enough to SET TYPE in — the two are not
-   interchangeable, and using the fill for the headline figure put a 0.6 in
-   #7dd3fc on white, which is a number nobody can read. */
+/** PAGASA rainfall-warning bands, in mm per hour. */
 const BANDS = [
-  { min: 30, key: 'red', label: 'Red', color: '#dc2626', ink: '#991b1b', blurb: 'Serious flooding expected' },
-  { min: 15, key: 'orange', label: 'Orange', color: '#f97316', ink: '#c2410c', blurb: 'Flooding threatening' },
-  { min: 7.5, key: 'yellow', label: 'Yellow', color: '#eab308', ink: '#a16207', blurb: 'Flooding possible in low-lying areas' },
-  { min: 2.5, key: 'moderate', label: 'Moderate', color: '#38bdf8', ink: '#0369a1', blurb: 'Moderate rain' },
-  { min: 0.1, key: 'light', label: 'Light', color: '#7dd3fc', ink: '#0369a1', blurb: 'Light rain' },
-  { min: -1, key: 'dry', label: 'Dry', color: '#cbd5e1', ink: '#4a5160', blurb: 'No rain expected' },
+  { min: 30, key: 'red', label: 'Red', color: '#dc2626', blurb: 'Serious flooding expected' },
+  { min: 15, key: 'orange', label: 'Orange', color: '#f97316', blurb: 'Flooding threatening' },
+  { min: 7.5, key: 'yellow', label: 'Yellow', color: '#eab308', blurb: 'Flooding possible in low-lying areas' },
+  { min: 2.5, key: 'moderate', label: 'Moderate', color: '#38bdf8', blurb: 'Moderate rain' },
+  { min: 0.1, key: 'light', label: 'Light', color: '#7dd3fc', blurb: 'Light rain' },
+  { min: -1, key: 'dry', label: 'Dry', color: '#cbd5e1', blurb: 'No rain expected' },
 ]
 
 export function bandFor(mm) {
@@ -151,7 +146,7 @@ export default function FloodOutlook({ weather, hours = 12, compact = false, tit
           <span className="fo-sum-lbl">expected over {rows.length} h</span>
         </div>
         <div className="fo-sum-item">
-          <span className="fo-sum-val" style={{ color: peakBand.ink }}>
+          <span className="fo-sum-val" style={{ color: peakBand.color }}>
             {(Number(peak.precipMm) || 0).toFixed(1)}<em>mm/h</em>
           </span>
           <span className="fo-sum-lbl">heaviest, {peak.label}</span>
