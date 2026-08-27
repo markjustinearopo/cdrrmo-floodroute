@@ -7,7 +7,6 @@
    default — that compressed the cards (clipping the road map) and stopped the
    page from ever overflowing, so it couldn't scroll. Pin the dashboard's
    sections to their natural height so the content overflows and .main scrolls. */
-.main > .cb,
 .main > .stat-cards,
 .main > .insight-bar,
 .main > .viz-strip,
@@ -278,11 +277,7 @@
 /* Stack the strip on narrower screens; the skyline keeps its own row. */
 @media (max-width: 1100px) {
   .viz-strip { grid-template-columns: 1fr 1fr; }
-  /* Dropping the skyline onto its own full-width row is right for the old
-     three-across strip, but the two-across strips below only have two tracks
-     to begin with — spanning both there strands the card beside it on a row
-     of its own with nothing in it. */
-  .viz-strip:not(.viz-strip--two):not(.viz-strip--outlook) .viz-sky { grid-column: 1 / -1; }
+  .viz-sky { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
   .viz-strip { grid-template-columns: 1fr; }
@@ -1181,36 +1176,8 @@
 /* The rainfall chart moved out of the insight strip (its slot is now the
    decision strip at the top), so the remaining two cards share the row. */
 .viz-strip--two { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
-/* Forecast gets the wide half — it is a chart with twelve columns in it, and
-   the gauge beside it is a fixed-size ring that gains nothing from width. */
-.viz-strip--outlook { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); }
 @media (max-width: 900px) {
-  .viz-strip--two,
-  .viz-strip--outlook { grid-template-columns: 1fr; }
-}
-
-/* The feed is a list and grows with the day; the skyline is a fixed-height
-   plane of 18 towers. Side by side that leaves the skyline short against a
-   tall neighbour, so it centres in its track instead of pinning to the top
-   and leaving a block of empty card under it. */
-.viz-strip--two .viz-sky { justify-content: center; }
-
-/* The two shared cards drop into the admin grid as first-class panels: same
-   shadow, same hover lift, same entrance as the section cards around them. */
-.viz-strip > .fo-card,
-.viz-strip > .pt-card {
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .viz-strip > .fo-card,
-  .viz-strip > .pt-card {
-    transition: transform 0.16s ease, box-shadow 0.16s ease;
-  }
-  .viz-strip > .fo-card:hover,
-  .viz-strip > .pt-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.09);
-  }
+  .viz-strip--two { grid-template-columns: 1fr; }
 }
 
 /* Decision strip + the one-tap SITREP, side by side at the top. */

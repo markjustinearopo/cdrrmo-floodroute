@@ -17,15 +17,10 @@ import { useLiveWeather, formatRain } from '../../services/weather.js'
 import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
 import {
   useAlerts, useEvacCenters, useIncidents, useRoadRequests, useBarangayAssignments,
-  useFloodReports, useRoadReports,
 } from '../../context/AdminDataContext.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
-import FloodOutlook from '../../components/dash/FloodOutlook.jsx'
-import DepthGauge from '../../components/dash/DepthGauge.jsx'
-import PulseTicker from '../../components/dash/PulseTicker.jsx'
-import { useCountUp } from '../../components/dash/dashHooks.js'
 import './Barangay.css'
 import { alertAppliesTo } from '../../data/cabuyao.js'
 
@@ -66,8 +61,6 @@ export default function Dashboard() {
   const { incidents } = useIncidents()
   const { roadChangeRequests } = useRoadRequests()
   const { barangayAssignments } = useBarangayAssignments()
-  const { floodReports } = useFloodReports()
-  const { roadReports } = useRoadReports()
   const { weather } = useLiveWeather()
   const [statusMap] = useRoadStatus()
 
@@ -145,23 +138,6 @@ export default function Dashboard() {
           <Stat color="green" icon={<HomeIcon />} value={openShelters} label="Open Shelters" />
         </div>
 
-        {/* ── What the number actually means, and what is coming ──
-            "0.62 m" is the one form of this reading a captain standing in
-            front of the water cannot use. The gauge draws it against a person
-            and a car; the outlook says whether it is about to get worse. */}
-        <div className="bq-insight">
-          <div className="bq-panel bq-depth-panel">
-            <div className="bq-panel-head">
-              <div className="bq-panel-title"><DropletIcon /> Depth In Context</div>
-              <span className="bq-panel-note" title="Modeled from the live rainfall and terrain — not a gauge reading">
-                Model estimate
-              </span>
-            </div>
-            <DepthGauge depth={floodDepth} label={`Brgy. ${brgyLabel}`} />
-          </div>
-          <FloodOutlook weather={weather} hours={12} />
-        </div>
-
         {/* ── Map + side panel ── */}
         <div className="bq-grid">
           {/* Jurisdiction map */}
@@ -234,10 +210,7 @@ export default function Dashboard() {
                 </div>
                 <div className="bq-kv">
                   <div className="bq-kv-label">Response Readiness</div>
-                  <div className="bq-kv-val bq-kv-ready">
-                    <ReadinessRing done={readyCount} total={6} />
-                    {readyCount}/6
-                  </div>
+                  <div className="bq-kv-val">{readyCount}/6</div>
                 </div>
                 <div className="bq-kv">
                   <div className="bq-kv-label">Live Rainfall</div>
@@ -282,24 +255,6 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-
-            {/* Everything happening in this barangay, in one column: the
-                captain's own reports, the residents', and what the command
-                centre has issued back. */}
-            <PulseTicker
-              alerts={allAlerts}
-              incidents={incidents}
-              floodReports={floodReports}
-              roadReports={roadReports}
-              barangay={myBrgy}
-              limit={6}
-              title="Live Activity"
-              onOpen={(kind) => {
-                if (kind === 'alert') navigate('/barangay/alerts')
-                else if (kind === 'incident') navigate('/barangay/incidents')
-                else navigate('/barangay/road-status')
-              }}
-            />
           </div>
         </div>
       </div>
@@ -307,42 +262,12 @@ export default function Dashboard() {
   )
 }
 
-/**
- * Readiness as a ring rather than a fraction. Six BDRRMC items is a small
- * enough number that "4/6" is readable, but a ring is readable without being
- * read — a captain glancing at this panel sees an incomplete circle before
- * they see any digits.
- */
-function ReadinessRing({ done, total }) {
-  const R = 9
-  const C = 2 * Math.PI * R
-  const pct = total > 0 ? Math.min(1, done / total) : 0
-  const tone = pct >= 1 ? '#16a34a' : pct >= 0.5 ? '#f97316' : '#dc2626'
-  return (
-    <svg className="bq-ring" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r={R} className="bq-ring-track" />
-      <circle
-        cx="12" cy="12" r={R}
-        className="bq-ring-arc"
-        stroke={tone}
-        strokeDasharray={`${(C * pct).toFixed(2)} ${(C * (1 - pct)).toFixed(2)}`}
-      />
-    </svg>
-  )
-}
-
-/* ── Stat card ──
-   Numbers ease to their new value instead of snapping, the same way the
-   command centre's cards do — a figure that changes while somebody is looking
-   at this screen should announce itself. Text values (a risk label) pass
-   straight through. */
+/* ── Stat card ── */
 function Stat({ color, icon, value, label }) {
-  const animated = useCountUp(value)
-  const shown = typeof animated === 'number' ? Math.round(animated).toLocaleString() : animated
   return (
     <div className={`bq-stat ${color}`}>
       <div className="bq-stat-icon">{icon}</div>
-      <div className="bq-stat-val">{shown}</div>
+      <div className="bq-stat-val">{value}</div>
       <div className="bq-stat-lbl">{label}</div>
     </div>
   )
