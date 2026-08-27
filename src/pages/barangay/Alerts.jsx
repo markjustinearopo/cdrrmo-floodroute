@@ -78,10 +78,12 @@ export default function Alerts() {
     }
     addAlert(alert)
     setShowModal(false)
-    flash(`Alert broadcast to Brgy. ${brgyLabel} — notifying residents…`)
-    /* An alert a barangay official raises reaches their residents on the same
-       channels a CDRRMO one does. "Broadcast" was previously true only of the
-       screens people already had open. */
+    flash(`Alert raised for Brgy. ${brgyLabel} — notifying open screens…`)
+    /* A barangay alert still fans out: it is recorded, it lands on every open
+       screen, and it emails. It does NOT text. Emergency SMS is CDRRMO's to
+       send (see sendAlertSms), so the wording here promises screens rather
+       than handsets — the previous "notifying residents…" was a promise this
+       call could not keep, which is the worst thing an alert screen can say. */
     dispatchAlert(alert).then((res) => {
       const detail = describeDispatch(res)
       if (detail) flash(`Brgy. ${brgyLabel} — ${detail}.`)

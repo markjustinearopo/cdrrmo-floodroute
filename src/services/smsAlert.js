@@ -15,8 +15,24 @@
    ============================================================ */
 
 import supabase from './supabase.js'
+import api from './api.js'
 import { loadAlertSettings } from '../context/AdminDataContext.jsx'
 import { isDrillActive } from './drillMode.js'
+
+/**
+ * The signed-in account, or null. Sending SMS is restricted to CDRRMO
+ * administrators, and the function verifies this id against `accounts` — so
+ * this is who we CLAIM to be, not proof of it. See the gate in
+ * supabase/functions/sms-alert/index.ts for what that is and is not worth.
+ */
+function actor() {
+  try { return api.getUser() } catch { return null }
+}
+
+/** True when the signed-in account may send SMS at all. */
+export function canSendSms() {
+  return actor()?.role === 'admin'
+}
 
 /**
  * The SMS service could not be reached at all — not deployed, or the network
@@ -106,6 +122,14 @@ export async function sendAlertSms({ level, title, message, barangay, alertId } 
     console.info('[drill] outbound SMS blocked:', title)
     return { skipped: true, blockedByDrill: true }
   }
+  /* SMS is CDRRMO's alone. A barangay official raising an alert still gets it
+     recorded, shown on every open screen and emailed — but the text goes out
+     from the city, not from eighteen barangays independently. One siren, one
+     hand on it: residents in overlapping areas do not get the same warning
+     three times from three officials, and nobody has to work out afterwards
+     who actually sent what. The server enforces this too; this check is here
+     so the UI can say so instead of failing at the network. */
+  if (!canSendSms()) return { skipped: true, reason: 'not-authorised' }
   const cfg = loadAlertSettings()
   if (!cfg.sms) return { skipped: true, reason: 'channel-off' }
   /* Alert Settings → "Send alerts to → Registered residents".
@@ -118,12 +142,12 @@ export async function sendAlertSms({ level, title, message, barangay, alertId } 
      residents, and one who turned it ON to start reaching them changed
      nothing and had no way to tell. It now means what it says. */
   if (!cfg.toResidents) return { skipped: true, reason: 'residents-off' }
-  return call('broadcast', { level, title, message, barangay, alertId })
+  return call('broadcast', { level, title, message, barangay, alertId, actorId: actor()?.id })
 }
 
 /** Send one test message, to prove the provider works before it is needed. */
 export function sendTestSms(phone) {
-  return call('test', { phone })
+  return call('test', { phone, actorId: actor()?.id })
 }
 
 /** Recent sends, phone numbers masked — the operator's audit panel. */

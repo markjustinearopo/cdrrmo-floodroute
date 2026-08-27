@@ -239,7 +239,13 @@ export default function EmergencySmsCard({ compact = false }) {
           <p>
             {stage === 'done'
               ? `We will text ${formatPhone(saved)} when CDRRMO raises an emergency for Brgy. ${brgyLabel}.`
-              : 'Get a text the moment CDRRMO raises a flood emergency for your barangay — even if you never open this site.'}
+              /* "your barangay, and citywide in an emergency" is the literal
+                 rule the broadcast now follows: advisories are scoped, but an
+                 EMERGENCY ignores barangay lines because floodwater does. Worth
+                 the extra clause — a resident who signs up expecting only local
+                 texts should not be surprised by a citywide one, and a resident
+                 outside the named barangay should know they are still covered. */
+              : 'Get a text the moment CDRRMO raises a flood emergency — for your barangay, and citywide when it is an emergency. Even if you never open this site.'}
           </p>
         </div>
       </div>

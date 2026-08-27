@@ -18,6 +18,7 @@ import { usePersistedState } from '../../utils/usePersistedState.js'
 import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import { useAlerts, useEvacCenters, useBarangayAssignments } from '../../context/AdminDataContext.jsx'
+import EmergencySmsCard from '../../components/resident/EmergencySmsCard.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
@@ -204,6 +205,16 @@ export default function Dashboard() {
             <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /><path d="M9 14c1 1 2 1 3 0s2-1 3 0" /></svg>
             Report Flood Status
           </button>
+
+          {/* Emergency text sign-up, on the landing page and not only under
+              Alerts. The point of the SMS channel is reaching residents who are
+              NOT looking at this site, and the only way to enrol was a card on
+              a page you had to already be browsing to find. Putting it on the
+              screen every resident lands on is what makes "all residents can
+              give us their number" true rather than technically available.
+              The card no-ops for anyone already verified, so it costs a
+              subscribed resident nothing. */}
+          <EmergencySmsCard />
 
           <div className="res-map-card">
             <div className="res-map">

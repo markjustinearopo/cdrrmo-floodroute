@@ -83,6 +83,12 @@ export function describeDispatch(result) {
     if (!delivered && !simulated && !queued && !sms.failed) parts.push('no SMS subscribers yet')
   } else if (sms?.reason === 'channel-off') {
     parts.push('SMS channel off')
+  } else if (sms?.reason === 'not-authorised') {
+    /* Said out loud rather than left blank. A barangay official who raises an
+       alert and reads only "alert issued" would reasonably assume residents
+       were texted; they were not, and knowing that is what lets them phone
+       CDRRMO if the situation needs the siren. */
+    parts.push('no SMS — texting residents is CDRRMO-only')
   } else if (sms?.reason === 'residents-off') {
     /* Named separately from 'channel-off' on purpose: the fix is a different
        switch, and "SMS channel off" would send the operator to the wrong one

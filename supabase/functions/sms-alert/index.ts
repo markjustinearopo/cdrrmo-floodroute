@@ -455,6 +455,43 @@ serve(async (req) => {
       return json({ sent: true, provider: res.provider, simulated: Boolean(res.simulated) })
     }
 
+    /* ── Broadcast and test are CDRRMO-only ───────────────────────────────
+       Texting every resident in the city is the most consequential thing this
+       system does, and until now `broadcast` was reachable with the anon key —
+       which ships inside the browser bundle, so any visitor who opened dev
+       tools could have done it. Same for `test`, which burns real credits and
+       texts a number the caller picks.
+
+       HOW STRONG THIS IS, STATED PLAINLY. The app does not use Supabase Auth:
+       sign-in goes through the app_login RPC and the session token is the
+       literal string `local-<id>`, which proves nothing. So there is no JWT
+       here to verify, and this check looks the claimed actor up in `accounts`
+       and requires role='admin' AND status='active'. That stops every casual
+       caller and every barangay or resident account, including one driving the
+       API by hand. It does NOT stop someone who knows an administrator's
+       numeric id and crafts a request, because nothing in the current session
+       model can. Closing that last gap means real signed sessions — see
+       README — and this gate is written so it becomes a JWT check in one place
+       when they arrive, rather than a rule scattered across call sites. */
+    if (action === 'broadcast' || action === 'test') {
+      const auth = req.headers.get('authorization') || ''
+      const token = auth.replace(/^Bearer\s+/i, '').trim()
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+      // The service role (AutoAlertWatcher, cron, our own tooling) always passes.
+      const isService = Boolean(serviceKey) && token === serviceKey
+      if (!isService) {
+        const actorId = Number(body.actorId)
+        if (!Number.isInteger(actorId)) {
+          return json({ error: 'Only CDRRMO administrators can send SMS alerts.' }, 403)
+        }
+        const { data: actor } = await db
+          .from('accounts').select('id, role, status').eq('id', actorId).maybeSingle()
+        if (!actor || actor.role !== 'admin' || actor.status !== 'active') {
+          return json({ error: 'Only CDRRMO administrators can send SMS alerts.' }, 403)
+        }
+      }
+    }
+
     /* ── What is configured? (no secrets leave this function) ─────────── */
     if (action === 'config') {
       const provider = activeProvider()
@@ -592,8 +629,17 @@ serve(async (req) => {
 
       /* A city-wide alert goes to everyone; a barangay alert goes to that
          barangay AND to numbers with no barangay recorded — a resident who did
-         not say where they live is better over-warned than missed. */
-      if (barangay && barangay !== 'All' && barangay !== 'All Barangays') {
+         not say where they live is better over-warned than missed.
+
+         EMERGENCY IGNORES THE SCOPE ENTIRELY. At that tier the message is
+         "leave now", and the boundary of a flood is not the boundary of a
+         barangay: the people on the next street over are in the water too, and
+         the roads out of an emergency barangay run through its neighbours.
+         Over-warning the city costs a text; under-warning the street outside
+         the line costs more than this system is allowed to cost. So the
+         severity, not the operator's dropdown, decides the reach. */
+      const cityWide = level === 'emergency'
+      if (!cityWide && barangay && barangay !== 'All' && barangay !== 'All Barangays') {
         q = q.or(`barangay.eq.${barangay},barangay.is.null`)
       }
 
