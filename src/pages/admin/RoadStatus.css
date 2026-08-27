@@ -786,3 +786,41 @@
     border-top: 1px solid #e5e2dd;
   }
 }
+
+/* ── Phone ───────────────────────────────────────────────────────────────
+   The mode switch (Conditions / Traffic) chooses what every tap on the map
+   does next, and the brush picks what it paints. Both were mouse-sized, on a
+   screen where a mis-tap edits the wrong road. */
+@media (max-width: 760px) {
+  .road-status .rs-mode,
+  .road-status .rs-brush {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  /* "Clear all" wipes the whole board and was a 16px text link. Give it a
+     real target — and enough padding that it is not adjacent to a brush. */
+  .road-status .rs-clear {
+    min-height: 40px;
+    padding: 8px 12px;
+  }
+
+  /* The flagged-road list is the longest list in the app — 231 rows in the
+     seeded flood scenario — and each row pairs an 18px name with a 20px
+     delete button. At that size the two are one fingertip apart, so the tap
+     that was meant to inspect a road un-flags it instead. Rows get taller,
+     and the destructive control gets its own 40px box. */
+  .road-status .rs-flagged-row {
+    padding: 6px 8px;
+    gap: 10px;
+  }
+  .road-status .rs-flagged-name {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+  }
+  .road-status .rs-flagged-x {
+    width: 40px;
+    height: 40px;
+  }
+}

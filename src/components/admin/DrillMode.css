@@ -161,3 +161,14 @@
   .drill-clock { margin-left: 0; }
   .drill-headline { width: 100%; font-size: 0.75rem; }
 }
+
+/* ── Phone ───────────────────────────────────────────────────────────────
+   The Drill button rides in the header on EVERY admin page, so its 33px is
+   33px on nineteen screens. */
+@media (max-width: 760px) {
+  .drill-launch {
+    min-height: 40px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}

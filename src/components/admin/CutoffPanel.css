@@ -255,3 +255,16 @@
   .cut-name { width: 118px; }
   .cut-val { width: 68px; }
 }
+
+/* ── Phone ───────────────────────────────────────────────────────────────
+   "Show all 18 barangays" and "How this is calculated" are the panel's only
+   two controls, and both were 18px text links. */
+@media (max-width: 760px) {
+  .cut-more,
+  .cut-how {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 2px;
+  }
+}

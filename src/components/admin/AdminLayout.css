@@ -1220,3 +1220,17 @@
     font-size: 0.6875rem;
   }
 }
+
+/* ── Phone: account panel ────────────────────────────────────────────────
+   The close "×" was 30px, and it is the only way out of the panel on a
+   phone; the profile buttons under it were 36-38px. */
+@media (max-width: 760px) {
+  .account-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .btn-primary-sm,
+  .btn-soft {
+    min-height: 44px;
+  }
+}

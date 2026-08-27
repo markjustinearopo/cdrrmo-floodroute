@@ -394,11 +394,23 @@ select {
 
 /* Entrance slides translate 32px sideways. `.auth-body` clips overflow-x so
    they cannot scroll the page, but on a phone the motion is large relative to
-   the viewport and reads as a layout glitch rather than a flourish. */
+   the viewport and reads as a layout glitch rather than a flourish — the card
+   spends its first frames visibly off the right edge.
+
+   Only `.brand-panel` is handled here, because only its animation is declared
+   here. `.login-card` and `.register-card` set an `animation:` SHORTHAND in
+   Login.css / Register.css, and both files are imported AFTER this one:
+
+       import './auth.css'      <- this file
+       import './Register.css'  <- wins every tie
+
+   A media query adds no specificity, so an `animation-name` written here loses
+   the tie to a later shorthand and silently does nothing. That is exactly what
+   happened: this block used to list all three selectors, and on a phone the two
+   cards kept sliding in sideways while only the brand panel obeyed. Each card's
+   override now lives beside the shorthand it has to beat. */
 @media (max-width: 760px) {
-  .brand-panel,
-  .login-card,
-  .register-card {
+  .brand-panel {
     animation-name: fadeUp;
     animation-duration: 0.45s;
   }

@@ -308,3 +308,20 @@
   .smsp-spinner { animation: none; }
   .smsp-toggle svg { transition: none; }
 }
+
+/* ── Phone ───────────────────────────────────────────────────────────────
+   "Show recent messages" is how an operator checks whether an alert actually
+   reached anyone; it was a 14px text row. The refresh control next to it was
+   30px. */
+@media (max-width: 760px) {
+  .smsp-toggle {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .smsp-refresh {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}

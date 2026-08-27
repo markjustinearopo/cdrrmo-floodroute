@@ -393,3 +393,15 @@
     min-height: 44px;
   }
 }
+
+/* ── Phone: scope and section pickers ────────────────────────────────────
+   The report builder is one long column of chip rows (19 barangays, then
+   sections, then overlays) at 28px each. */
+@media screen and (max-width: 760px) {
+  .rb-chip {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+  }
+}

@@ -764,4 +764,66 @@
     font-size: 0.875rem;
     min-height: 40px;
   }
+
+  /* ── Shared controls: bigger target, smaller footprint ──────────────────
+     These two classes are most of the admin UI — every filter chip and every
+     primary button on Alerts, Incidents, Evacuation, Flood Reports,
+     Notifications and Settings. Sized for a mouse they came out at 34px and
+     36-38px, so on a phone the whole portal read as a field of near-misses.
+
+     Height goes UP to the 44px this app treats as comfortable; horizontal
+     padding comes DOWN to pay for it. That is not a compromise between the
+     two complaints — a chip row that fits six chips instead of four wraps to
+     fewer lines, so the screen gets shorter AND easier to hit at once. */
+  .mng-chip {
+    min-height: 44px;
+    padding: 7px 12px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.8125rem;
+  }
+  .mng-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+  }
+
+  /* The filter row is a horizontal list of chips that was wrapping to four
+     lines on a 375px screen. One scrolling row keeps the table in view; the
+     chips inside must not be squeezed by it. */
+  .mng-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    gap: 7px;
+    padding-bottom: 2px;
+  }
+  .mng-filters::-webkit-scrollbar { display: none; }
+  .mng-filters > * { flex: 0 0 auto; }
+
+  /* Row-selection checkboxes drive the bulk actions on Incidents and Flood
+     Reports. Unlike the resident checklists — where the <label> wraps the box
+     and the whole 60px row is the target — these sit bare in a table cell, so
+     16px really is 16px. Widen the cell to match. */
+  .mng-table th.mng-check-col,
+  .mng-table td.mng-check-col { width: 44px; }
+  .mng-check-col input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    accent-color: #c0181b;
+  }
+}
+
+/* ── Phone: in-row action links ──────────────────────────────────────────
+   "Resolve", "Manage", "View" are the per-row actions on every table in the
+   admin and barangay portals — the control an operator taps most, and at
+   26px the smallest one on the page. They sit inside table rows, so the
+   height has to come from padding rather than a taller row. */
+@media (max-width: 760px) {
+  .mng-link {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+  }
 }

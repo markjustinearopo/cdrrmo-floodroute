@@ -20,6 +20,21 @@
   to   { opacity: 1; transform: translateX(0); }
 }
 
+/* On a phone a 32px sideways slide is ~9% of the viewport: the card starts
+   visibly off the right edge and reads as a broken layout, not a flourish.
+   Swap it for the small vertical fade.
+
+   This has to live here, not in auth.css's phone block, because the shorthand
+   above sets animation-name too and this file is imported second — a media
+   query adds no specificity, so whichever declaration comes LAST in source
+   order wins the tie. Keep this rule after the shorthand it overrides. */
+@media (max-width: 760px) {
+  .login-card {
+    animation-name: fadeUp;
+    animation-duration: 0.45s;
+  }
+}
+
 /* ── Role section label ── */
 .section-label {
   font-size: 0.6875rem;

@@ -238,3 +238,23 @@
     justify-content: center;
   }
 }
+
+/* ── Phone: the tab strip is this page's navigation ──────────────────────
+   Generate / Draw / Override / Saved were 21px tall — the smallest targets
+   in the portal, and the only way to reach three of the four tools on the
+   page. Height is the fix; the labels are already short enough that the row
+   still fits without scrolling. */
+@media (max-width: 760px) {
+  .rt-tab {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .rt-type {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}

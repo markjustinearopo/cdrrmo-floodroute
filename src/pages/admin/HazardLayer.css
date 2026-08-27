@@ -590,3 +590,12 @@
   .hazard .hz-range::-webkit-slider-thumb { width: 24px; height: 24px; }
   .hazard .hz-range::-moz-range-thumb { width: 24px; height: 24px; }
 }
+
+/* ── Phone ───────────────────────────────────────────────────────────────
+   "Refresh feeds" re-pulls the live Open-Meteo data; at 31px it was easy to
+   miss and easy to hit twice. */
+@media (max-width: 760px) {
+  .hazard .hz-refresh {
+    min-height: 40px;
+  }
+}

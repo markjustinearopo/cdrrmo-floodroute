@@ -270,7 +270,10 @@
 
 @media (max-width: 760px) {
   .esms-row { gap: 7px; }
-  .esms-btn { flex: 1 1 100%; padding: 12px; }
+  /* 12px of padding around a 13px label lands at 39px — a pixel under the
+     40px this app treats as the minimum, on the one control that opts a
+     resident into flood warnings reaching their handset. */
+  .esms-btn { flex: 1 1 100%; padding: 12px; min-height: 44px; }
   .esms-prefix { display: none; }
 }
 
