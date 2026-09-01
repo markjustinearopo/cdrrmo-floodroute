@@ -46,7 +46,10 @@ export default function RouteResultPanel({
   const fast = plan.fast
   const lvl = riskLevel(safe.meanRisk)
   const etaLabel = walkEta ? 'Walk ETA' : 'Drive ETA'
-  const etaValue = walkEta ? formatWalkEta(safe.distanceM) : formatMins(safe.driveMins)
+  // Paced off this route's own flood exposure, same as the resident-facing
+  // pages — an operator previewing an evacuation route should see the same
+  // "this path wades" reality a resident would, not a flat dry-ground pace.
+  const etaValue = walkEta ? formatWalkEta(safe.distanceM, { meanRisk: safe.meanRisk }) : formatMins(safe.driveMins)
   const canAvoid = Boolean(onAvoid)
 
   return (
