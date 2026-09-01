@@ -2,6 +2,8 @@
 import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, Marker, Popup, GeoJSON } from 'react-leaflet'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
+import { MapGuideButton } from '../../components/MapGuide.jsx'
+import { barangayFloodMapSteps } from '../../components/mapGuideSteps.jsx'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import {
   CABUYAO_CENTER,
@@ -202,6 +204,10 @@ export default function FloodMap() {
           <span className={`bq-juris-badge risk-badge ${myLevel}`} style={{ marginLeft: 'auto', alignSelf: 'center' }}>
             Your barangay: {RISK_META[myLevel].label}
           </span>
+          {/* Barangay officials are the least-trained users of a map screen
+              this dense, and they use it under pressure. The walkthrough is
+              always one click away, never auto-opened, never hidden again. */}
+          <MapGuideButton steps={barangayFloodMapSteps} title="How to use the Flood Map" />
           <JurisdictionToggle value={view} onChange={setView} brgyLabel={brgyLabel} />
           <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>

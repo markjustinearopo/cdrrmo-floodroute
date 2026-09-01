@@ -24,6 +24,8 @@ import {
 import { useRouteGraph, planRoute, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
 import { useFloodRisk } from '../../components/admin/floodRisk.js'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import { MapGuideButton } from '../../components/MapGuide.jsx'
+import { barangayRoutingSteps } from '../../components/mapGuideSteps.jsx'
 import RouteSketch3DView from '../../components/admin/RouteSketch3DView.jsx'
 import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
 import { useEvacCenters, useSavedRoutes } from '../../context/AdminDataContext.jsx'
@@ -203,6 +205,7 @@ export default function EvacuationRouting() {
             >
               <SparkIcon /> Auto-suggest
             </button>
+            <MapGuideButton steps={barangayRoutingSteps} title="How to use Evacuation Routing" />
           </div>
 
           <JurisdictionToggle value={view} onChange={setView} brgyLabel={brgyLabel} />

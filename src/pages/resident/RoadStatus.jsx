@@ -9,6 +9,8 @@ import {
   useRoadStatus,
 } from '../../components/admin/routingHelpers.jsx'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import { MapGuideButton } from '../../components/MapGuide.jsx'
+import { residentRoadStatusSteps } from '../../components/mapGuideSteps.jsx'
 import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
@@ -115,6 +117,7 @@ export default function RoadStatus() {
             OpenStreetMap · {roads ? `${roads.features.length.toLocaleString()} roads` : 'Overpass'}
           </div>
 
+          <MapGuideButton steps={residentRoadStatusSteps} title="How to use Road Status" />
           <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>
 

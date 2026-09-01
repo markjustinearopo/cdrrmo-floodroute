@@ -8,6 +8,8 @@ import { useFloodRiskAtScrub, NEUTRAL_FIELD, barangayRiskSamples } from '../../c
 import { useLiveWeather, hourlyAt } from '../../services/weather.js'
 import TimeScrubber, { ForecastBadge } from '../../components/admin/TimeScrubber.jsx'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import { MapGuideButton } from '../../components/MapGuide.jsx'
+import { adminRoutingSteps } from '../../components/mapGuideSteps.jsx'
 import GenerateTab from '../../components/admin/routing/GenerateTab.jsx'
 import DrawTab from '../../components/admin/routing/DrawTab.jsx'
 import OverrideTab from '../../components/admin/routing/OverrideTab.jsx'
@@ -151,6 +153,10 @@ export default function Routing() {
           )}
 
           <div className="rt-toolbar-end">
+            {/* One walkthrough for all four tabs: they are four ways of doing
+                the same thing, and the confusion this answers is mostly about
+                which one to pick. */}
+            <MapGuideButton steps={adminRoutingSteps} title="How to use Routing" />
             {/* 3D is only wired on Generate — the other tabs are 2D editors. */}
             {active === 'generate' && <MapViewToggle value={use3D} onChange={setUse3D} />}
           </div>

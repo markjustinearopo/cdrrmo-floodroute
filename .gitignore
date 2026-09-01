@@ -14,3 +14,7 @@ supabase/.temp
 # committing one would be a far worse leak than anything it was taken to guard
 # against. Never remove this line.
 backups/
+
+# Scratch backup written by scripts/enrich-road-names.mjs before it rewrites
+# the road network. Regenerable, ~840 KB, and never the source of truth.
+src/data/.roads.bak.json

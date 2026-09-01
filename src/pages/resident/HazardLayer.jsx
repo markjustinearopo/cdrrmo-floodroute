@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip } from 'react-leaflet'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
+import { MapGuideButton } from '../../components/MapGuide.jsx'
+import { residentHazardSteps } from '../../components/mapGuideSteps.jsx'
 import {
   CABUYAO_CENTER,
   CABUYAO_ZOOM,
@@ -108,6 +110,7 @@ export default function HazardLayer() {
             <span className={`hz-live-dot ${loading ? 'loading' : ''}`} />
             Live · Updated {updated} PHT
           </div>
+          <MapGuideButton steps={residentHazardSteps} title="How to read the hazard layers" />
         </div>
 
         <div className="hz-body">

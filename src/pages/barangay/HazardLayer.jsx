@@ -19,6 +19,8 @@ import {
 } from '../../components/admin/floodRisk.js'
 import { BarangayRiskLayer, InundationGrid } from '../../components/admin/BarangayRiskLayer.jsx'
 import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
+import { MapGuideButton } from '../../components/MapGuide.jsx'
+import { barangayHazardSteps } from '../../components/mapGuideSteps.jsx'
 import { useBarangayLayers, addEvacCentersLayer, updateEvacCentersData, setMapLayerVisible } from '../../components/admin/mapbox3dHelpers.js'
 import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import { useLiveWeather } from '../../services/weather.js'
@@ -122,6 +124,7 @@ export default function HazardLayer() {
             <span className={`hz-live-dot ${loading ? 'loading' : ''}`} />
             Live · Updated {updated} PHT
           </div>
+          <MapGuideButton steps={barangayHazardSteps} title="How to read the hazard layers" />
           <JurisdictionToggle value={view} onChange={setView} brgyLabel={brgyLabel} />
           <MapViewToggle value={use3D} onChange={setUse3D} />
         </div>

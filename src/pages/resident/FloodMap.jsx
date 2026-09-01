@@ -2,6 +2,8 @@
 import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, Marker, Popup, GeoJSON, useMap } from 'react-leaflet'
 import { useNavigate } from 'react-router-dom'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
+import { MapGuideButton } from '../../components/MapGuide.jsx'
+import { residentFloodMapSteps } from '../../components/mapGuideSteps.jsx'
 import { MapLayerToggles } from '../../components/admin/MapLayerToggles.jsx'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
@@ -265,6 +267,10 @@ export default function FloodMap() {
             <MapIcon />
             Cabuyao City · Live Map
           </button>
+          {/* Left of the report button, so the `margin-left: auto` that pushes
+              Report + risk badge to the right edge still has exactly one item
+              to start from. */}
+          <MapGuideButton steps={residentFloodMapSteps} title="How to use the Flood Map" />
           <button
             type="button"
             className="report-flood-btn"

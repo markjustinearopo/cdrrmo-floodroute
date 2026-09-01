@@ -4,6 +4,8 @@ import { MapContainer, TileLayer, ZoomControl, Tooltip, Polyline, Marker, Popup,
 import L from 'leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import { MapGuideButton } from '../../components/MapGuide.jsx'
+import { adminFloodMapSteps } from '../../components/mapGuideSteps.jsx'
 import {
   CABUYAO_CENTER,
   CABUYAO_ZOOM,
@@ -332,6 +334,11 @@ export default function FloodMap() {
             System Modules
             <ExternalIcon />
           </Link>
+          {/* The illustrated walkthrough of this screen. It never auto-opens
+              and is never dismissed for good — an operator who has not worked
+              a flood in months should be able to reach the instructions
+              without asking anyone. */}
+          <MapGuideButton steps={adminFloodMapSteps} title="How to use the Flood Map" />
           {/* 2D (classic Leaflet) ⇄ 3D (Mapbox terrain) — only the live map. */}
           {subtab === 'live' && <MapViewToggle value={use3D} onChange={setUse3D} />}
         </div>

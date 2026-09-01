@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import './routingGuide.css'
+import MapGuide from '../MapGuide.jsx'
 
 /* ============================================================
    RoutingGuide — the "how do I use this?" walkthrough for residents.
@@ -19,6 +18,11 @@ import './routingGuide.css'
 
    Dismissal is remembered per browser. "Show this again" lives on the routing
    page itself, so nobody is permanently locked out of the instructions.
+
+   The dialog itself (paging, keyboard, artwork styles) is now the shared
+   MapGuide, because CDRRMO and the barangays asked for the same walkthrough on
+   their own map screens. Only the resident steps and the first-run behaviour
+   stay here — the operator screens deliberately have neither.
    ============================================================ */
 
 const SEEN_KEY = 'cdrrmo_resident_routing_guide_seen'
@@ -59,16 +63,16 @@ export function resetRoutingGuide() {
 
 function ArtPin() {
   return (
-    <svg viewBox="0 0 260 150" className="rguide-art" role="img" aria-label="A map with your location pinned">
-      <rect x="0" y="0" width="260" height="150" rx="12" className="rg-bg" />
-      <path d="M18 118 L74 74 L128 96 L186 44 L244 66" className="rg-road" />
-      <path d="M40 30 L96 62 L108 128" className="rg-road rg-road--thin" />
-      <path d="M196 20 L172 88 L232 122" className="rg-road rg-road--thin" />
-      <g className="rg-pop">
-        <circle cx="112" cy="88" r="26" className="rg-halo" />
-        <circle cx="112" cy="88" r="9" className="rg-you" />
+    <svg viewBox="0 0 260 150" className="mguide-art" role="img" aria-label="A map with your location pinned">
+      <rect x="0" y="0" width="260" height="150" rx="12" className="mg-bg" />
+      <path d="M18 118 L74 74 L128 96 L186 44 L244 66" className="mg-road" />
+      <path d="M40 30 L96 62 L108 128" className="mg-road mg-road--thin" />
+      <path d="M196 20 L172 88 L232 122" className="mg-road mg-road--thin" />
+      <g className="mg-pop">
+        <circle cx="112" cy="88" r="26" className="mg-halo" />
+        <circle cx="112" cy="88" r="9" className="mg-you" />
       </g>
-      <g className="rg-chip" transform="translate(20 12)">
+      <g className="mg-chip" transform="translate(20 12)">
         <rect width="112" height="24" rx="12" />
         <text x="14" y="16">Find my location</text>
       </g>
@@ -78,17 +82,17 @@ function ArtPin() {
 
 function ArtRoute() {
   return (
-    <svg viewBox="0 0 260 150" className="rguide-art" role="img" aria-label="A safe route bending around a flooded street">
-      <rect x="0" y="0" width="260" height="150" rx="12" className="rg-bg" />
+    <svg viewBox="0 0 260 150" className="mguide-art" role="img" aria-label="A safe route bending around a flooded street">
+      <rect x="0" y="0" width="260" height="150" rx="12" className="mg-bg" />
       {/* The blocked direct line */}
-      <path d="M40 104 L128 104 L212 104" className="rg-road rg-flooded" />
-      <text x="118" y="126" className="rg-label rg-label--warn">flooded</text>
+      <path d="M40 104 L128 104 L212 104" className="mg-road mg-flooded" />
+      <text x="118" y="126" className="mg-label mg-label--warn">flooded</text>
       {/* The route that avoids it */}
-      <path d="M40 104 L74 104 L74 46 L182 46 L212 46 L212 104" className="rg-route" />
-      <path d="M40 104 L74 104 L74 46 L182 46 L212 46 L212 104" className="rg-route-flow" />
-      <circle cx="40" cy="104" r="8" className="rg-you" />
+      <path d="M40 104 L74 104 L74 46 L182 46 L212 46 L212 104" className="mg-route" />
+      <path d="M40 104 L74 104 L74 46 L182 46 L212 46 L212 104" className="mg-route-flow" />
+      <circle cx="40" cy="104" r="8" className="mg-you" />
       <g transform="translate(200 92)">
-        <path d="M0 20 L0 8 L12 0 L24 8 L24 20 Z" className="rg-shelter" />
+        <path d="M0 20 L0 8 L12 0 L24 8 L24 20 Z" className="mg-shelter" />
       </g>
     </svg>
   )
@@ -96,37 +100,37 @@ function ArtRoute() {
 
 function ArtGuide() {
   return (
-    <svg viewBox="0 0 260 150" className="rguide-art" role="img" aria-label="The navigation banner announcing a turn">
-      <rect x="0" y="0" width="260" height="150" rx="12" className="rg-bg" />
-      <rect x="26" y="14" width="208" height="52" rx="12" className="rg-banner" />
-      <g transform="translate(40 24)" className="rg-pop">
-        <rect width="32" height="32" rx="8" className="rg-banner-icon" />
-        <path d="M22 26 v-11 a4 4 0 0 0 -4 -4 h-8 M10 11 l5 -5 M10 11 l5 5" className="rg-banner-arrow" />
+    <svg viewBox="0 0 260 150" className="mguide-art" role="img" aria-label="The navigation banner announcing a turn">
+      <rect x="0" y="0" width="260" height="150" rx="12" className="mg-bg" />
+      <rect x="26" y="14" width="208" height="52" rx="12" className="mg-banner" />
+      <g transform="translate(40 24)" className="mg-pop">
+        <rect width="32" height="32" rx="8" className="mg-banner-icon" />
+        <path d="M22 26 v-11 a4 4 0 0 0 -4 -4 h-8 M10 11 l5 -5 M10 11 l5 5" className="mg-banner-arrow" />
       </g>
-      <text x="84" y="40" className="rg-banner-big">120 m</text>
-      <text x="84" y="56" className="rg-banner-small">Turn left onto Mabini St.</text>
-      <g className="rg-voice" transform="translate(196 84)">
+      <text x="84" y="40" className="mg-banner-big">120 m</text>
+      <text x="84" y="56" className="mg-banner-small">Turn left onto Mabini St.</text>
+      <g className="mg-voice" transform="translate(196 84)">
         <path d="M8 4 L2 9 H-4 v8 h6 l6 5 z" />
-        <path d="M15 8 a6 6 0 0 1 0 10" className="rg-voice-wave" />
-        <path d="M20 4 a11 11 0 0 1 0 18" className="rg-voice-wave rg-voice-wave--2" />
+        <path d="M15 8 a6 6 0 0 1 0 10" className="mg-voice-wave" />
+        <path d="M20 4 a11 11 0 0 1 0 18" className="mg-voice-wave mg-voice-wave--2" />
       </g>
-      <path d="M22 118 L92 118 L92 92 L168 92" className="rg-route" />
-      <circle cx="22" cy="118" r="7" className="rg-you" />
+      <path d="M22 118 L92 118 L92 92 L168 92" className="mg-route" />
+      <circle cx="22" cy="118" r="7" className="mg-you" />
     </svg>
   )
 }
 
 function ArtReroute() {
   return (
-    <svg viewBox="0 0 260 150" className="rguide-art" role="img" aria-label="The route redrawing itself after a wrong turn">
-      <rect x="0" y="0" width="260" height="150" rx="12" className="rg-bg" />
-      <path d="M28 116 L96 116 L96 52 L206 52" className="rg-route rg-route--ghost" />
-      <path d="M28 116 L96 116 L96 92 L166 92 L166 52 L206 52" className="rg-route" />
-      <path d="M28 116 L96 116 L96 92 L166 92 L166 52 L206 52" className="rg-route-flow" />
-      <circle cx="96" cy="92" r="8" className="rg-you" />
-      <g className="rg-chip rg-chip--dark" transform="translate(60 16)">
+    <svg viewBox="0 0 260 150" className="mguide-art" role="img" aria-label="The route redrawing itself after a wrong turn">
+      <rect x="0" y="0" width="260" height="150" rx="12" className="mg-bg" />
+      <path d="M28 116 L96 116 L96 52 L206 52" className="mg-route mg-route--ghost" />
+      <path d="M28 116 L96 116 L96 92 L166 92 L166 52 L206 52" className="mg-route" />
+      <path d="M28 116 L96 116 L96 92 L166 92 L166 52 L206 52" className="mg-route-flow" />
+      <circle cx="96" cy="92" r="8" className="mg-you" />
+      <g className="mg-chip mg-chip--dark" transform="translate(60 16)">
         <rect width="140" height="26" rx="13" />
-        <circle cx="18" cy="13" r="5" className="rg-spin" />
+        <circle cx="18" cy="13" r="5" className="mg-spin" />
         <text x="32" y="17">Rerouting…</text>
       </g>
     </svg>
@@ -135,20 +139,20 @@ function ArtReroute() {
 
 function ArtLegend() {
   return (
-    <svg viewBox="0 0 260 150" className="rguide-art" role="img" aria-label="What the colours on the map mean">
-      <rect x="0" y="0" width="260" height="150" rx="12" className="rg-bg" />
-      <g className="rg-legend">
-        <path d="M22 30 h56" className="rg-route" />
+    <svg viewBox="0 0 260 150" className="mguide-art" role="img" aria-label="What the colours on the map mean">
+      <rect x="0" y="0" width="260" height="150" rx="12" className="mg-bg" />
+      <g className="mg-legend">
+        <path d="M22 30 h56" className="mg-route" />
         <text x="90" y="34">Your safe route</text>
 
-        <path d="M22 60 h56" className="rg-road rg-flooded" />
+        <path d="M22 60 h56" className="mg-road mg-flooded" />
         <text x="90" y="64">Flooded road — avoid</text>
 
-        <path d="M22 90 h56" className="rg-road rg-closed" />
+        <path d="M22 90 h56" className="mg-road mg-closed" />
         <text x="90" y="94">Closed road — impassable</text>
 
         <g transform="translate(38 108)">
-          <path d="M0 20 L0 8 L12 0 L24 8 L24 20 Z" className="rg-shelter" />
+          <path d="M0 20 L0 8 L12 0 L24 8 L24 20 Z" className="mg-shelter" />
         </g>
         <text x="90" y="124">Open evacuation centre</text>
       </g>
@@ -233,101 +237,16 @@ const STEPS = [
 ]
 
 export default function RoutingGuide({ open, onClose }) {
-  const [i, setI] = useState(0)
-
-  /* onClose is written inline at the call site, so it is a NEW function on
-     every render of the routing page — and that page re-renders on its own
-     several times a minute (the shared data store polls, the map reports its
-     centre). Depending on it here made the effect below re-run on each of
-     those renders, which meant `setI(0)` fired constantly and the reader was
-     silently dragged back to step 1 every few seconds. Keeping the latest
-     callback in a ref makes the handler stable without going stale. */
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
-
-  const close = useCallback(() => {
-    markRoutingGuideSeen()
-    onCloseRef.current?.()
-  }, [])
-
-  // Start at the beginning each time it is OPENED — and only then.
-  useEffect(() => {
-    if (open) setI(0)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return undefined
-    function onKey(e) {
-      if (e.key === 'Escape') close()
-      if (e.key === 'ArrowRight') setI((v) => Math.min(STEPS.length - 1, v + 1))
-      if (e.key === 'ArrowLeft') setI((v) => Math.max(0, v - 1))
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, close])
-
-  if (!open) return null
-
-  const step = STEPS[i]
-  const Art = step.art
-  const last = i === STEPS.length - 1
-
   return (
-    <div className="rguide-backdrop" role="dialog" aria-modal="true" aria-label="How to use evacuation routing">
-      <div className="rguide">
-        <button type="button" className="rguide-x" onClick={close} aria-label="Close guide">
-          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
-        </button>
-
-        <div className="rguide-head">
-          <span className="rguide-kicker">How to use · Paano gamitin</span>
-          <span className="rguide-count">{i + 1} / {STEPS.length}</span>
-        </div>
-
-        <div className="rguide-stage" key={step.key}>
-          <Art />
-        </div>
-
-        <div className="rguide-body" key={`${step.key}-text`}>
-          <h3>{step.title}</h3>
-          <p className="rguide-fil">{step.tagalog}</p>
-          <p className="rguide-text">{step.body}</p>
-          <p className="rguide-tip">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
-            <span>{step.tip}</span>
-          </p>
-        </div>
-
-        <div className="rguide-dots">
-          {STEPS.map((s, idx) => (
-            <button
-              key={s.key}
-              type="button"
-              className={`rguide-dot ${idx === i ? 'on' : ''} ${idx < i ? 'done' : ''}`}
-              onClick={() => setI(idx)}
-              aria-label={`Step ${idx + 1}: ${s.title}`}
-            />
-          ))}
-        </div>
-
-        <div className="rguide-actions">
-          <button type="button" className="rguide-skip" onClick={close}>
-            {last ? 'Close' : 'Skip'}
-          </button>
-          <div className="rguide-nav">
-            {i > 0 && (
-              <button type="button" className="rguide-btn ghost" onClick={() => setI(i - 1)}>Back</button>
-            )}
-            <button
-              type="button"
-              className="rguide-btn"
-              onClick={() => (last ? close() : setI(i + 1))}
-            >
-              {last ? "Got it — let's go" : 'Next'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <MapGuide
+      open={open}
+      onClose={() => {
+        markRoutingGuideSeen()
+        onClose?.()
+      }}
+      steps={STEPS}
+      label="How to use evacuation routing"
+      doneLabel="Got it — let's go"
+    />
   )
 }
