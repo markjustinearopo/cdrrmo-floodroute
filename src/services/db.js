@@ -480,6 +480,19 @@ export const authDb = {
     if (!ok) throw new Error('Current password is incorrect.')
     return true
   },
+  /**
+   * Edit the CALLER's own profile. Takes no id — the RPC reads it from the
+   * caller's own signed session token, so there is nothing here a caller
+   * could point at someone else's row. Replaces the old `usersDb.update(meId,
+   * ...)` self-edit path now that accounts' RLS only allows admin/staff to
+   * UPDATE the table directly (see 20260901120000_accounts_rls_lockdown.sql).
+   */
+  async updateOwnProfile({ name, email, phone, position, avatar }) {
+    return unwrap(await supabase.rpc('app_update_own_profile', {
+      p_full_name: name || null, p_email: email || null, p_phone: phone || null,
+      p_position: position || null, p_avatar: avatar || null,
+    }))
+  },
 }
 
 /* ============================================================

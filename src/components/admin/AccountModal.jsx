@@ -119,7 +119,9 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
     if (!meId) return flash('You are not signed in.')
     setBusy(true)
     try {
-      await db.users.update(meId, {
+      // Own-profile edit goes through a dedicated RPC (not the admin-only
+      // usersDb.update path) — see db.auth.updateOwnProfile for why.
+      await db.auth.updateOwnProfile({
         name: profile.name, email: profile.email,
         phone: profile.phone, position: profile.position, avatar: profile.avatar,
       })
