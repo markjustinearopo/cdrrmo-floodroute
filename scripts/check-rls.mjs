@@ -206,6 +206,87 @@ const ASSERTIONS = {
     { op: 'DELETE (nonexistent row — policy shape only)', role: 'resident', expect: false,
       run: (t) => call(t, 'DELETE', `evacuation_centers?id=eq.${NO_SUCH_ID}&select=id`) },
   ],
+
+  alerts: [
+    // 136 = real Baclaran-only alert (status "active" — no-op value below).
+    // 162 = real alert tagged ["All Barangays"] (status "resolved") — NOT
+    // Baclaran, so testbarangay must be denied it despite it "being
+    // city-wide" in intent; see the migration header for why that
+    // inconsistent representation isn't trusted as a carve-out.
+    { op: 'SELECT', role: 'anon', expect: true,
+      run: (t) => call(t, 'GET', 'alerts?select=id,title&limit=3') },
+    { op: 'UPDATE (own barangay alert, no-op value)', role: 'barangay', expect: true,
+      run: (t) => call(t, 'PATCH', 'alerts?id=eq.136&select=id', { status: 'active' }) },
+    { op: 'UPDATE (alert not tagged to my barangay)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'PATCH', 'alerts?id=eq.162&select=id', { status: 'resolved' }) },
+    { op: 'INSERT (claims a different barangay)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'POST', 'alerts?select=id', { level: 'low', title: 'RLS probe', message: 'harmless', barangays: ['Mamatid'], status: 'active' }) },
+    { op: 'UPDATE (any alert)', role: 'admin', expect: true,
+      run: (t) => call(t, 'PATCH', 'alerts?id=eq.162&select=id', { status: 'resolved' }) },
+    { op: 'DELETE (nonexistent row — policy shape only)', role: 'resident', expect: false,
+      run: (t) => call(t, 'DELETE', `alerts?id=eq.${NO_SUCH_ID}&select=id`) },
+  ],
+
+  incidents: [
+    // 84 = real Baclaran incident (status "in-progress" — no-op below).
+    // 85 = real Marinig incident, same status — used both as the
+    // cross-jurisdiction probe (barangay, should deny) and the admin "any
+    // row" probe (should allow), both as true no-ops.
+    { op: 'SELECT', role: 'anon', expect: false,
+      run: (t) => call(t, 'GET', 'incidents?select=id&limit=3') },
+    { op: 'SELECT', role: 'resident', expect: true,
+      run: (t) => call(t, 'GET', 'incidents?select=id&limit=3') },
+    { op: 'UPDATE (own barangay incident, no-op value)', role: 'barangay', expect: true,
+      run: (t) => call(t, 'PATCH', 'incidents?id=eq.84&select=id', { status: 'in-progress' }) },
+    { op: 'UPDATE (another barangay\'s incident)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'PATCH', 'incidents?id=eq.85&select=id', { status: 'in-progress' }) },
+    { op: 'UPDATE (any incident)', role: 'admin', expect: true,
+      run: (t) => call(t, 'PATCH', 'incidents?id=eq.85&select=id', { status: 'in-progress' }) },
+    { op: 'INSERT (claims a different barangay)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'POST', 'incidents?select=id', { incident_type: 'RLS probe', barangay: 'Mamatid', priority: 'low', status: 'reported' }) },
+  ],
+
+  flood_reports: [
+    { op: 'INSERT (as self)', role: 'resident', expect: true,
+      run: (t) => call(t, 'POST', 'flood_reports?select=id', { user_id: KNOWN_ID.resident, reporter_name: 'RLS probe', barangay: 'Baclaran', lat: 14.27, lng: 121.12, flood_level: 'low', description: 'RLS probe (harmless)' }) },
+    { op: 'INSERT (claims to be someone else)', role: 'resident', expect: false,
+      run: (t) => call(t, 'POST', 'flood_reports?select=id', { user_id: KNOWN_ID.admin, reporter_name: 'RLS probe', barangay: 'Baclaran', lat: 14.27, lng: 121.12, flood_level: 'low', description: 'RLS probe (harmless)' }) },
+    { op: 'DELETE (nonexistent row — policy shape only)', role: 'resident', expect: false,
+      run: (t) => call(t, 'DELETE', `flood_reports?id=eq.${NO_SUCH_ID}&select=id`) },
+  ],
+
+  road_status: [
+    { op: 'SELECT', role: 'anon', expect: true,
+      run: (t) => call(t, 'GET', 'road_status?select=id&limit=3') },
+    { op: 'UPDATE (no-op value)', role: 'admin', expect: true,
+      run: (t) => call(t, 'PATCH', 'road_status?id=eq.777&select=id', { status: 'blocked' }) },
+    { op: 'UPDATE (nonexistent row — policy shape only)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'PATCH', `road_status?id=eq.${NO_SUCH_ID}&select=id`, { status: 'open' }) },
+    { op: 'UPDATE (nonexistent row — policy shape only)', role: 'resident', expect: false,
+      run: (t) => call(t, 'PATCH', `road_status?id=eq.${NO_SUCH_ID}&select=id`, { status: 'open' }) },
+  ],
+
+  notifications: [
+    { op: 'SELECT', role: 'anon', expect: false,
+      run: (t) => call(t, 'GET', 'notifications?select=id&limit=3') },
+    { op: 'SELECT', role: 'resident', expect: true,
+      run: (t) => call(t, 'GET', 'notifications?select=id&limit=3') },
+    { op: 'INSERT', role: 'resident', expect: true,
+      run: (t) => call(t, 'POST', 'notifications?select=id', { level: 'low', title: 'RLS probe', message: 'harmless' }) },
+    { op: 'INSERT', role: 'anon', expect: false,
+      run: (t) => call(t, 'POST', 'notifications?select=id', { level: 'low', title: 'RLS probe (anon)', message: 'harmless' }) },
+  ],
+
+  saved_routes: [
+    { op: 'SELECT', role: 'anon', expect: false,
+      run: (t) => call(t, 'GET', 'saved_routes?select=id&limit=3') },
+    { op: 'SELECT', role: 'resident', expect: true,
+      run: (t) => call(t, 'GET', 'saved_routes?select=id&limit=3') },
+    { op: 'UPDATE (no-op value)', role: 'barangay', expect: true,
+      run: (t) => call(t, 'PATCH', 'saved_routes?id=eq.6&select=id', { name: 'Evacuation Route 1' }) },
+    { op: 'UPDATE (nonexistent row — policy shape only)', role: 'resident', expect: false,
+      run: (t) => call(t, 'PATCH', `saved_routes?id=eq.${NO_SUCH_ID}&select=id`, { name: 'probe' }) },
+  ],
 }
 
 /* ── Runner ──────────────────────────────────────────────────────────────── */

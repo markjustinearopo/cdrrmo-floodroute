@@ -87,18 +87,17 @@ export const alertsDb = {
   async remove(id) {
     unwrap(await supabase.from('alerts').delete().eq('id', id))
   },
-  /** Promote scheduled alerts whose time has come; returns true if any changed. */
+  /**
+   * Promote scheduled alerts whose time has come; returns true if any changed.
+   * Goes through an RPC, not a raw update: this runs unauthenticated on
+   * every page load (including the public /login screen — see
+   * AdminDataContext's poll), so it can't rely on the caller having write
+   * access to `alerts`. See promote_due_alerts() in
+   * 20260901140000_operational_tables_rls.sql for why that's safe to grant
+   * to anon despite alerts otherwise being barangay/admin-scoped for writes.
+   */
   async promoteDue() {
-    const due = unwrap(await supabase
-      .from('alerts').select('id')
-      .eq('status', 'scheduled')
-      .lte('scheduled_for', new Date().toISOString()))
-    if (!due.length) return false
-    unwrap(await supabase
-      .from('alerts')
-      .update({ status: 'active', issued_at: new Date().toISOString() })
-      .in('id', due.map((d) => d.id)))
-    return true
+    return unwrap(await supabase.rpc('promote_due_alerts'))
   },
 }
 

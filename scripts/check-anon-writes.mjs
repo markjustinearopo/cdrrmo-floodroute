@@ -145,16 +145,30 @@ async function runAs(label, bearer, expectDenied) {
 
 console.log(`${BOLD}Anonymous write exposure${RESET} — ${URL_}`)
 console.log(`${DIM}filter ${NO_ROW}: matches no row, so nothing can be modified${RESET}`)
+console.log(
+  `\n${YELLOW}${BOLD}READ THIS BEFORE TRUSTING THE UPDATE COLUMN BELOW.${RESET}\n` +
+  `${DIM}This script detects GRANT-level denial only (401 / 42501), which is what\n` +
+  `Phase 0 installed. Phase 2 (2026-09-01) closed the remaining tables with RLS\n` +
+  `POLICIES instead, and RLS denies by matching ZERO ROWS rather than by\n` +
+  `erroring — which, against this script's deliberately-nonexistent row filter,\n` +
+  `is indistinguishable from "permitted, but nothing matched". So every RLS-\n` +
+  `protected table still prints ALLOWED here even though the write is in fact\n` +
+  `refused. Verified by hand on 2026-09-01: an anon PATCH of a REAL alerts row\n` +
+  `returns HTTP 200 and leaves the row's title completely unchanged.\n\n` +
+  `scripts/check-rls.mjs is the authoritative check — it targets real rows as\n` +
+  `each real role and confirms the actual effect. Keep this script for what it\n` +
+  `is still good at: proving the Phase 0 DELETE/accounts revokes are intact.${RESET}`,
+)
 
 const anonExposed = await runAs('AS ANON (a stranger with the public key)', ANON, true)
 
 if (anonExposed) {
   console.log(
-    `\n${YELLOW}${BOLD}${anonExposed}/${TABLES.length} table(s) still accept an anonymous UPDATE.${RESET}`,
+    `\n${YELLOW}${BOLD}${anonExposed}/${TABLES.length} table(s) print ALLOWED for UPDATE above.${RESET}`,
   )
-  console.log(`  ${DIM}Expected after Phase 0, which deliberately revoked only DELETE`)
-  console.log(`  (everywhere) and INSERT/UPDATE (on accounts). Closing the rest`)
-  console.log(`  needs per-role policies, not a revoke — that is Phase 2.${RESET}`)
+  console.log(`  ${DIM}Do NOT read that as an open hole — see the note at the top.`)
+  console.log(`  As of Phase 2 these are RLS-denied, which this script cannot see.`)
+  console.log(`  Run: node scripts/check-rls.mjs${RESET}`)
 } else {
   console.log(`\n${GREEN}${BOLD}No table is writable by an anonymous caller.${RESET}`)
 }
