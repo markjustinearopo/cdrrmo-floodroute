@@ -9,16 +9,22 @@
 
 import db from './db.js'
 import * as otp from './authOtp.js'
+import { TOKEN_KEY } from './supabase.js'
 
 const api = {
   getToken() {
-    return localStorage.getItem('cdrrmo_token')
+    return localStorage.getItem(TOKEN_KEY)
   },
   setToken(token) {
-    localStorage.setItem('cdrrmo_token', token)
+    // Falsy for the break-glass fallback (legacyLogin, below) — it has no path
+    // to the signing secret, so it cannot mint a real one. Must actively clear
+    // rather than leave a stale value, or a previous real session's token
+    // would keep being sent as this "session"'s identity.
+    if (token) localStorage.setItem(TOKEN_KEY, token)
+    else localStorage.removeItem(TOKEN_KEY)
   },
   clearToken() {
-    localStorage.removeItem('cdrrmo_token')
+    localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem('cdrrmo_user')
   },
   getUser() {
@@ -58,7 +64,7 @@ export const authApi = {
     try {
       const res = await otp.login(identifier, password)
       if (res?.user) {
-        startSession(res.user)
+        startSession(res.user, res.token)
         return { user: res.user }
       }
       return res
@@ -74,7 +80,7 @@ export const authApi = {
   /** Finish a two-factor sign-in with the emailed code. */
   async completeMfa(email, code, trustDevice = false) {
     const res = await otp.verifyLogin(email, code, trustDevice)
-    startSession(res.user)
+    startSession(res.user, res.token)
     return res.user
   },
 
@@ -94,7 +100,7 @@ export const authApi = {
          locked out of one they cannot open. It handed back a session; start
          it here so the screen can carry them straight in, and let the caller
          surface `notice` — the reader is owed the reason. */
-      if (res?.unverifiedFallback && res.user) startSession(res.user)
+      if (res?.unverifiedFallback && res.user) startSession(res.user, res.token)
       return res
     } catch (err) {
       if (err instanceof otp.AuthFunctionUnavailable && !REQUIRE_AUTH_FUNCTION) {
@@ -130,7 +136,7 @@ export const authApi = {
   /** Activate a pending account, then sign it in. */
   async verifyEmail(email, code) {
     const res = await otp.verifyEmail(email, code)
-    if (res?.user) startSession(res.user)
+    if (res?.user) startSession(res.user, res.token)
     return res
   },
 
@@ -149,8 +155,14 @@ export const authApi = {
   },
 }
 
-function startSession(user) {
-  api.setToken(`local-${user.id}`) // placeholder session token
+/**
+ * @param {object} user
+ * @param {string} [token] Signed JWT minted by auth-otp (see mintToken() there).
+ *   Absent only from legacyLogin() below, which has no path to the signing
+ *   secret; setToken() clears rather than fakes one in that case.
+ */
+function startSession(user, token) {
+  api.setToken(token)
   api.setUser(user)
 }
 
@@ -191,6 +203,9 @@ async function legacyLogin(identifier, password) {
     )
   }
   const user = await db.auth.login(identifier, password)
+  // No token: this path only ever holds the anon key, never the signing
+  // secret. Once RLS is locked down (Phase 2) this session reads as anon to
+  // Postgres — the UI shell admits it, real data calls do not. Fails safe.
   startSession(user)
   return user
 }

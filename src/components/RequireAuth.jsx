@@ -25,7 +25,13 @@ const HOME = {
  */
 export default function RequireAuth({ group }) {
   const user = api.getUser()
-  if (!user || !api.getToken()) return <Navigate to="/login" replace />
+  /* Deliberately not checking api.getToken() here too: the break-glass
+     fallback (services/api.js, legacyLogin) starts a session with a user but
+     no signed token, since it has no path to the signing secret. Whether a
+     request actually succeeds against Postgres is decided server-side by RLS
+     (see supabase/PENDING_MIGRATIONS.sql, 2026-08-30 section) — this guard is
+     only ever a client-side routing convenience, never enforcement. */
+  if (!user) return <Navigate to="/login" replace />
 
   const userGroup = ROLE_GROUP[user.role]
   if (group && userGroup && userGroup !== group) {

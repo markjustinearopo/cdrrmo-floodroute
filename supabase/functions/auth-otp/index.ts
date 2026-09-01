@@ -32,10 +32,16 @@
    Deploy:  npx supabase functions deploy auth-otp
    Secrets: RESEND_API_KEY (already set for send-alert-email)
             AUTH_OTP_SECRET (optional; falls back to the service-role key)
+            SESSION_JWT_SECRET (required for sign-in — see mintToken() below;
+            this is the project's own Legacy JWT Secret from Settings > API,
+            NOT a value we invent, because PostgREST has to validate against
+            the same secret. See supabase/PENDING_MIGRATIONS.sql, the
+            2026-08-30 section, for the full rollout steps.)
    ============================================================ */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { create as createJwt, getNumericDate } from 'https://deno.land/x/djwt@v3.0.2/mod.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -335,6 +341,51 @@ function sessionOf(acc: any) {
   }
 }
 
+/* ── Signed session token ─────────────────────────────────────────────────
+   Phase 1 of the identity/RLS fix (see PENDING_MIGRATIONS.sql, 2026-08-30):
+   every request has always hit PostgREST as the anon key, so RLS could never
+   tell one caller from another. This mints a real JWT, signed with the same
+   secret PostgREST already validates against (the project's Legacy JWT
+   Secret), carrying the claims Phase 2's RLS policies will read via
+   auth.jwt(). RLS itself is untouched here — this only makes it possible.
+
+   `role: 'authenticated'` is the Postgres role PostgREST switches the
+   connection to; it is NOT this account's app role, which travels separately
+   as `app_role` so it never collides with that meaning.
+   ────────────────────────────────────────────────────────────────────────── */
+const SESSION_JWT_SECRET = Deno.env.get('SESSION_JWT_SECRET')
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7 // 7 days — see rollout notes for why
+
+let sessionSigningKey: CryptoKey | null = null
+async function getSessionSigningKey() {
+  if (!SESSION_JWT_SECRET) {
+    throw new Error('SESSION_JWT_SECRET is not set — see supabase/PENDING_MIGRATIONS.sql')
+  }
+  if (!sessionSigningKey) {
+    sessionSigningKey = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(SESSION_JWT_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    )
+  }
+  return sessionSigningKey
+}
+
+// deno-lint-ignore no-explicit-any
+async function mintToken(acc: any) {
+  return createJwt({ alg: 'HS256', typ: 'JWT' }, {
+    role: 'authenticated',
+    aud: 'authenticated',
+    sub: String(acc.id),
+    account_id: acc.id,
+    app_role: acc.role,
+    barangay: acc.barangay,
+    exp: getNumericDate(SESSION_TTL_SECONDS),
+  }, await getSessionSigningKey())
+}
+
 /* ── Handler ───────────────────────────────────────────────────────────── */
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -428,10 +479,22 @@ serve(async (req) => {
         }).eq('id', accountId)
         if (error) return json({ error: error.message }, 500)
       } else {
+        /* Verification happens ONCE, at sign-up, against the mobile number the
+           resident gives us. That is the check that matters: it proves the
+           phone we will text a flood warning to is really theirs.
+
+           `mfa_enabled` stays FALSE. Switching it on meant every later sign-in
+           demanded a second code — and because there is no verified sending
+           domain, that code went out by email, to an address the resident
+           never proved and may not check. A citizen who registered with a
+           phone was then asked for a code from their inbox, which is not the
+           deal they signed up for and is not a channel we can rely on during
+           a flood. An operator can still turn two-factor on per account from
+           Settings once a real sending domain or SMS key is in place. */
         const { data: created, error } = await db.from('accounts').insert({
           username: addr, email: addr, password_plain: password,
           role: 'resident', barangay, full_name: String(fullName).trim(),
-          status: 'pending', mfa_enabled: true, phone: mobile,
+          status: 'pending', mfa_enabled: false, phone: mobile,
         }).select('id').single()
         if (error) return json({ error: error.message }, 500)
         accountId = created.id
@@ -494,6 +557,7 @@ serve(async (req) => {
           verified: true,
           unverifiedFallback: true,
           user: sessionOf(acc),
+          token: await mintToken(acc),
           notice: 'We could not send a verification code — the messaging service is not fully set up yet. Your account has been activated so you are not locked out. Please let CDRRMO IT know.',
           detail: e.detail,
         })
@@ -552,7 +616,7 @@ serve(async (req) => {
         smsEnrolled = true
       }
 
-      return json({ verified: true, user: sessionOf(acc), smsEnrolled })
+      return json({ verified: true, user: sessionOf(acc), token: await mintToken(acc), smsEnrolled })
     }
 
     /* ── Login: password, then either a session or a 2FA code ────────── */
@@ -589,11 +653,27 @@ serve(async (req) => {
           .select('id, expires_at').eq('account_id', acc.id).eq('token_hash', hash).maybeSingle()
         if (dev && new Date(dev.expires_at).getTime() > Date.now()) {
           await db.from('trusted_devices').update({ last_used_at: new Date().toISOString() }).eq('id', dev.id)
-          return json({ user: sessionOf(acc) })
+          return json({ user: sessionOf(acc), token: await mintToken(acc) })
         }
       }
 
-      if (!acc.mfa_enabled) return json({ user: sessionOf(acc) })
+      /* Residents never get a second factor at sign-in.
+
+         They proved a phone number once, at registration, by receiving a text
+         on it — that is the check this system actually needs, because that
+         number is where a flood warning goes. Asking for a second code on
+         every later sign-in delivered it by EMAIL (there is no verified
+         sending domain, so mail is all that is left), to an address they
+         never proved and may not read. A citizen who signed up with their
+         phone was then locked behind their inbox.
+
+         Enforced here by ROLE rather than by clearing the column, because the
+         column cannot be cleared from the app: the password-column lock
+         revoked anon's UPDATE on `accounts`, so rows already carrying
+         mfa_enabled=true would otherwise keep prompting forever. Staff
+         accounts are untouched — an operator with the flag set still gets
+         challenged. */
+      if (acc.role === 'resident' || !acc.mfa_enabled) return json({ user: sessionOf(acc), token: await mintToken(acc) })
 
       try {
         const issued = await issueCode(db, {
@@ -624,7 +704,7 @@ serve(async (req) => {
           title: 'Two-factor code could not be delivered',
           message: `${acc.email} signed in with a correct password, but the second-factor code could not be sent (${e.detail}). The sign-in was allowed rather than locking the account holder out.`,
         })
-        return json({ user: sessionOf(acc), mfaSkipped: true, detail: e.detail })
+        return json({ user: sessionOf(acc), token: await mintToken(acc), mfaSkipped: true, detail: e.detail })
       }
     }
 
@@ -649,7 +729,7 @@ serve(async (req) => {
           last_used_at: new Date().toISOString(),
         })
       }
-      return json({ user: sessionOf(acc), deviceToken, trustDays: DEVICE_TRUST_DAYS })
+      return json({ user: sessionOf(acc), token: await mintToken(acc), deviceToken, trustDays: DEVICE_TRUST_DAYS })
     }
 
     /* ── Drop a trusted device (sign-out "forget this device") ───────── */

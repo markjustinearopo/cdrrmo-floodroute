@@ -21,6 +21,12 @@
 --   ✓ 20260613130000_app_wiring                     applied
 --   ✓ 20260623120000_auth_hashing_avatar            applied
 --   ✓ 20260701120000_flood_reports                  applied
+--   ✓ 20260830120000_session_whoami                 applied — verified live 2026-08-31:
+--        signed in as testadmin (app_role=admin) and testbarangay (app_role=
+--        barangay, barangay=Baclaran); whoami() echoed the right claims for
+--        each, and an anon-only call got back nothing but {"role":"anon"}.
+--        Identity now flows end to end — Phase 2 (real RLS policies) is
+--        unblocked.
 --
 -- TWO BUGS IN THIS FILE WERE FOUND BY RUNNING IT, AND ARE NOW FIXED HERE:
 --
@@ -612,4 +618,76 @@ commit;
 -- STILL OPEN, and not fixed by this migration: `anon` can write directly to
 -- public.accounts through PostgREST (the permissive demo policy from
 -- 20260613130000). See supabase/PENDING_MIGRATIONS.sql.
+-- ---------------------------------------------------------------------------
+
+
+-- ############################################################################
+-- ############################################################################
+--
+--   ADDED 2026-08-30 — REAL SESSIONS: PHASE 1 OF THE IDENTITY/RLS FIX
+--
+--   Everything below is migration 20260830120000_session_whoami.sql, inlined
+--   so it can be pasted into the SQL editor with everything above.
+--
+--   WHY THIS MATTERS
+--   Every request this app has ever made — from every role — has hit
+--   PostgREST as the anon key. `accounts` and nearly every other table carry a
+--   blanket `using (true) with check (true)` RLS policy (20260613130000), and
+--   the "session" the browser keeps in localStorage was never more than the
+--   string `local-<id>` — never sent anywhere, checked by nothing. RLS cannot
+--   be tightened before this: a policy can only say using(true) or
+--   using(false) when every caller looks identical, so locking it down first
+--   either changes nothing or locks out every legitimate user at once.
+--
+--   This is Phase 1, and it does exactly one thing: make the session real.
+--   `auth-otp` now mints a signed JWT at sign-in (account_id, app_role,
+--   barangay, exp — see the code change in the same commit) and the frontend
+--   attaches it as the Authorization bearer on every request. RLS itself is
+--   UNCHANGED here — still the same permissive policies — so the app should
+--   look and behave identically. What changes is that Postgres can now, for
+--   the first time, tell who is actually asking. Writing real per-role,
+--   per-barangay policies against that is Phase 2, a separate change.
+--
+--   AFTER RUNNING THE SQL BELOW:
+--
+--     1. Get the project's JWT signing secret: Supabase dashboard →
+--        Settings → API → JWT Settings → reveal/generate the Legacy JWT
+--        Secret (HS256). This is what auth-otp signs with and what PostgREST
+--        already validates against — that's what makes a self-minted token
+--        acceptable to PostgREST at all.
+--
+--     2. Give auth-otp that secret and redeploy it:
+--
+--            npx supabase secrets set SESSION_JWT_SECRET="<value from step 1>"
+--            npx supabase functions deploy auth-otp
+--
+--     3. Sign in and confirm it worked: DevTools → Application → Local
+--        Storage → `cdrrmo_token` should be a three-part JWT now, not
+--        `local-<id>`. Then, in the console on the running app:
+--
+--            await supabase.rpc('whoami')
+--
+--        should echo back { role: "authenticated", account_id, app_role,
+--        barangay, exp, ... } — the claims for whoever is currently signed
+--        in. A different role/barangay signing in should change the answer.
+--
+--   WHAT THIS DOES NOT FIX: RLS is exactly as permissive as it was before
+--   this ran. `anon` can still read and write everything the blanket policy
+--   from 20260613130000 covers — this migration only makes it POSSIBLE to
+--   change that. The break-glass password-only fallback in src/services/
+--   api.js (`legacyLogin`, off by default) still cannot mint a token — it has
+--   no path to the signing secret, by design — so once Phase 2 does land, a
+--   break-glass sign-in will read as plain anon to Postgres rather than as
+--   the signed-in account. That is the correct direction to fail.
+-- ############################################################################
+
+create or replace function public.whoami()
+returns jsonb
+language sql
+security invoker
+stable
+as $$ select coalesce(auth.jwt(), '{}'::jsonb) $$;
+
+grant execute on function public.whoami() to anon, authenticated;
+
 -- ---------------------------------------------------------------------------
