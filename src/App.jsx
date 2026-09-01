@@ -1,38 +1,67 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AdminDataProvider } from './context/AdminDataContext.jsx'
 import RequireAuth from './components/RequireAuth.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
-import AdminDashboard from './pages/admin/Dashboard.jsx'
-import AdminFloodMap from './pages/admin/FloodMap.jsx'
 
-import AdminFloodReports from './pages/admin/FloodReports.jsx'
+/* ── Portal route trees, lazy ─────────────────────────────────────────────
+   Every page below used to be a static import, so visiting /login pulled in
+   the full admin command center — Mapbox GL, deck.gl, the report builder,
+   every settings tab — before a single byte of the resident's own screen
+   loaded. One bundle, 4 MB, for a landing page someone opens on 3G during a
+   typhoon.
 
-import AdminReports from './pages/admin/Reports.jsx'
-import AdminRouting from './pages/admin/Routing.jsx'
-import AdminRoadStatus from './pages/admin/RoadStatus.jsx'
-import AdminAlerts from './pages/admin/Alerts.jsx'
-import AdminIncidents from './pages/admin/Incidents.jsx'
-import AdminEvacuation from './pages/admin/Evacuation.jsx'
-import AdminSettings from './pages/admin/Settings.jsx'
-import AdminNotifications from './pages/admin/Notifications.jsx'
-import BarangayDashboard from './pages/barangay/Dashboard.jsx'
-import BarangayFloodMap from './pages/barangay/FloodMap.jsx'
-import BarangayHazardLayer from './pages/barangay/HazardLayer.jsx'
-import BarangayRoadStatus from './pages/barangay/RoadStatus.jsx'
-import BarangayEvacuationRouting from './pages/barangay/EvacuationRouting.jsx'
-import BarangayAlerts from './pages/barangay/Alerts.jsx'
-import BarangayIncidents from './pages/barangay/Incidents.jsx'
-import BarangayEvacuation from './pages/barangay/Evacuation.jsx'
-import BarangayOperations from './pages/barangay/Operations.jsx'
-import ResidentDashboard from './pages/resident/Dashboard.jsx'
-import ResidentFloodMap from './pages/resident/FloodMap.jsx'
-import ResidentHazardLayer from './pages/resident/HazardLayer.jsx'
-import ResidentRoadStatus from './pages/resident/RoadStatus.jsx'
-import ResidentEvacuationRouting from './pages/resident/EvacuationRouting.jsx'
-import ResidentAlerts from './pages/resident/Alerts.jsx'
-import ResidentEvacuation from './pages/resident/Evacuation.jsx'
-import ResidentFloodReports from './pages/resident/FloodReports.jsx'
+   React.lazy turns each import into its own chunk, fetched only when that
+   route is actually visited. A resident who never opens /admin/* never
+   downloads it. This is step one of two: splitting by route stops the wrong
+   PAGES from loading; Mapbox/deck.gl specifically are still pulled in by any
+   page that imports Map3D (several resident pages do, for the 3D toggle),
+   so that is a second, separate pass — see Map3D.jsx and routing3d.js.
+   ────────────────────────────────────────────────────────────────────────── */
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard.jsx'))
+const AdminFloodMap = lazy(() => import('./pages/admin/FloodMap.jsx'))
+const AdminFloodReports = lazy(() => import('./pages/admin/FloodReports.jsx'))
+const AdminReports = lazy(() => import('./pages/admin/Reports.jsx'))
+const AdminRouting = lazy(() => import('./pages/admin/Routing.jsx'))
+const AdminRoadStatus = lazy(() => import('./pages/admin/RoadStatus.jsx'))
+const AdminAlerts = lazy(() => import('./pages/admin/Alerts.jsx'))
+const AdminIncidents = lazy(() => import('./pages/admin/Incidents.jsx'))
+const AdminEvacuation = lazy(() => import('./pages/admin/Evacuation.jsx'))
+const AdminSettings = lazy(() => import('./pages/admin/Settings.jsx'))
+const AdminNotifications = lazy(() => import('./pages/admin/Notifications.jsx'))
+const BarangayDashboard = lazy(() => import('./pages/barangay/Dashboard.jsx'))
+const BarangayFloodMap = lazy(() => import('./pages/barangay/FloodMap.jsx'))
+const BarangayHazardLayer = lazy(() => import('./pages/barangay/HazardLayer.jsx'))
+const BarangayRoadStatus = lazy(() => import('./pages/barangay/RoadStatus.jsx'))
+const BarangayEvacuationRouting = lazy(() => import('./pages/barangay/EvacuationRouting.jsx'))
+const BarangayAlerts = lazy(() => import('./pages/barangay/Alerts.jsx'))
+const BarangayIncidents = lazy(() => import('./pages/barangay/Incidents.jsx'))
+const BarangayEvacuation = lazy(() => import('./pages/barangay/Evacuation.jsx'))
+const BarangayOperations = lazy(() => import('./pages/barangay/Operations.jsx'))
+const ResidentDashboard = lazy(() => import('./pages/resident/Dashboard.jsx'))
+const ResidentFloodMap = lazy(() => import('./pages/resident/FloodMap.jsx'))
+const ResidentHazardLayer = lazy(() => import('./pages/resident/HazardLayer.jsx'))
+const ResidentRoadStatus = lazy(() => import('./pages/resident/RoadStatus.jsx'))
+const ResidentEvacuationRouting = lazy(() => import('./pages/resident/EvacuationRouting.jsx'))
+const ResidentAlerts = lazy(() => import('./pages/resident/Alerts.jsx'))
+const ResidentEvacuation = lazy(() => import('./pages/resident/Evacuation.jsx'))
+const ResidentFloodReports = lazy(() => import('./pages/resident/FloodReports.jsx'))
+
+/* Shown for the one moment a lazy chunk is in flight — normally imperceptible
+   on a warm cache, real on a cold 3G load, which is exactly the condition
+   this whole change is for. Deliberately plain: no logo fetch, no extra
+   chunk of its own, just text so it never becomes something else to wait on. */
+function RouteLoading() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh', color: '#8a8a8a', fontSize: '0.9rem',
+    }}>
+      Loading…
+    </div>
+  )
+}
 
 /**
  * Web-Based Flood Risk-Aware Route System — route map.
@@ -45,6 +74,7 @@ export default function App() {
   return (
     // The shared data layer wraps every portal: a record created in the admin
     // command center is the same record the barangay/resident screens read.
+    <Suspense fallback={<RouteLoading />}>
     <AdminDataProvider>
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
@@ -116,5 +146,6 @@ export default function App() {
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
     </AdminDataProvider>
+    </Suspense>
   )
 }
