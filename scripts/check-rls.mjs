@@ -287,6 +287,53 @@ const ASSERTIONS = {
     { op: 'UPDATE (nonexistent row — policy shape only)', role: 'resident', expect: false,
       run: (t) => call(t, 'PATCH', `saved_routes?id=eq.${NO_SUCH_ID}&select=id`, { name: 'probe' }) },
   ],
+
+  // The vulnerable-persons registry: is_senior / is_pwd / is_pregnant, plus
+  // addresses and phones. Nothing in the app reads it via PostgREST, so it is
+  // CDRRMO-only — a resident must not be able to see it either.
+  residents: [
+    { op: 'SELECT', role: 'anon', expect: false,
+      run: (t) => call(t, 'GET', 'residents?select=id,full_name&limit=3') },
+    { op: 'SELECT', role: 'resident', expect: false,
+      run: (t) => call(t, 'GET', 'residents?select=id,full_name&limit=3') },
+    { op: 'SELECT', role: 'barangay', expect: false,
+      run: (t) => call(t, 'GET', 'residents?select=id,full_name&limit=3') },
+    { op: 'SELECT', role: 'admin', expect: true,
+      run: (t) => call(t, 'GET', 'residents?select=id,full_name&limit=3') },
+    { op: 'INSERT', role: 'resident', expect: false,
+      run: (t) => call(t, 'POST', 'residents?select=id', { full_name: 'RLS probe', barangay: 'Baclaran' }) },
+  ],
+
+  barangay_officials: [
+    { op: 'SELECT', role: 'anon', expect: false,
+      run: (t) => call(t, 'GET', 'barangay_officials?select=id,full_name&limit=3') },
+    { op: 'SELECT', role: 'barangay', expect: true,
+      run: (t) => call(t, 'GET', 'barangay_officials?select=id,full_name&limit=3') },
+    { op: 'UPDATE (nonexistent row — policy shape only)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'PATCH', `barangay_officials?id=eq.${NO_SUCH_ID}&select=id`, { nickname: 'probe' }) },
+  ],
+
+  flood_readings: [
+    { op: 'SELECT', role: 'anon', expect: true,
+      run: (t) => call(t, 'GET', 'flood_readings?select=id&limit=3') },
+    { op: 'INSERT', role: 'resident', expect: false,
+      run: (t) => call(t, 'POST', 'flood_readings?select=id', { barangay: 'Baclaran', depth_m: 0.1 }) },
+  ],
+
+  app_settings: [
+    // system_config must stay anon-readable: it drives the maintenance banner
+    // and the registration lock on the pre-login screens.
+    { op: 'SELECT system_config (pre-login)', role: 'anon', expect: true,
+      run: (t) => call(t, 'GET', 'app_settings?select=key&key=eq.system_config') },
+    { op: 'SELECT alert_settings', role: 'anon', expect: false,
+      run: (t) => call(t, 'GET', 'app_settings?select=key&key=eq.alert_settings') },
+    { op: 'SELECT own user_prefs', role: 'admin', expect: true,
+      run: (t) => call(t, 'GET', `app_settings?select=key&key=eq.user_prefs:${KNOWN_ID.admin}`) },
+    { op: 'SELECT someone else\'s user_prefs', role: 'resident', expect: false,
+      run: (t) => call(t, 'GET', `app_settings?select=key&key=eq.user_prefs:${KNOWN_ID.admin}`) },
+    { op: 'UPDATE alert_settings', role: 'resident', expect: false,
+      run: (t) => call(t, 'PATCH', 'app_settings?key=eq.alert_settings&select=key', { updated_at: new Date().toISOString() }) },
+  ],
 }
 
 /* ── Runner ──────────────────────────────────────────────────────────────── */

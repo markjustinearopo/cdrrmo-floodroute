@@ -514,10 +514,22 @@ export function AdminDataProvider({ children }) {
   }, [optimistic, persist])
 
   /* ── Users ── */
-  const addUser = useCallback((user) => {
+  /**
+   * @param user
+   * @param {(pw: string) => void} [onTempPassword] receives the generated
+   *   one-time password. CDRRMO creates accounts on people's behalf and the
+   *   form collects no password, so the server generates one — this is the
+   *   only moment it is readable, and without it the operator would create an
+   *   account nobody can sign in to. See temporaryPassword() in db.js.
+   */
+  const addUser = useCallback((user, onTempPassword) => {
     const saved = { id: `tmp-${Date.now()}`, lastActive: '—', ...user }
     optimistic('users', [saved, ...stateRef.current.users])
-    persist('users', () => db.users.create(user))
+    persist('users', async () => {
+      const created = await db.users.create(user)
+      if (created?.temporaryPassword) onTempPassword?.(created.temporaryPassword)
+      return created
+    })
     return saved
   }, [optimistic, persist])
 

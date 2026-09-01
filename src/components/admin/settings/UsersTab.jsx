@@ -128,6 +128,8 @@ export default function UsersTab({ onToast }) {
   const [editing, setEditing] = useState(null) // user object, {} for new, or null
   const [importing, setImporting] = useState(false)
   const [importPreview, setImportPreview] = useState(null) // { valid, errors, fileName }
+  // { name, email, password } for an account just created — shown once.
+  const [newCredential, setNewCredential] = useState(null)
 
   /* ── Account types / permissions ── */
   const initial = loadRolesState()
@@ -184,7 +186,10 @@ export default function UsersTab({ onToast }) {
       updateUser(editing.id, data)
       onToast(`${data.name} updated.`)
     } else {
-      addUser(data)
+      // The form collects no password, so the server generates a one-time one
+      // and hands it back once. Shown in a dialog rather than a toast because
+      // the operator has to copy it somewhere before it is gone for good.
+      addUser(data, (pw) => setNewCredential({ name: data.name, email: data.email, password: pw }))
       onToast(`${data.name} added.`)
     }
     setEditing(null)
@@ -570,6 +575,75 @@ export default function UsersTab({ onToast }) {
       )}
 
       {/* Add / edit account modal */}
+      {/* One-time credential for an account CDRRMO just created. It is not
+          stored in readable form anywhere — the DB trigger bcrypts it on
+          insert — so if the operator closes this without copying it, the
+          account has to be recreated. Hence the deliberately blunt wording. */}
+      {newCredential && (
+        <div className="mng-overlay" onMouseDown={() => setNewCredential(null)}>
+          <div
+            className="mng-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Temporary password"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="mng-modal-head">
+              <div>
+                <div className="mng-modal-title">Account created</div>
+                <div className="mng-modal-sub">
+                  Give this password to {newCredential.name}. It is shown once.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="mng-modal-close"
+                onClick={() => setNewCredential(null)}
+                aria-label="Close"
+              >×</button>
+            </div>
+            <div className="mng-form">
+              <div className="mng-detail-notes">
+                <div><b>Sign in as</b> {newCredential.email}</div>
+                <div style={{ marginTop: 10 }}>
+                  <b>Temporary password</b>
+                  <div
+                    style={{
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                      fontSize: 18, letterSpacing: '0.06em', marginTop: 4,
+                      padding: '10px 12px', borderRadius: 8,
+                      background: 'var(--color-surface-2, #f3f4f6)',
+                      userSelect: 'all',
+                    }}
+                  >
+                    {newCredential.password}
+                  </div>
+                </div>
+                <div className="mng-muted" style={{ marginTop: 10 }}>
+                  They will be asked to choose their own password on first sign-in.
+                  This one cannot be shown again — copy it now.
+                </div>
+              </div>
+              <div className="mng-form-actions">
+                <button
+                  type="button"
+                  className="mng-btn mng-btn-primary"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(newCredential.password)
+                    onToast('Temporary password copied.')
+                  }}
+                >Copy password</button>
+                <button
+                  type="button"
+                  className="mng-btn"
+                  onClick={() => setNewCredential(null)}
+                >Done</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editing && (
         <div className="mng-overlay" onMouseDown={() => setEditing(null)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label={editing.id ? 'Edit account' : 'Add account'} onMouseDown={(e) => e.stopPropagation()}>

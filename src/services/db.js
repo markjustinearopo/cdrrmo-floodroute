@@ -355,6 +355,24 @@ function userToDb(u) {
 // by widening a query later.
 const ACCOUNT_COLUMNS = 'id, full_name, username, email, role, barangay, status, avatar, last_login'
 
+/**
+ * A one-time password for an account CDRRMO creates on someone's behalf.
+ *
+ * This replaces a hardcoded 'changeme'. Every account the admin Users tab
+ * created carried that literal string as its password, was created `active`,
+ * and never set must_change_password — so anyone who knew the convention
+ * (it was in this file, in a public repo) could sign in as any newly created
+ * barangay official. The UI collects no password, so there has to be a
+ * default; it just has to be a different one every time.
+ *
+ * crypto.getRandomValues, not Math.random: this is a credential.
+ */
+function temporaryPassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  const bytes = crypto.getRandomValues(new Uint8Array(14))
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('')
+}
+
 export const usersDb = {
   async list() {
     const rows = unwrap(await supabase.from('accounts').select(ACCOUNT_COLUMNS).order('id', { ascending: false }))
@@ -374,20 +392,27 @@ export const usersDb = {
   },
   async create(user) {
     // username is required; password_plain is bcrypt-hashed by a DB trigger on
-    // insert (cleartext is never stored). 'changeme' is the default until the
-    // create-account UI collects a password.
+    // insert (cleartext is never stored — the trigger nulls the column).
+    const password = user.password || temporaryPassword()
     const row = {
       ...userToDb({ role: 'viewer', status: 'active', barangay: 'All', ...user }),
       username: user.email || (user.name || 'user').toLowerCase().replace(/\s+/g, '.'),
-      password_plain: user.password || 'changeme',
+      password_plain: password,
+      must_change_password: true,
     }
-    return userFromDb(unwrap(await supabase.from('accounts').insert(row).select(ACCOUNT_COLUMNS).single()))
+    const created = userFromDb(unwrap(
+      await supabase.from('accounts').insert(row).select(ACCOUNT_COLUMNS).single(),
+    ))
+    // Handed back so the operator can pass it to the account holder. This is
+    // the ONLY moment it exists in readable form anywhere.
+    return { ...created, temporaryPassword: password }
   },
   async createMany(users) {
     const rows = users.map((u) => ({
       ...userToDb({ role: 'viewer', status: 'active', barangay: 'All', ...u }),
       username: u.email || (u.name || 'user').toLowerCase().replace(/\s+/g, '.'),
-      password_plain: u.password || 'changeme',
+      password_plain: u.password || temporaryPassword(),
+      must_change_password: true,
     }))
     return unwrap(await supabase.from('accounts').insert(rows).select(ACCOUNT_COLUMNS)).map(userFromDb)
   },

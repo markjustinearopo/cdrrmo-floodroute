@@ -31,13 +31,6 @@ import '../components/auth/codeVerification.css'
  *                            dead-ending them on an error.
  */
 
-const BARANGAYS = [
-  'Baclaran', 'Banay-Banay', 'Banlic', 'Bigaa', 'Butong', 'Casile',
-  'Diezmo', 'Gulod', 'Mamatid', 'Marinig', 'Niugan', 'Pittland',
-  'Poblacion Dos', 'Poblacion Tres', 'Poblacion Uno', 'Pulo', 'Sala',
-  'San Isidro',
-]
-
 export default function Login() {
   const navigate = useNavigate()
   const [role, setRole] = useState('admin')
@@ -47,7 +40,6 @@ export default function Login() {
   // form fields
   const [adminId, setAdminId] = useState('')
   const [adminPw, setAdminPw] = useState('')
-  const [brgy, setBrgy] = useState('')
   const [staffId, setStaffId] = useState('')
   const [brgyPw, setBrgyPw] = useState('')
   const [resEmail, setResEmail] = useState('')
@@ -55,9 +47,7 @@ export default function Login() {
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [modal, setModal] = useState(null) // active popup, or null
 
-  /* Second-factor / verification step. `challenge.kind` is 'mfa' or 'verify';
-     `pendingBrgy` carries the barangay selection across the code step so the
-     jurisdiction check still runs once the session actually starts. */
+  /* Second-factor / verification step. `challenge.kind` is 'mfa' or 'verify'. */
   const [challenge, setChallenge] = useState(null)
 
   // keep the dark red backdrop only while this page is mounted
@@ -82,12 +72,7 @@ export default function Login() {
     } else if (role === 'barangay') {
       email = staffId.trim()
       password = brgyPw.trim()
-      if (!brgy) {
-        setError('Please select your barangay to continue.')
-        return
-      }
-      // Jurisdiction is set AFTER login from the account's own barangay
-      // (server-authoritative), so it can't be spoofed by the dropdown.
+      // No barangay to collect: jurisdiction comes from the account itself.
     } else {
       email = resEmail.trim()
       password = resPw.trim()
@@ -108,14 +93,14 @@ export default function Login() {
       const res = await authApi.login(email, password)
 
       if (res.mfaRequired) {
-        setChallenge({ kind: 'mfa', email: res.email, role, brgy })
+        setChallenge({ kind: 'mfa', email: res.email, role })
         return
       }
       if (res.unverified) {
-        setChallenge({ kind: 'verify', email: res.email, role, brgy })
+        setChallenge({ kind: 'verify', email: res.email, role })
         return
       }
-      finishLogin(res.user, role, brgy)
+      finishLogin(res.user, role)
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.')
     } finally {
@@ -126,18 +111,12 @@ export default function Login() {
   /**
    * Common tail for every route into a session — password-only, after the
    * second factor, or after a late email verification. Jurisdiction is
-   * server-authoritative: an official is scoped to the barangay on their
-   * account, not the one chosen in the dropdown.
+   * server-authoritative: an official is scoped to the barangay on their own
+   * account, which travels as a signed claim and is enforced by RLS.
    */
-  function finishLogin(user, forRole, chosenBrgy) {
+  function finishLogin(user, forRole) {
     if (forRole === 'barangay') {
-      if (chosenBrgy && user.barangay && user.barangay !== chosenBrgy) {
-        authApi.logout()
-        setChallenge(null)
-        setError(`This Staff ID belongs to Barangay ${user.barangay}. Select that barangay to sign in.`)
-        return
-      }
-      localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay || chosenBrgy)
+      localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay || '')
     }
     if (user.role === 'resident' && user.barangay) {
       localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay)
@@ -148,13 +127,13 @@ export default function Login() {
   /** Second factor: the emailed code, plus the optional trusted-device tick. */
   async function handleMfa(code, trustDevice) {
     const user = await authApi.completeMfa(challenge.email, code, trustDevice)
-    finishLogin(user, challenge.role, challenge.brgy)
+    finishLogin(user, challenge.role)
   }
 
   /** Late email verification for an account that never finished sign-up. */
   async function handleVerify(code) {
     const res = await authApi.verifyEmail(challenge.email, code)
-    if (res?.user) finishLogin(res.user, challenge.role, challenge.brgy)
+    if (res?.user) finishLogin(res.user, challenge.role)
   }
 
   return (
@@ -250,21 +229,13 @@ export default function Login() {
             {/* PANEL 2: Barangay Official */}
             {role === 'barangay' && (
               <div className="login-panel active">
-                <div className="field-group">
-                  <label htmlFor="brgy-select">Barangay</label>
-                  <select
-                    id="brgy-select"
-                    value={brgy}
-                    onChange={(e) => setBrgy(e.target.value)}
-                  >
-                    <option value="" disabled>
-                      Select Barangay ▾
-                    </option>
-                    {BARANGAYS.map((b) => (
-                      <option key={b}>{b}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* The barangay dropdown that used to sit here is gone.
+                    Jurisdiction now comes from the `barangay` claim inside the
+                    signed session token and is enforced by RLS in Postgres, so
+                    asking the official to pick it added no security — it only
+                    added a way to be turned away with the correct password for
+                    picking the wrong entry, and the rejection message named
+                    the barangay the Staff ID belonged to. */}
                 <div className="field-group">
                   <label htmlFor="staff-id">Staff ID</label>
                   <input
