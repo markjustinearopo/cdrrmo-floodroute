@@ -8,3 +8,9 @@ _manuscript.txt
 
 # Supabase CLI scratch state (project ref, pooler URL, version pins)
 supabase/.temp
+
+# Local data snapshots (scripts/snapshot-data.mjs). These hold real officials'
+# and residents' names, emails and phone numbers. This repository is public —
+# committing one would be a far worse leak than anything it was taken to guard
+# against. Never remove this line.
+backups/
