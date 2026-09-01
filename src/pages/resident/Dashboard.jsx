@@ -7,7 +7,6 @@ import {
   CABUYAO_CENTER,
   CABUYAO_ZOOM,
   levelFromDepth,
-  RISK_META,
   CabuyaoLock,
   BarangayLock,
   LocateControl,
@@ -17,13 +16,15 @@ import { useLiveWeather } from '../../services/weather.js'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
-import { useAlerts, useEvacCenters, useBarangayAssignments } from '../../context/AdminDataContext.jsx'
+import { useAlerts, useEvacCenters, useBarangayAssignments, barangayCoords } from '../../context/AdminDataContext.jsx'
+import { pickShelter, isNearlyFull, remainingHeadroom } from '../../data/shelters.js'
+import { describeDepth } from '../../services/depth.js'
 import EmergencySmsCard from '../../components/resident/EmergencySmsCard.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
 import './Resident.css'
-import { alertAppliesTo } from '../../data/cabuyao.js'
+import { alertAppliesTo, sortAlerts } from '../../data/cabuyao.js'
 
 /**
  * CDRRMO Resident — Dashboard ("My Safety Info").
@@ -36,6 +37,17 @@ import { alertAppliesTo } from '../../data/cabuyao.js'
  * resident's barangay. Risk follows the measured flood depth, the system-wide
  * source of truth.
  */
+
+/* The citizen portal's own risk words. RISK_META (components/admin/
+   mapHelpers) is the ADMIN map legend, where 'moderate' is abbreviated to
+   "MOD" so it fits inside a polygon label — that abbreviation was leaking
+   onto the one screen read by people with no operations training. */
+const RESIDENT_RISK_LABEL = {
+  high: 'HIGH RISK',
+  moderate: 'MODERATE RISK',
+  low: 'LOW RISK',
+  safe: 'NO FLOOD RISK',
+}
 
 const RISK_BLURB = {
   high: 'Severe flooding — evacuate now and follow the safe route below.',
@@ -98,14 +110,18 @@ export default function Dashboard() {
     [field, myBrgy],
   )
   const alerts = useMemo(
-    () => allAlerts.filter((a) => alertAppliesTo(a, myBrgy) && a.status === 'active'),
+    () => sortAlerts(allAlerts.filter((a) => alertAppliesTo(a, myBrgy) && a.status === 'active')),
     [allAlerts, myBrgy],
   )
-  // Prefer an open centre in the resident's own barangay, else the first open one.
-  const nearestCenter = useMemo(() => {
-    const open = evacuationCenters.filter((c) => c.status === 'open')
-    return open.find((c) => c.barangay === myBrgy) || open[0] || null
-  }, [evacuationCenters, myBrgy])
+  /* The centre we actually send this resident to. Ranked by real distance
+     from their barangay centroid and by how much room is left, and centres
+     at/near capacity are excluded outright — see src/data/shelters.js. The
+     routing page draws its candidates from the same rules, so the card and
+     the route can no longer name different shelters. */
+  const nearestCenter = useMemo(
+    () => pickShelter(evacuationCenters, barangayCoords(myBrgy), myBrgy),
+    [evacuationCenters, myBrgy],
+  )
   const contacts = useMemo(
     () => barangayAssignments[myBrgy]?.contacts || [],
     [barangayAssignments, myBrgy],
@@ -158,9 +174,22 @@ export default function Dashboard() {
         <div className="res-feed">
           <div className={`res-risk-card ${level}`}>
             <div className="res-risk-label">Your Flood Risk Level</div>
-            <div className="res-risk-level">{RISK_META[level].label}</div>
+            {/* Not RISK_META — that is the admin map constant, where
+                'moderate' is the four-character "MOD" that fits in a map
+                legend. A resident reading their own safety card gets the
+                whole word. */}
+            <div className="res-risk-level">{RESIDENT_RISK_LABEL[level]}</div>
             <div className="res-risk-sub">
-              Brgy. {brgyLabel} · ~{floodDepth.toFixed(2)} m est. depth · {RISK_BLURB[level]}
+              Brgy. {brgyLabel}
+              {describeDepth(floodDepth) && <> · {describeDepth(floodDepth)}</>}
+              {' · '}{RISK_BLURB[level]}
+            </div>
+            {/* The admin screens carry this caveat; the person who has to act
+                on the number did not. It is a model estimate from rainfall and
+                terrain, not a gauge reading on their street. */}
+            <div className="res-risk-note">
+              Estimated from rainfall and ground height — not a measurement of
+              your street. Trust what you can see outside.
             </div>
           </div>
 
@@ -185,13 +214,27 @@ export default function Dashboard() {
               <>
                 <div className="res-evac-name">{nearestCenter.name}</div>
                 <div className="res-evac-meta">
-                  Brgy. {nearestCenter.barangay} · {Number(nearestCenter.occupancy || 0).toLocaleString()}/{Number(nearestCenter.capacity || 0).toLocaleString()} occupancy · Open
+                  Brgy. {nearestCenter.barangay}
+                  {remainingHeadroom(nearestCenter) != null && (
+                    <> · room for about {remainingHeadroom(nearestCenter).toLocaleString()} more</>
+                  )}
                 </div>
+                {/* Said plainly rather than left for the reader to work out of
+                    "460/500": someone deciding whether to walk here in the rain
+                    needs to know it may be full when they arrive. */}
+                {isNearlyFull(nearestCenter) && (
+                  <div className="res-evac-warn">
+                    Filling up — go now, or head to another centre if you can.
+                  </div>
+                )}
               </>
             ) : (
               <>
-                <div className="res-evac-name muted">No open centre listed yet</div>
-                <div className="res-evac-meta">Open shelters near you will appear here during an event.</div>
+                <div className="res-evac-name muted">No centre with space right now</div>
+                <div className="res-evac-meta">
+                  Every listed centre is full or closed. Call your barangay hall or
+                  911 — do not set out without somewhere to go.
+                </div>
               </>
             )}
           </div>
@@ -274,7 +317,11 @@ export default function Dashboard() {
           <div className="res-side-card res-forecast-card">
             <div className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" /><line x1="8" y1="19" x2="8" y2="21" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="16" y1="19" x2="16" y2="21" /></svg>
-              3-Day Forecast
+              {/* Counted from what is actually rendered. The heading said
+                  "3-Day Forecast" above four columns (today plus three), and
+                  a hardcoded "4" would drift the same way the moment the
+                  upstream feed returns fewer days. */}
+              {forecast.length}-Day Forecast
             </div>
             <div className="res-forecast">
               {forecast.map((f, i) => (

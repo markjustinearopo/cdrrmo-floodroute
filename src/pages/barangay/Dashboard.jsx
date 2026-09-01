@@ -22,7 +22,7 @@ import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
 import './Barangay.css'
-import { alertAppliesTo } from '../../data/cabuyao.js'
+import { alertAppliesTo, sortAlerts } from '../../data/cabuyao.js'
 
 /**
  * CDRRMO Barangay — Dashboard (Monitor landing).
@@ -69,7 +69,7 @@ export default function Dashboard() {
     [field, myBrgy],
   )
   const alerts = useMemo(
-    () => allAlerts.filter((a) => alertAppliesTo(a, myBrgy) && a.status === 'active'),
+    () => sortAlerts(allAlerts.filter((a) => alertAppliesTo(a, myBrgy) && a.status === 'active')),
     [allAlerts, myBrgy],
   )
   const openShelters = useMemo(

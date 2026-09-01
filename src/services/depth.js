@@ -64,6 +64,51 @@ export function formatMeters(m) {
   return `${n < 0.1 ? n.toFixed(2) : n.toFixed(1)} m`
 }
 
+/* ── Depth a person can picture ───────────────────────────────────────────
+   "0.45 m" is a number an engineer reads. Nobody standing in the rain at
+   2 a.m. converts that into a decision.
+
+   A body reference does: knee-deep water is walkable by a healthy adult and
+   already dangerous for a child; waist-deep is where an adult starts being
+   swept off their feet; chest-deep is not survivable to cross. So the band is
+   what a resident screen leads with, and the metre value follows it as
+   supporting detail rather than as the headline.
+
+   Filipino first, because this is a Cabuyao resident's screen and these are
+   the words people actually use. Bounds are upper-exclusive metres. */
+export const DEPTH_BANDS = [
+  { max: 0.10, en: 'Ankle-deep',  fil: 'hanggang bukong-bukong' },
+  { max: 0.30, en: 'Shin-deep',   fil: 'hanggang binti' },
+  { max: 0.60, en: 'Knee-deep',   fil: 'hanggang tuhod' },
+  { max: 1.00, en: 'Waist-deep',  fil: 'hanggang baywang' },
+  { max: 1.40, en: 'Chest-deep',  fil: 'hanggang dibdib' },
+  { max: Infinity, en: 'Over an adult’s head', fil: 'lampas tao' },
+]
+
+/**
+ * The band a depth falls in, or null when there is nothing to show.
+ * @returns {{en: string, fil: string}|null}
+ */
+export function depthBand(m) {
+  if (m == null || m === '') return null
+  const n = Number(m)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return DEPTH_BANDS.find((b) => n < b.max) ?? DEPTH_BANDS[DEPTH_BANDS.length - 1]
+}
+
+/**
+ * Resident-facing depth: "Knee-deep (hanggang tuhod) · about 0.5 m".
+ * The picture first, the measurement second.
+ */
+export function describeDepth(m) {
+  const band = depthBand(m)
+  if (!band) return null
+  const metres = formatMeters(m)
+  return metres
+    ? `${band.en} (${band.fil}) · about ${metres}`
+    : `${band.en} (${band.fil})`
+}
+
 /** The same value in feet, for the editor's confirmation hint: "≈ 3 ft". */
 export function formatFeetHint(m) {
   const ft = mToFt(m)

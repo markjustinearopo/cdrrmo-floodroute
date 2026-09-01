@@ -106,9 +106,35 @@ export function pathLengthMeters(points) {
 // System Configuration — see services/systemConfig.js.
 export { formatDistance } from '../../services/systemConfig.js'
 
-// Rough walking ETA (5 km/h) — a friendly readout, not a routing claim.
-export function formatWalkEta(meters) {
-  const mins = Math.round(meters / 1000 / 5 * 60)
+/* Walking speeds, km/h. Wading is not a small correction to walking — moving
+   through shin-to-knee-deep water is roughly a third the speed of dry ground,
+   and that is before accounting for debris and current. A resident told
+   "12 min" who is actually facing 30 leaves later than they should. */
+export const WALK_KMH_DRY = 5
+export const WALK_KMH_WADING = 2
+
+/* Multiplier for someone who cannot move at a healthy adult's pace: carrying
+   a child, helping an elderly relative, or on crutches. This is a large share
+   of the people who most need an accurate number. */
+export const SLOWER_MOBILITY_FACTOR = 0.6
+
+/**
+ * Walking ETA for a route.
+ *
+ * @param {number} meters
+ * @param {object} [opts]
+ * @param {number} [opts.meanRisk]  0..1 flood exposure along the route, from
+ *   the route engine. Interpolates the pace between dry and wading speed —
+ *   the old version assumed 5 km/h even for a path the engine had just
+ *   flagged as crossing floodwater.
+ * @param {boolean} [opts.slowerMobility]
+ */
+export function formatWalkEta(meters, opts = {}) {
+  const exposure = Math.max(0, Math.min(1, Number(opts.meanRisk) || 0))
+  let kmh = WALK_KMH_DRY + (WALK_KMH_WADING - WALK_KMH_DRY) * exposure
+  if (opts.slowerMobility) kmh *= SLOWER_MOBILITY_FACTOR
+
+  const mins = Math.round((meters / 1000 / kmh) * 60)
   if (mins < 1) return '<1 min'
   if (mins < 60) return `${mins} min`
   const h = Math.floor(mins / 60)

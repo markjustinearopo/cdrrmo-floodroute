@@ -41,6 +41,7 @@ import FloodAreaEditor from '../../components/admin/FloodAreaEditor.jsx'
 import Map3D, { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import { useBarangayLayers, WATER_EXAGGERATION } from '../../components/admin/mapbox3dHelpers.js'
 import { useEvacCentres3D } from '../../components/admin/routing3d.js'
+import { sortAlerts } from '../../data/cabuyao.js'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import MapStatusLine from '../../components/map/MapStatusLine.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
@@ -148,7 +149,10 @@ export default function FloodMap() {
   const barangays = useMemo(() => barangayRiskSamples(field), [field])
   const rainfall = weather.current.rain ?? 0 // mm/hr
   const rainHistory = weather.rainHistory
-  const activeAlertList = useMemo(() => alerts.filter((a) => a.status === 'active'), [alerts])
+  const activeAlertList = useMemo(
+    () => sortAlerts(alerts.filter((a) => a.status === 'active')),
+    [alerts],
+  )
   /* "Open" has to mean ACCEPTING. Counting every non-closed centre reported
      centres already at capacity as open — the one figure an operator reads
      before deciding a barangay has somewhere to send people. */

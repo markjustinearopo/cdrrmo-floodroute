@@ -59,6 +59,39 @@ export function alertAppliesTo(alert, barangay) {
   return alert.barangay === CITY_WIDE || alert.barangay === barangay
 }
 
+/* ── Alert ordering ────────────────────────────────────────────────────────
+   Severity first, then newest.
+
+   There was no sort call on ANY alert list in this codebase — every portal
+   rendered them in whatever order the database returned, which is `id`
+   order. So a FORCED EVACUATION for the reader's own barangay could sit
+   below three advisories simply because it was issued earlier, and on a
+   phone (which shows only the newest two) it could fall off the card
+   entirely. A warning nobody sees is the same as a warning never sent.
+
+   Emergency outranks high, which outranks moderate, and so on; 'safe' is an
+   all-clear and sorts last among active alerts. Ties break on issue time,
+   newest first. Use this everywhere a list of alerts is rendered. */
+const ALERT_SEVERITY_RANK = {
+  emergency: 0,
+  high: 1,
+  moderate: 2,
+  low: 3,
+  safe: 4,
+}
+
+export function compareAlerts(a, b) {
+  const rank = (x) => ALERT_SEVERITY_RANK[x?.level] ?? 5
+  const bySeverity = rank(a) - rank(b)
+  if (bySeverity !== 0) return bySeverity
+  return (b?.issuedAt ?? 0) - (a?.issuedAt ?? 0)
+}
+
+/** Convenience: filter to one barangay's active alerts, most urgent first. */
+export function sortAlerts(alerts = []) {
+  return [...alerts].sort(compareAlerts)
+}
+
 /* ── Barangay safeness ─────────────────────────────────────
    Graded from the modeled flood depth (m) per barangay using the
    OPERATOR-configurable thresholds on System Configuration (read live

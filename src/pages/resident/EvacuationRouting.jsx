@@ -30,6 +30,7 @@ import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
 import { getResidentBarangay, residentBarangayLabel } from '../../data/resident.js'
+import { usableShelters } from '../../data/shelters.js'
 import LiveNavigation from '../../components/resident/LiveNavigation.jsx'
 import RoutingGuide, { hasSeenRoutingGuide } from '../../components/resident/RoutingGuide.jsx'
 import * as speech from '../../services/speech.js'
@@ -91,6 +92,10 @@ export default function EvacuationRouting() {
   // system to compute (origin = their pinned location, else their barangay).
   const [gen, setGen] = useState(null)
   const [genMsg, setGenMsg] = useState('')
+  /* Persisted: someone who is the family member that helps a grandparent
+     evacuate is that person every time, and re-ticking this during the next
+     typhoon is not a thing to ask of them. */
+  const [slowerMobility, setSlowerMobility] = usePersistedState('cdrrmo-res-slow-pace', false)
 
   /* Guided navigation. `navSession` is the route actually being walked — it is
      planned fresh from a live GPS fix at the moment "Start" is pressed, not
@@ -201,12 +206,20 @@ export default function EvacuationRouting() {
     setGenMsg('')
     if (!origin) return setGenMsg('Pin your location (or set your barangay) to generate a route.')
     if (!graph || graph.size === 0) return setGenMsg('Road network unavailable.')
-    let candidates = evacuationCenters.filter((c) => c.status === 'open' && Array.isArray(c.coords))
+    /* Same eligibility rules as the dashboard card (src/data/shelters.js):
+       'open' is an operator-set flag, so a centre at 499/500 still carries it.
+       Routing someone across a flooded city to a building that cannot take
+       them is the failure this filter exists to prevent. */
+    let candidates = usableShelters(evacuationCenters).filter((c) => Array.isArray(c.coords))
     if (targetId) {
+      // An explicit tap overrides the filter — if a resident deliberately
+      // chooses a centre, route them there and let the badge warn them.
       const t = evacuationCenters.find((c) => c.id === targetId && Array.isArray(c.coords))
-      if (t) candidates = [t] // route specifically to the shelter the resident tapped
+      if (t) candidates = [t]
     }
-    if (candidates.length === 0) return setGenMsg('No open evacuation centre to route to yet.')
+    if (candidates.length === 0) {
+      return setGenMsg('No evacuation centre has space right now. Call your barangay hall or 911.')
+    }
     const best = planToNearestSafe(graph, origin, candidates, {
       riskAt: field?.riskAt,
       statusMap,
@@ -437,10 +450,25 @@ export default function EvacuationRouting() {
                     <div className="rp-metric-lbl">Distance</div>
                   </div>
                   <div className="rp-metric">
-                    <div className="rp-metric-val">{points.length > 1 ? formatWalkEta(distance) : '--'}</div>
+                    {/* Paced off this route's OWN flood exposure, not a flat
+                        5 km/h. The engine already knows the path wades; the
+                        person walking it should not find that out en route. */}
+                    <div className="rp-metric-val">
+                      {points.length > 1
+                        ? formatWalkEta(distance, { meanRisk: gen.meanRisk, slowerMobility })
+                        : '--'}
+                    </div>
                     <div className="rp-metric-lbl">Walk ETA</div>
                   </div>
                 </div>
+                <label className="rp-mobility">
+                  <input
+                    type="checkbox"
+                    checked={slowerMobility}
+                    onChange={(e) => setSlowerMobility(e.target.checked)}
+                  />
+                  Walking with a child, an elderly person, or slowly
+                </label>
                 <div className="rp-type-note" style={{ marginTop: 10 }}>
                   <span className="rp-type-dot" style={{ background: '#1a7a4a' }} />
                   Flood-aware · steers around flooded / closed roads
@@ -481,17 +509,21 @@ export default function EvacuationRouting() {
                   <span className="rp-type-dot" style={{ background: color }} />
                   {selected.name}
                 </div>
+                {/* "Stops" used to sit here, showing (selected.points).length
+                    — the number of vertices in the drawn polyline. That is a
+                    geometry artifact: a straighter road produces fewer points,
+                    and none of them are places anyone stops. It read as real
+                    information next to two numbers that are, so it is gone
+                    rather than relabelled. */}
                 <div className="rp-metrics" style={{ marginTop: 10 }}>
-                  <div className="rp-metric">
-                    <div className="rp-metric-val">{(selected.points || []).length}</div>
-                    <div className="rp-metric-lbl">Stops</div>
-                  </div>
                   <div className="rp-metric">
                     <div className="rp-metric-val">{formatDistance(distance)}</div>
                     <div className="rp-metric-lbl">Distance</div>
                   </div>
                   <div className="rp-metric">
-                    <div className="rp-metric-val">{points.length > 1 ? formatWalkEta(distance) : '--'}</div>
+                    <div className="rp-metric-val">
+                      {points.length > 1 ? formatWalkEta(distance, { slowerMobility }) : '--'}
+                    </div>
                     <div className="rp-metric-lbl">Walk ETA</div>
                   </div>
                 </div>

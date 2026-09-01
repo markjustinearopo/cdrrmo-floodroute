@@ -27,6 +27,20 @@ import DecisionStrip from '../../components/admin/DecisionStrip.jsx'
 import { levelFromDepth } from '../../services/systemConfig.js'
 import { useT } from '../../services/i18n.js'
 import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
+import { sortAlerts } from '../../data/cabuyao.js'
+
+/**
+ * "Barangays affected" — high + moderate, in ONE place.
+ *
+ * This figure appears twice on this screen: the Flood Insight chip and the
+ * centre of the City Flood Risk gauge. It was computed independently in both,
+ * so nothing stopped the two from drifting into showing different numbers for
+ * the same words on the same screen — the kind of disagreement that makes an
+ * operator stop trusting the whole dashboard.
+ */
+function affectedCount(counts) {
+  return (counts?.high ?? 0) + (counts?.moderate ?? 0)
+}
 import { dispatchAlert, describeDispatch } from '../../services/alertDispatch.js'
 import './Dashboard.css'
 
@@ -137,7 +151,7 @@ export default function Dashboard() {
 
   // Only active alerts surface on the dashboard feed (scheduled/resolved hide).
   const activeAlertList = useMemo(
-    () => alerts.filter((a) => a.status === 'active'),
+    () => sortAlerts(alerts.filter((a) => a.status === 'active')),
     [alerts],
   )
 
@@ -196,10 +210,17 @@ export default function Dashboard() {
 
   // Real hour-over-hour rainfall trend from the live 8-hour history — the only
   // stat with genuine history behind it, so the only one that shows a delta.
+  /* Open-Meteo reports rainfall to 0.1 mm, so the previous 0.05 mm guard was
+     below the feed's own precision — it could never fire, and the card showed
+     "▲ +0.1" for a change that is indistinguishable from rounding. An operator
+     reading a rising-rain arrow acts on it. Two reporting quanta is the
+     smallest change we can honestly call a change. */
+  const RAIN_DELTA_THRESHOLD_MM = 0.2
+
   const rainDelta = useMemo(() => {
     if (!Array.isArray(rainHistory) || rainHistory.length < 2) return null
     const d = rainHistory[rainHistory.length - 1] - rainHistory[rainHistory.length - 2]
-    if (Math.abs(d) < 0.05) return { dir: 'flat', text: 'steady' }
+    if (Math.abs(d) < RAIN_DELTA_THRESHOLD_MM) return { dir: 'flat', text: 'steady' }
     return d > 0
       ? { dir: 'up', text: `▲ +${d.toFixed(1)}` }
       : { dir: 'down', text: `▼ ${d.toFixed(1)}` }
@@ -210,8 +231,7 @@ export default function Dashboard() {
     const moderate = barangays.filter((b) => levelFromDepth(b.floodDepth) === 'moderate').length
     const low = barangays.filter((b) => levelFromDepth(b.floodDepth) === 'low').length
     const safe = Math.max(0, barangays.length - high - moderate - low)
-    const affected = high + moderate
-    return { high, moderate, low, safe, affected }
+    return { high, moderate, low, safe, affected: affectedCount({ high, moderate }) }
   }, [barangays])
 
   // Barangays ordered by depth for the 3D risk skyline (deepest → shallowest).
@@ -844,34 +864,60 @@ export default function Dashboard() {
 }
 
 /* ── Count-up animation for the stat numbers ─────────────────────────────── */
+/**
+ * Count a stat card up to its value. THE ANIMATION IS DECORATION — the true
+ * number is what renders, always.
+ *
+ * The previous version let the animation own the displayed value: `display`
+ * started at whatever `value` was on mount (0, before the first fetch lands)
+ * and only reached the truth if every requestAnimationFrame callback ran to
+ * completion. When they did not — a backgrounded tab throttles rAF to zero,
+ * and the dashboard's own 6-second poll re-renders underneath it — the card
+ * sat at "0 ACTIVE ALERTS" with sixteen active alerts in the list beside it.
+ *
+ * On an emergency dashboard that is not a cosmetic glitch: 0 and 16 are
+ * different operational situations, and the operator has no way to tell that
+ * the number they are reading is a half-finished animation.
+ *
+ * So: display is set to the real value synchronously on every change, and the
+ * animation only ever plays *over* an already-correct number. If rAF never
+ * fires, the reader still sees the truth — they just do not see it count.
+ * Also honours prefers-reduced-motion, which the old version ignored.
+ */
 function useCountUp(value, duration = 700) {
   const [display, setDisplay] = useState(value)
-  const fromRef = useRef(0) // animate up from zero on first load
+  const fromRef = useRef(null)
+
   useEffect(() => {
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      setDisplay(value)
-      return undefined
-    }
-    const from = typeof fromRef.current === 'number' ? fromRef.current : 0
-    if (from === value) {
-      setDisplay(value)
-      return undefined
-    }
+    // Truth first, unconditionally. Everything below is optional polish.
+    setDisplay(value)
+
+    const previous = fromRef.current
+    fromRef.current = value
+
+    if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+    if (typeof previous !== 'number' || previous === value) return undefined
+
+    const reduceMotion = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion) return undefined
+
     let raf
     const t0 = performance.now()
     const tick = (t) => {
       const p = Math.min(1, (t - t0) / duration)
       const eased = 1 - (1 - p) ** 3
-      setDisplay(from + (value - from) * eased)
+      setDisplay(previous + (value - previous) * eased)
       if (p < 1) raf = requestAnimationFrame(tick)
-      else fromRef.current = value
+      else setDisplay(value) // never let easing round-off be the final word
     }
     raf = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(raf)
-      fromRef.current = value
+      setDisplay(value) // interrupted mid-count: land on the truth, not partway
     }
   }, [value, duration])
+
   return display
 }
 
@@ -919,7 +965,7 @@ function RiskGauge({ counts, total }) {
   })
   const worst = counts.high ? 'high' : counts.moderate ? 'moderate' : counts.low ? 'low' : 'safe'
   const worstLabel = { high: t('High'), moderate: t('Moderate'), low: t('Low'), safe: t('Safe') }[worst]
-  const affected = counts.high + counts.moderate
+  const affected = affectedCount(counts)
 
   return (
     <div className="risk-gauge">

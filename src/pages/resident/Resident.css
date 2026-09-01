@@ -195,6 +195,47 @@
 .res-evac-name.muted { color: #bcbab7; font-weight: 700; font-style: italic; font-size: 1rem; }
 .res-evac-meta { font-size: 0.8125rem; color: #5a5a5a; margin-top: 3px; }
 
+/* Slower-pace toggle on the route panel. 40px min-height so it stays a real
+   touch target on a phone (see the mobile conventions in this file). */
+.rp-mobility {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  color: #4a4a4a;
+  cursor: pointer;
+}
+.rp-mobility input { width: 16px; height: 16px; flex: none; }
+
+/* Model-estimate caveat on the risk card. Deliberately quiet — it must not
+   compete with the risk level itself, but it must be there: the admin screens
+   carry this warning and the person acting on the number did not. */
+.res-risk-note {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  opacity: 0.85;
+}
+
+/* Shown when the recommended centre is past ~85% of capacity. Amber, not red:
+   this is "decide sooner", not "do not go" — a nearly-full shelter is still
+   somewhere to go, and red here would compete with the actual danger levels. */
+.res-evac-warn {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #fff5e6;
+  border-left: 3px solid #d97706;
+  color: #92400e;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 /* ── Big route CTA ───────────────────────────────────────────────────────── */
 .res-route-btn {
   display: flex;
