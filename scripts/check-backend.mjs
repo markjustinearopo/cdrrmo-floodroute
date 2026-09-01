@@ -96,11 +96,16 @@ if (Array.isArray(acc.body)) {
   const mfa = rows.filter((r) => r.mfa_enabled)
   const residentMfa = rows.filter((r) => r.mfa_enabled && r.role === 'resident')
   console.log(`  two-factor enabled on ${mfa.length} account(s)`)
-  /* Two-factor on a resident is only safe if a code can actually reach them.
-     While email delivery is broken and SMS is not live, it is a lockout. */
+  /* A resident is verified ONCE, by text, at registration; auth-otp skips the
+     second factor for the resident role outright, so the flag on those rows is
+     inert. It is still worth naming — the column and the behaviour disagree,
+     and the next person to read the table should not have to guess which one
+     is in force. It is stale data, not a lockout. */
   if (residentMfa.length) {
-    console.log(bad(`  ${residentMfa.length} RESIDENT account(s) have two-factor on`))
-    console.log('    every sign-in mails a code; while Resend is sandboxed that locks them out')
+    console.log(warn(`  ${residentMfa.length} resident row(s) still carry mfa_enabled=true`))
+    console.log('    inert — auth-otp skips the second factor for residents by role.')
+    console.log('    To tidy the column (anon has no UPDATE on accounts, so this needs the SQL editor):')
+    console.log("      update public.accounts set mfa_enabled = false where role = 'resident';")
   }
 
   // Does accounts.phone exist? Ask for it directly — PostgREST 400s if not.
