@@ -121,6 +121,7 @@ function readAllowed(res, expectRows) {
    by pointing them at real other accounts. ─────────────────────────────── */
 const KNOWN_ID = { admin: 182, barangay: 183, resident: 184 }
 const NO_SUCH_ID = -999999
+const KNOWN_CENTER = { own: 25, other: 17 } // Baclaran (testbarangay's own) / Poblacion Tres
 
 const ASSERTIONS = {
   accounts: [
@@ -157,6 +158,53 @@ const ASSERTIONS = {
       run: (t) => call(t, 'POST', 'accounts?select=id', { username: `rls-probe-${Date.now()}`, email: `x${Date.now()}@example.com`, role: 'resident' }) },
     { op: 'DELETE (nonexistent row — policy shape only)', role: 'resident', expect: false,
       run: (t) => call(t, 'DELETE', `accounts?id=eq.${NO_SUCH_ID}&select=id`) },
+  ],
+
+  barangays: [
+    { op: 'SELECT', role: 'anon', expect: true,
+      run: (t) => call(t, 'GET', 'barangays?select=id,name&limit=3') },
+    { op: 'SELECT', role: 'resident', expect: true,
+      run: (t) => call(t, 'GET', 'barangays?select=id,name&limit=3') },
+    { op: 'UPDATE (no-op value)', role: 'admin', expect: true,
+      run: (t) => call(t, 'PATCH', 'barangays?id=eq.1&select=id', { notes: null }) },
+    { op: 'UPDATE (nonexistent row — policy shape only)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'PATCH', `barangays?id=eq.${NO_SUCH_ID}&select=id`, { notes: 'probe' }) },
+    { op: 'UPDATE (nonexistent row — policy shape only)', role: 'resident', expect: false,
+      run: (t) => call(t, 'PATCH', `barangays?id=eq.${NO_SUCH_ID}&select=id`, { notes: 'probe' }) },
+  ],
+
+  hazard_zones: [
+    { op: 'SELECT', role: 'anon', expect: true,
+      run: (t) => call(t, 'GET', 'hazard_zones?select=id,category&limit=3') },
+    { op: 'SELECT', role: 'resident', expect: true,
+      run: (t) => call(t, 'GET', 'hazard_zones?select=id,category&limit=3') },
+    { op: 'UPDATE (no-op value)', role: 'admin', expect: true,
+      run: (t) => call(t, 'PATCH', 'hazard_zones?id=eq.1&select=id', { source: 'SEED' }) },
+    { op: 'UPDATE (nonexistent row — policy shape only)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'PATCH', `hazard_zones?id=eq.${NO_SUCH_ID}&select=id`, { source: 'probe' }) },
+  ],
+
+  evacuation_centers: [
+    // KNOWN_CENTER.own = a real center in testbarangay's own barangay (Baclaran).
+    // KNOWN_CENTER.other = a real center in a DIFFERENT barangay — the actual
+    // finding this migration closes: today a barangay official can write ANY
+    // center by id, not just their own.
+    { op: 'SELECT', role: 'anon', expect: true,
+      run: (t) => call(t, 'GET', 'evacuation_centers?select=id,name&limit=3') },
+    // status values below are each center's REAL current value (checked
+    // against the live snapshot before writing this) — true no-ops, not
+    // guesses. Center 25 is "full" right now (the seeded forced-evacuation
+    // scenario); sending "open" here would actually change that.
+    { op: 'UPDATE (own barangay center, no-op value)', role: 'barangay', expect: true,
+      run: (t) => call(t, 'PATCH', `evacuation_centers?id=eq.${KNOWN_CENTER.own}&select=id`, { status: 'full' }) },
+    { op: 'UPDATE (another barangay\'s center — cross-jurisdiction write)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'PATCH', `evacuation_centers?id=eq.${KNOWN_CENTER.other}&select=id`, { status: 'open' }) },
+    { op: 'UPDATE (any center)', role: 'admin', expect: true,
+      run: (t) => call(t, 'PATCH', `evacuation_centers?id=eq.${KNOWN_CENTER.other}&select=id`, { status: 'open' }) },
+    { op: 'INSERT (wrong barangay claimed)', role: 'barangay', expect: false,
+      run: (t) => call(t, 'POST', 'evacuation_centers?select=id', { name: `RLS probe ${Date.now()}`, barangay: 'Mamatid', capacity: 1, occupancy: 0, status: 'open' }) },
+    { op: 'DELETE (nonexistent row — policy shape only)', role: 'resident', expect: false,
+      run: (t) => call(t, 'DELETE', `evacuation_centers?id=eq.${NO_SUCH_ID}&select=id`) },
   ],
 }
 
