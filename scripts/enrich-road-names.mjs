@@ -107,10 +107,14 @@ function angleGap(a, b) {
 }
 
 /* ── Decode the bundled ways into [lat,lng] pairs ─────────────────────────── */
+/* `ns` is read back, not assumed. Running this a second time over its own
+   output used to re-stamp every inferred label as `osm`, quietly promoting a
+   subdivision context label to an authoritative street name — which the
+   router reads as "this is a real street" and turn-by-turn then trusts. */
 const ways = roads.ways.map((w) => {
   const pts = []
   for (let i = 0; i < w.g.length; i += 2) pts.push([w.g[i], w.g[i + 1]])
-  return { ref: w, pts, name: w.n || 0, src: w.n ? 'osm' : null }
+  return { ref: w, pts, name: w.n || 0, src: w.n ? (w.ns || 'osm') : null }
 })
 const byOsmId = new Map()
 for (const w of ways) if (w.ref.i > 0) byOsmId.set(w.ref.i, w)
@@ -445,6 +449,129 @@ for (const w of ways) {
 }
 console.error(`Pass 4 (area context): +${fromArea}`)
 
+/* ── Pass 5 — the street it hangs off ─────────────────────────────────────── */
+/* What survives pass 4 is mostly a service spur or an alley inside no named
+   place at all. It still HAS a location a person can describe, and they
+   describe it by the street it leaves: "the lane off Caingin Road". Only real
+   street names (osm / ref / addr / continuation) are borrowed — chaining off
+   an area label would compound a guess onto a guess. */
+const REAL_SRC = new Set(['osm', 'ref', 'addr', 'continuation'])
+const anchors = ways.filter((w) => w.name && REAL_SRC.has(w.src))
+
+const aGrid = new Map()
+for (const w of anchors) {
+  const seen = new Set()
+  for (const [la, lo] of w.pts) {
+    const k = cellKey(la, lo)
+    if (seen.has(k)) continue
+    seen.add(k)
+    if (!aGrid.has(k)) aGrid.set(k, [])
+    aGrid.get(k).push(w)
+  }
+}
+
+const NEAR_M = 150
+let fromNear = 0
+for (const w of ways) {
+  if (w.name) continue
+  const mid = w.pts[Math.floor(w.pts.length / 2)]
+  const ci = Math.floor(mid[0] / CELL)
+  const cj = Math.floor(mid[1] / CELL)
+  let best = null
+  let bestD = NEAR_M
+  for (let di = -1; di <= 1; di++) {
+    for (let dj = -1; dj <= 1; dj++) {
+      for (const a of aGrid.get(`${ci + di}:${cj + dj}`) || []) {
+        for (let i = 1; i < a.pts.length; i++) {
+          const d = distToSegment(
+            mid[0], mid[1],
+            a.pts[i - 1][0], a.pts[i - 1][1],
+            a.pts[i][0], a.pts[i][1],
+          )
+          if (d < bestD) {
+            bestD = d
+            best = a
+          }
+        }
+      }
+    }
+  }
+  if (!best) continue
+  w.name = `off ${best.name}`
+  w.src = 'near'
+  fromNear++
+}
+console.error(`Pass 5 (off a named street): +${fromNear}`)
+
+/* ── Pass 6 — nothing stays nameless ──────────────────────────────────────── */
+/* The brief is that every street is searchable. A way with no name, no
+   address, no subdivision and no named neighbour still sits in a barangay,
+   and "Brgy. Marinig local road" is both true and findable — which
+   "Unnamed road" repeated nine hundred times is not. */
+const brgyFeatures = JSON.parse(
+  readFileSync(new URL('../src/data/cabuyaoBarangays.geo.json', import.meta.url), 'utf8'),
+).features
+
+/* Centroids, for the ways the strict test cannot place. The bundler keeps any
+   road whose centreline runs within about 100 m of the city boundary, so a
+   boundary street is legitimately IN the network and legitimately OUTSIDE
+   every polygon. Those are edge-of-barangay roads, and naming them after the
+   barangay they run along is accurate. */
+const brgyCentroids = brgyFeatures.map((f) => {
+  const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates
+  let sLat = 0
+  let sLng = 0
+  let n = 0
+  for (const poly of polys) {
+    for (const [x, y] of poly[0]) {
+      sLat += y
+      sLng += x
+      n++
+    }
+  }
+  return { name: f.properties.name, lat: sLat / n, lng: sLng / n }
+})
+
+function barangayAt(la, lo) {
+  for (const f of brgyFeatures) {
+    const geom = f.geometry
+    const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates
+    for (const poly of polys) {
+      // ring is [lng,lat]; inRing takes (lat, lng, [[lat,lng],…])
+      const outer = poly[0].map(([x, y]) => [y, x])
+      if (!inRing(la, lo, outer)) continue
+      const inHole = poly.slice(1).some((h) => inRing(la, lo, h.map(([x, y]) => [y, x])))
+      if (!inHole) return f.properties.name
+    }
+  }
+  let best = null
+  let bestD = Infinity
+  for (const c of brgyCentroids) {
+    const d = metres(la, lo, c.lat, c.lng)
+    if (d < bestD) {
+      bestD = d
+      best = c.name
+    }
+  }
+  return best
+}
+
+let fromBrgy = 0
+for (const w of ways) {
+  if (w.name) continue
+  const mid = w.pts[Math.floor(w.pts.length / 2)]
+  const brgy = barangayAt(mid[0], mid[1])
+  if (!brgy) continue
+  const noun = w.ref.h === 'service' ? 'service road'
+    : w.ref.h === 'track' ? 'track'
+      : w.ref.h === 'footway' || w.ref.h === 'path' ? 'footpath'
+        : 'local road'
+  w.name = `Brgy. ${brgy} ${noun}`
+  w.src = 'barangay'
+  fromBrgy++
+}
+console.error(`Pass 6 (barangay fallback): +${fromBrgy}`)
+
 /* ── Write back ───────────────────────────────────────────────────────────── */
 for (const w of ways) {
   w.ref.n = w.name || 0
@@ -463,6 +590,8 @@ roads.nameCoverage = {
   addr: ways.filter((w) => w.src === 'addr').length,
   continuation: ways.filter((w) => w.src === 'continuation').length,
   area: ways.filter((w) => w.src === 'area').length,
+  near: ways.filter((w) => w.src === 'near').length,
+  barangay: ways.filter((w) => w.src === 'barangay').length,
 }
 
 writeFileSync(ROADS_URL, JSON.stringify(roads))
