@@ -62,3 +62,11 @@
   .stats-row { gap: 8px; }
   .stat-box .stat-number { font-size: 1.25rem; }
 }
+
+/* Language switch, above the role tabs. Right-aligned so it reads as a
+   setting rather than as part of the sign-in flow. */
+.login-lang-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}

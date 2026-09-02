@@ -10,6 +10,7 @@ import {
   ContactContent,
 } from '../components/policyContent.jsx'
 import CodeVerification from '../components/auth/CodeVerification.jsx'
+import LanguageToggle from '../components/LanguageToggle.jsx'
 import { authApi, getRoleForRedirect } from '../services/api.js'
 import { OFFICIAL_BRGY_KEY } from '../data/barangay.js'
 import './auth.css'
@@ -183,6 +184,13 @@ export default function Login() {
               <h2>System Access</h2>
               <p>Cabuyao CDRRMO Portal</p>
             </div>
+          </div>
+
+          {/* Language, before sign-in. The switch used to live only in admin
+              System Configuration, so a resident — the person most likely to
+              want Filipino — could never reach it. */}
+          <div className="login-lang-row">
+            <LanguageToggle className="on-light" />
           </div>
 
           {/* Role tabs */}

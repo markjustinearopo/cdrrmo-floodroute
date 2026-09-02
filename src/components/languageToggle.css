@@ -1,0 +1,46 @@
+/* Language switch on the pre-login screens. Small and quiet — it must be
+   findable without competing with the sign-in form, which is what people
+   came for. 40px targets so it is genuinely tappable on a phone. */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.lang-toggle button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.78125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+
+.lang-toggle button:hover { color: #fff; }
+
+.lang-toggle button.active {
+  background: #fff;
+  color: #8f1113;
+  font-weight: 700;
+}
+
+.lang-toggle button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* On the light card variant (Register), invert so it stays legible. */
+.lang-toggle.on-light {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+.lang-toggle.on-light button { color: #5a5a5a; }
+.lang-toggle.on-light button.active { background: #8f1113; color: #fff; }

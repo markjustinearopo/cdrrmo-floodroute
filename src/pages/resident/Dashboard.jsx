@@ -25,6 +25,7 @@ import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
 import './Resident.css'
 import { alertAppliesTo, sortAlerts } from '../../data/cabuyao.js'
+import { useT } from '../../services/i18n.js'
 
 /**
  * CDRRMO Resident — Dashboard ("My Safety Info").
@@ -96,6 +97,7 @@ const NATIONAL_HOTLINE = { name: 'National Emergency Hotline', number: '911' }
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const t = useT()
   const brgyLabel = residentBarangayLabel()
   const myBrgy = getResidentBarangay()
 
@@ -191,34 +193,33 @@ export default function Dashboard() {
         {/* ── Left: personal feed ── */}
         <div className="res-feed">
           <div className={`res-risk-card ${level}`}>
-            <div className="res-risk-label">Your Flood Risk Level</div>
+            <div className="res-risk-label">{t('Your Flood Risk Level')}</div>
             {/* Not RISK_META — that is the admin map constant, where
                 'moderate' is the four-character "MOD" that fits in a map
                 legend. A resident reading their own safety card gets the
                 whole word. */}
-            <div className="res-risk-level">{RESIDENT_RISK_LABEL[level]}</div>
+            <div className="res-risk-level">{t(RESIDENT_RISK_LABEL[level])}</div>
             <div className="res-risk-sub">
               Brgy. {brgyLabel}
               {describeDepth(floodDepth) && <> · {describeDepth(floodDepth)}</>}
-              {' · '}{RISK_BLURB[level]}
+              {' · '}{t(RISK_BLURB[level])}
             </div>
             {/* The admin screens carry this caveat; the person who has to act
                 on the number did not. It is a model estimate from rainfall and
                 terrain, not a gauge reading on their street. */}
             <div className="res-risk-note">
-              Estimated from rainfall and ground height — not a measurement of
-              your street. Trust what you can see outside.
+              {t('Estimated from rainfall and ground height — not a measurement of your street. Trust what you can see outside.')}
             </div>
           </div>
 
           <div className={`res-steps-card ${level}`}>
             <div className="res-card-head">
               <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-              What To Do Now
+              {t('What To Do Now')}
             </div>
             <ul className="res-steps">
               {RISK_STEPS[level].map((s) => (
-                <li key={s}><span className="res-step-dot" />{s}</li>
+                <li key={s}><span className="res-step-dot" />{t(s)}</li>
               ))}
             </ul>
           </div>
@@ -226,7 +227,7 @@ export default function Dashboard() {
           <div className="res-evac-card">
             <div className="res-card-head">
               <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-              Nearest Evacuation Centre
+              {t('Nearest Evacuation Centre')}
             </div>
             {nearestCenter ? (
               <>
@@ -259,12 +260,12 @@ export default function Dashboard() {
 
           <button type="button" className="res-route-btn" onClick={() => navigate('/resident/evacuation-routing')}>
             <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
-            Get Safe Route to Evacuation Centre
+            {t('Get Safe Route to Evacuation Centre')}
           </button>
 
           <button type="button" className="res-route-btn" style={{ background: '#c0181b' }} onClick={() => setShowReport(true)}>
             <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /><path d="M9 14c1 1 2 1 3 0s2-1 3 0" /></svg>
-            Report Flood Status
+            {t('Report Flood Status')}
           </button>
 
           {/* Emergency text sign-up, on the landing page and not only under
@@ -302,7 +303,7 @@ export default function Dashboard() {
           <div className="res-side-card res-alerts-card">
             <div className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
-              Active Alerts Near You
+              {t('Active Alerts Near You')}
             </div>
             {alerts.length === 0 ? (
               <div className="res-empty">
@@ -368,7 +369,7 @@ export default function Dashboard() {
           <div className="res-side-card res-prep-card">
             <div className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-              Preparedness Checklist
+              {t('Preparedness Checklist')}
               <span className="res-prep-count">{prepDone}/{PREP_ITEMS.length}</span>
             </div>
             <div className="res-prep-track">
@@ -383,7 +384,7 @@ export default function Dashboard() {
                     onChange={() => setPrep((p) => ({ ...p, [it.key]: !p[it.key] }))}
                   />
                   <span className="res-prep-box" />
-                  <span className="res-prep-label">{it.label}</span>
+                  <span className="res-prep-label">{t(it.label)}</span>
                 </label>
               ))}
             </div>
@@ -392,7 +393,7 @@ export default function Dashboard() {
           <div className="res-side-card res-contacts-card">
             <div className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 21.5 16z" /></svg>
-              Emergency Contacts
+              {t('Emergency Contacts')}
             </div>
             <ContactRow name={NATIONAL_HOTLINE.name} number={NATIONAL_HOTLINE.number} />
             {contacts.map((c) => (

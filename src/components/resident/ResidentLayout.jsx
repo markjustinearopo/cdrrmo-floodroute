@@ -10,6 +10,7 @@ import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import { useFloodRisk } from '../admin/floodRisk.js'
 import { floodStatus, floodBannerText } from '../../services/floodBanner.js'
+import { useT } from '../../services/i18n.js'
 import { useAlerts } from '../../context/AdminDataContext.jsx'
 import ResidentTabBar from './ResidentTabBar.jsx'
 import '../admin/AdminLayout.css'
@@ -58,6 +59,7 @@ const NAV = [
 
 export default function ResidentLayout({ children, mainClassName = '' }) {
   const navigate = useNavigate()
+  const t = useT()
   const { weather } = useLiveWeather()
   const [clock, setClock] = useState('--:-- PHT')
   const [menu, setMenu] = useState(null)
@@ -250,7 +252,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
         <aside className={`sidebar ${navOpen ? 'open' : ''}`.trim()}>
           {NAV.map((group) => (
             <div key={group.section}>
-              <div className="sidebar-section">{group.section}</div>
+              <div className="sidebar-section">{t(group.section)}</div>
               {group.items.map(({ label, to, icon: Icon }) => (
                 <NavLink
                   key={label}
@@ -259,7 +261,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
                   onClick={() => setNavOpen(false)}
                 >
                   <Icon />
-                  {label}
+                  {t(label)}
                 </NavLink>
               ))}
             </div>
