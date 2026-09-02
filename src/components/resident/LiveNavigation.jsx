@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { planRoute, DEFAULT_ALPHA } from '../admin/routeEngine.js'
@@ -18,6 +18,11 @@ import {
 } from '../../services/navigation.js'
 import * as speech from '../../services/speech.js'
 import './liveNavigation.css'
+
+/* Lazy: Mapbox GL is ~500 kB gzipped and most residents will never switch to
+   the 3D view. Loading it only on the toggle keeps the 2D navigator — the one
+   that always works — free of that weight. */
+const LiveNavigation3D = lazy(() => import('./LiveNavigation3D.jsx'))
 
 /* ============================================================
    LiveNavigation — guided, spoken, self-correcting evacuation navigation.
@@ -337,6 +342,10 @@ export default function LiveNavigation({
   const [phase, setPhase] = useState('starting') // starting | live | rerouting | arrived
   const [muted, setMutedState] = useState(() => speech.isMuted())
   const [follow, setFollow] = useState(true)
+  /* 2D is the default and the fallback. The 3D view is the nicer one to walk
+     with, but it needs Mapbox tiles and a GPU, and a resident mid-evacuation
+     is the last person who should discover their phone cannot handle it. */
+  const [view3D, setView3D] = useState(false)
   const [toast, setToast] = useState(null)
   const [simOn, setSimOn] = useState(false)
   const [simSpeed, setSimSpeed] = useState(1.25)
@@ -563,6 +572,24 @@ export default function LiveNavigation({
   if (!open) return null
 
   const center = route?.coords?.[0] || destination?.coords || [14.2726, 121.1256]
+
+  /* Derived once here and handed to the 3D view, so both renderers read the
+     same split of the route rather than each computing their own idea of how
+     far along the walker is. */
+  const navSplit = route && nav
+    ? splitAtAlong(route.coords, route.cum, nav.alongM)
+    : { traveled: [], remaining: route?.coords || [] }
+  const navPosition = nav ? [nav.lat, nav.lng] : center
+  const turnPoint = route && nav
+    ? pointAtAlong(route.coords, route.cum, (nav.alongM || 0) + (nav.distToStep || 0))
+    : null
+  /* No flagged-roads overlay in 3D, deliberately: drawing it means importing
+     the 4,853-way road bundle into this screen, which is the 914 kB chunk the
+     code-splitting work just got off the resident's critical path. The route
+     the engine returned already steers around flooded roads — the overlay is
+     context, and context is not worth a megabyte on a phone mid-evacuation. */
+  const hazard3D = null
+
   const step = nav?.step || route?.steps?.[0]
   const nextStep = route?.steps?.[(nav?.stepIndex ?? 0) + 1]
   const urgent = (nav?.distToStep ?? 999) <= ANNOUNCE_NOW && step?.kind !== 'arrive'
@@ -570,29 +597,59 @@ export default function LiveNavigation({
 
   return (
     <div className="lnav" role="dialog" aria-label="Guided evacuation navigation">
-      <MapContainer
-        center={center}
-        zoom={18}
-        zoomControl={false}
-        attributionControl={false}
-        className="lnav-map"
-        ref={mapRef}
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.92} />
-        {/* Only the flagged roads, not the whole 4,853-way network: during
-            navigation the screen has one job, and the frame budget is spent on
-            movement. */}
-        <FlaggedRoadsLayer />
-        {route && (
-          <NavLayer
-            route={route}
-            nav={nav}
-            navRef={navRef}
-            chaseRef={chaseRef}
-            onUserPan={() => setFollow(false)}
+      {view3D ? (
+        /* Heading-up, tilted, camera riding behind the walker. Everything it
+           draws comes from the same `nav` result the 2D view uses — it is a
+           different presentation of one navigation state, never a second
+           source of truth. */
+        <Suspense fallback={<div className="lnav-map lnav-map-loading">Loading 3D view…</div>}>
+          <LiveNavigation3D
+            position={navPosition}
+            heading={nav?.heading}
+            ahead={navSplit.remaining}
+            behind={navSplit.traveled}
+            turnPoint={turnPoint}
+            hazard={hazard3D}
+            follow={follow}
           />
-        )}
-      </MapContainer>
+        </Suspense>
+      ) : (
+        <MapContainer
+          center={center}
+          zoom={18}
+          zoomControl={false}
+          attributionControl={false}
+          className="lnav-map"
+          ref={mapRef}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.92} />
+          {/* Only the flagged roads, not the whole 4,853-way network: during
+              navigation the screen has one job, and the frame budget is spent on
+              movement. */}
+          <FlaggedRoadsLayer />
+          {route && (
+            <NavLayer
+              route={route}
+              nav={nav}
+              navRef={navRef}
+              chaseRef={chaseRef}
+              onUserPan={() => setFollow(false)}
+            />
+          )}
+        </MapContainer>
+      )}
+
+      {/* 2D ⇄ 3D. Off by default: 3D costs a Mapbox tile budget and a lot more
+          GPU on a cheap phone, and the 2D view is the one that always works. */}
+      <button
+        type="button"
+        className="lnav-3d-toggle"
+        onClick={() => setView3D((v) => !v)}
+        aria-pressed={view3D}
+        title={view3D ? 'Switch to the flat map' : 'Switch to the 3D view'}
+      >
+        {view3D ? '2D' : '3D'}
+      </button>
 
       {/* ── Maneuver banner ── */}
       <div className={`lnav-banner ${urgent ? 'urgent' : soon ? 'soon' : ''} ${phase === 'rerouting' ? 'rerouting' : ''}`}>

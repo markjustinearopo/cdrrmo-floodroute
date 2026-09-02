@@ -802,3 +802,105 @@ body.lnav-open {
   }
   .lnav-arrived-badge svg { stroke-dashoffset: 0; animation: none !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3D navigation view (LiveNavigation3D)
+
+   These markers live on a Mapbox map, not in the React tree, so they are
+   plain DOM elements styled here. Kept deliberately small and cheap: the
+   camera is already easing every second and the phone doing it is not a
+   fast one.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.nav3d-puck {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  pointer-events: none;
+}
+.nav3d-puck-dot {
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+/* Outward pulse: the "I am here and I am live" signal. Slow — a fast pulse
+   next to a pulsing turn marker turns the screen into noise. */
+.nav3d-puck-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(22, 163, 74, 0.35);
+  animation: nav3d-pulse 2.2s ease-out infinite;
+}
+@keyframes nav3d-pulse {
+  0%   { transform: scale(0.55); opacity: 0.85; }
+  70%  { transform: scale(1.5);  opacity: 0;    }
+  100% { transform: scale(1.5);  opacity: 0;    }
+}
+
+/* The next junction. Amber, and faster than the puck, because this is the
+   one thing on screen the walker must not miss. */
+.nav3d-turn {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+.nav3d-turn-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid #f59e0b;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9) inset;
+  animation: nav3d-turn-pulse 1.3s ease-in-out infinite;
+}
+@keyframes nav3d-turn-pulse {
+  0%, 100% { transform: scale(0.8); opacity: 1; }
+  50%      { transform: scale(1.15); opacity: 0.55; }
+}
+
+/* Reduced motion: the markers stop pulsing, but the CAMERA still follows —
+   that is wayfinding, not decoration, and freezing it would leave someone
+   walking with a map that no longer tracks them. See `essential: true` on
+   the easeTo call in LiveNavigation3D.jsx. */
+@media (prefers-reduced-motion: reduce) {
+  .nav3d-puck-pulse,
+  .nav3d-turn-ring {
+    animation: none !important;
+  }
+}
+
+/* 2D ⇄ 3D switch. Sits clear of the maneuver banner (top) and the bottom
+   sheet, on the side the thumb reaches without covering the route. */
+.lnav-3d-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1200;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 22px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  color: #1a1a1a;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+}
+.lnav-3d-toggle:active { transform: translateY(-50%) scale(0.94); }
+
+.lnav-map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #10171d;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+}
