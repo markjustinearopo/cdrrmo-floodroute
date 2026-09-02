@@ -1,0 +1,27 @@
+{
+  "name": "CDRRMO FloodRoute — Cabuyao City",
+  "short_name": "FloodRoute",
+  "description": "Flood risk, safe evacuation routes and official CDRRMO alerts for Cabuyao City residents.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#8f1113",
+  "theme_color": "#8f1113",
+  "lang": "en",
+  "categories": ["utilities", "navigation", "government"],
+  "icons": [
+    {
+      "src": "/cdrrmo-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/cdrrmo-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

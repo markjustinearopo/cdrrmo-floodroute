@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AdminDataProvider } from './context/AdminDataContext.jsx'
 import RequireAuth from './components/RequireAuth.jsx'
+import OfflineBanner from './components/OfflineBanner.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 
@@ -75,6 +76,10 @@ export default function App() {
     // The shared data layer wraps every portal: a record created in the admin
     // command center is the same record the barangay/resident screens read.
     <Suspense fallback={<RouteLoading />}>
+    {/* Above everything, in every portal: when the network is gone, say so
+        and say how old the data on screen is. Stale information that looks
+        live is the more dangerous failure. */}
+    <OfflineBanner />
     <AdminDataProvider>
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
