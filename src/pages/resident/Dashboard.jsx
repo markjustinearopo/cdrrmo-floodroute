@@ -129,6 +129,24 @@ export default function Dashboard() {
 
   const level = useMemo(() => levelFromDepth(floodDepth), [floodDepth])
 
+  /* Alert rows collapse to their title — the adviser's note that the
+     dashboards are too crowded, and on a phone four full alert bodies were
+     900px of the page.
+
+     BUT an emergency is never hidden behind a tap. Anything at emergency or
+     high severity starts open: the whole point of that tier is that it takes
+     over the screen, and "FORCED EVACUATION" collapsed to one line that a
+     frightened person has to think to tap is the exact failure this feed
+     exists to prevent. Everything below that tier starts closed. */
+  const [openAlerts, setOpenAlerts] = useState(() => new Set())
+  const isAlertOpen = (a) =>
+    a.level === 'emergency' || a.level === 'high' || openAlerts.has(a.id)
+  const toggleAlert = (id) => setOpenAlerts((prev) => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
   const [prep, setPrep] = usePersistedState('cdrrmo-res-prep', {})
   const prepDone = PREP_ITEMS.filter((i) => prep[i.key]).length
   const [showReport, setShowReport] = useState(false)
@@ -294,16 +312,29 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="res-alert-list">
-                {alerts.slice(0, alertLimit).map((a) => (
-                  <div className="res-alert-row" key={a.id}>
-                    <span className={`res-alert-stripe ${a.level || 'safe'}`} />
-                    <div>
-                      <div className="res-alert-title">{a.title}</div>
-                      {a.message && <div className="res-alert-msg">{a.message}</div>}
-                      {a.issued && <div className="res-alert-time">{a.issued}</div>}
+                {alerts.slice(0, alertLimit).map((a) => {
+                  const open = isAlertOpen(a)
+                  return (
+                    <div className={`res-alert-row ${open ? 'open' : ''}`} key={a.id}>
+                      <span className={`res-alert-stripe ${a.level || 'safe'}`} />
+                      <div className="res-alert-main">
+                        <button
+                          type="button"
+                          className="res-alert-head"
+                          aria-expanded={open}
+                          onClick={() => toggleAlert(a.id)}
+                        >
+                          <span className="res-alert-title">{a.title}</span>
+                          <svg className="res-alert-chev" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
+                        {open && a.message && <div className="res-alert-msg">{a.message}</div>}
+                        {a.issued && <div className="res-alert-time">{a.issued}</div>}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
             {hiddenAlerts > 0 && (

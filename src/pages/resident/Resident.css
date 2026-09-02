@@ -337,6 +337,39 @@
 .res-alert-stripe.high { background: #dc2626; }
 .res-alert-stripe.moderate { background: #f97316; }
 .res-alert-stripe.safe { background: #16a34a; }
+.res-alert-main { flex: 1; min-width: 0; }
+
+/* The title is the tap target that expands the row. A real <button> so it is
+   keyboard-reachable and announces its expanded state; 40px min-height so it
+   is a legitimate touch target on a phone. */
+.res-alert-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.res-alert-chev {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: #9a9a9a;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s ease;
+}
+.res-alert-row.open .res-alert-chev { transform: rotate(180deg); }
+
 .res-alert-title { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
 .res-alert-msg { font-size: 0.75rem; color: #5a5a5a; line-height: 1.4; }
 .res-alert-time { font-size: 0.6875rem; color: #9a9a9a; margin-top: 2px; }

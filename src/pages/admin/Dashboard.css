@@ -604,6 +604,35 @@
   color: #5a5a5a;
   line-height: 1.4;
 }
+
+/* Collapsed row: barangay on the left, an affordance on the right so the row
+   reads as openable rather than as a dead label. Replaces the full message
+   body that used to run 3-4 lines per alert. */
+.alert-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+.alert-brgy {
+  color: #5a5a5a;
+  font-weight: 600;
+}
+.alert-open {
+  color: #9a9a9a;
+  font-size: 0.6875rem;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.alert-item[role='button']:hover .alert-open,
+.alert-item[role='button']:focus-visible .alert-open { opacity: 1; }
+/* Touch has no hover, so the affordance is always visible on a phone. */
+@media (hover: none) {
+  .alert-open { opacity: 1; }
+}
 .empty-state {
   padding: 18px 16px;
   color: #9a9a9a;

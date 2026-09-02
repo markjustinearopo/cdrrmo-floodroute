@@ -493,7 +493,17 @@ export default function Dashboard() {
                       </span>
                       <span className="alert-time">{a.issued}</span>
                     </div>
-                    <div className="alert-desc">{a.barangay} — {a.message}</div>
+                    {/* Collapsed to one line on the adviser's note that the
+                        dashboards are too crowded: four alerts used to fill
+                        the panel with their full body text, which buries the
+                        rest of the screen and makes the FEED itself hard to
+                        scan. The barangay stays — "which barangay is this
+                        for" is the one fact an operator triages on — and the
+                        message opens in the existing detail modal on click. */}
+                    <div className="alert-meta">
+                      <span className="alert-brgy">{a.barangay}</span>
+                      <span className="alert-open">Read alert →</span>
+                    </div>
                   </div>
                 </div>
               ))

@@ -54,6 +54,18 @@ export default function Dashboard() {
   /* Same search as every other map in the system — an official checking their
      own barangay still needs to jump to a named street. */
   const [searchResult, setSearchResult] = useState(null)
+
+  /* Alerts collapse to their title (adviser: the dashboards are too crowded),
+     except emergency/high, which stay open — an official should not have to
+     tap to discover their barangay is under a forced evacuation. */
+  const [openAlerts, setOpenAlerts] = useState(() => new Set())
+  const isAlertOpen = (a) =>
+    a.level === 'emergency' || a.level === 'high' || openAlerts.has(a.id)
+  const toggleAlert = (id) => setOpenAlerts((prev) => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
   const localIndex = useMemo(
     () => buildLocalIndex({ evacCenters: evacuationCenters }),
     [evacuationCenters],
@@ -242,16 +254,29 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="bq-feed">
-                  {alerts.slice(0, 5).map((a) => (
-                    <div className="bq-feed-item" key={a.id}>
-                      <span className={`bq-feed-stripe ${a.level || 'safe'}`} />
-                      <div>
-                        <div className="bq-feed-title">{a.title}</div>
-                        {a.message && <div className="bq-feed-msg">{a.message}</div>}
-                        {a.issued && <div className="bq-feed-time">{a.issued}</div>}
+                  {alerts.slice(0, 5).map((a) => {
+                    const open = isAlertOpen(a)
+                    return (
+                      <div className={`bq-feed-item ${open ? 'open' : ''}`} key={a.id}>
+                        <span className={`bq-feed-stripe ${a.level || 'safe'}`} />
+                        <div className="bq-feed-main">
+                          <button
+                            type="button"
+                            className="bq-feed-head"
+                            aria-expanded={open}
+                            onClick={() => toggleAlert(a.id)}
+                          >
+                            <span className="bq-feed-title">{a.title}</span>
+                            <svg className="bq-feed-chev" viewBox="0 0 24 24" aria-hidden="true">
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </button>
+                          {open && a.message && <div className="bq-feed-msg">{a.message}</div>}
+                          {a.issued && <div className="bq-feed-time">{a.issued}</div>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

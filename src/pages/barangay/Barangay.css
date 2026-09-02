@@ -347,6 +347,38 @@
 .bq-feed-stripe.high { background: #dc2626; }
 .bq-feed-stripe.moderate { background: #f97316; }
 .bq-feed-stripe.safe { background: #16a34a; }
+.bq-feed-main { flex: 1; min-width: 0; }
+
+/* Title doubles as the expand control — real <button> for keyboard and
+   screen-reader support, 40px min-height so it is tappable on a phone. */
+.bq-feed-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.bq-feed-chev {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: #9a9a9a;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s ease;
+}
+.bq-feed-item.open .bq-feed-chev { transform: rotate(180deg); }
+
 .bq-feed-title { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
 .bq-feed-msg { font-size: 0.75rem; color: #5a5a5a; line-height: 1.4; }
 .bq-feed-time { font-size: 0.6875rem; color: #9a9a9a; margin-top: 2px; }
