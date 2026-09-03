@@ -140,6 +140,17 @@ export const authApi = {
     return res
   },
 
+  /** Send a password-reset code. Same answer whether or not the account
+   *  exists — see requestReset in authOtp.js. */
+  requestReset: otp.requestReset,
+
+  /** Finish a reset: code + new password, then straight into a session. */
+  async confirmReset(email, code, password) {
+    const res = await otp.confirmReset(email, code, password)
+    if (res?.user) startSession(res.user, res.token)
+    return res
+  },
+
   resendCode: otp.resendCode,
   requestChallenge: otp.requestChallenge,
   solveChallenge: otp.solveChallenge,

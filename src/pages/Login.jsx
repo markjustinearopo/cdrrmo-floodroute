@@ -279,7 +279,7 @@ export default function Login() {
           </div>
 
           {/* Error message */}
-          <div className={`error-msg ${error ? 'show' : ''}`}>{error}</div>
+          <div className={`error-msg ${error ? 'show' : ''}`} role="alert" aria-live="assertive">{error}</div>
 
           <form onSubmit={handleLogin}>
             {/* PANEL 1: CDRRMO Admin */}

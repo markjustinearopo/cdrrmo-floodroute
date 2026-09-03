@@ -132,7 +132,13 @@ export default function EmergencyAlert() {
     (a) => a.level === 'emergency' && a.status === 'active' && !acked.includes(a.id),
   )
 
-  useSiren(Boolean(live))
+  /* Muting silences the SOUND ONLY — the takeover, the text and the
+     acknowledge button all stay. There was no way to stop it before: ten
+     minutes of an unstoppable two-tone oscillator is a reason to uninstall
+     the app, and someone in a meeting, a hospital, or beside a sleeping
+     child needs to be able to read the alert without broadcasting it. */
+  const [muted, setMuted] = useState(false)
+  useSiren(Boolean(live) && !muted)
 
   const acknowledge = useCallback(() => {
     if (!live) return
@@ -165,6 +171,16 @@ export default function EmergencyAlert() {
             <div className="ea-kicker">EMERGENCY ALERT</div>
             <div className="ea-brgy">{live.barangay || 'City-wide'}</div>
           </div>
+          <button
+            type="button"
+            className="ea-mute"
+            onClick={() => setMuted((m) => !m)}
+            aria-pressed={muted}
+            aria-label={muted ? 'Unmute the alert sound' : 'Mute the alert sound'}
+            title={muted ? 'Sound off — tap to turn it back on' : 'Silence the sound (the alert stays)'}
+          >
+            {muted ? 'Sound off' : 'Mute sound'}
+          </button>
         </div>
 
         <h2 className="ea-title">{live.title}</h2>

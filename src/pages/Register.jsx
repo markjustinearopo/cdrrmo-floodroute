@@ -532,7 +532,7 @@ export default function Register() {
             )}
 
             {!registrationOpen && (
-              <div className="error-msg show" style={{ marginBottom: 12 }}>
+              <div className="error-msg show" role="alert" aria-live="assertive" style={{ marginBottom: 12 }}>
                 New account registration is currently closed by the CDRRMO administrator.
               </div>
             )}

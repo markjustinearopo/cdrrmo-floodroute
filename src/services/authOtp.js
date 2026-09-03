@@ -199,6 +199,27 @@ export async function verifyLogin(email, code, trustDevice = false) {
   return data
 }
 
+/**
+ * Password reset, step 1 — ask for a code.
+ *
+ * Always resolves the same way whether or not the account exists: the server
+ * deliberately gives one answer so the form cannot be used to discover which
+ * addresses belong to real CDRRMO officials.
+ *
+ * @param {string} identifier email or username/Staff ID
+ */
+export async function requestReset(identifier) {
+  return call('request-reset', { identifier })
+}
+
+/**
+ * Password reset, step 2 — hand back the code with a new password.
+ * Resolves to { reset: true, user, token } and the caller starts the session.
+ */
+export async function confirmReset(email, code, password) {
+  return call('confirm-reset', { email, code, password })
+}
+
 /** Stop trusting this device (used on sign-out when the user asks). */
 export async function forgetDevice() {
   const token = getDeviceToken()

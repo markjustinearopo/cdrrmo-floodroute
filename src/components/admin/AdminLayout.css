@@ -943,12 +943,22 @@
   height: 100%;
   overflow-y: auto;
 }
+/* These group headings (MONITOR / RESPOND / PLAN / ADMIN) were the worst
+   accessibility failure in the product: 0.6rem — 9.6px — in #bcbab7 on a
+   white rail, about 1.94:1. WCAG AA wants 4.5:1. At that size and weight
+   they were effectively invisible to anyone without excellent eyesight,
+   which includes a good share of the officials who use this at 2 a.m.
+
+   0.6875rem (11px) with #5A5A5A is 7.0:1 and still reads as a quiet label
+   rather than as another nav item — the hierarchy survives, it is just
+   legible now. The rail is a fixed width, so a 1.4px bump changes no
+   layout. */
 .sidebar-section {
-  font-size: 0.6rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #bcbab7;
+  color: #5A5A5A;
   padding: 10px 8px 4px;
   margin-top: 4px;
 }

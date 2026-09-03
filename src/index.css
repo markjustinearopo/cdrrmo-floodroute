@@ -22,9 +22,21 @@
   --color-bg-primary:    #FFFFFF;
   --color-bg-secondary:  #F7F5F2;
   --color-bg-tertiary:   #EDEBE8;
+  /* Contrast against --color-bg-primary (#FFFFFF), WCAG 2.1 AA wants 4.5:1
+     for normal text:
+       primary   #1A1A1A  →  16.1:1
+       secondary #5A5A5A  →   7.0:1
+       muted     #6B7280  →   4.8:1   (was #9A9A9A at 2.81:1 — FAILED)
+
+     #9A9A9A was used in 29 declarations across the app for timestamps,
+     helper text, placeholders and empty states — the small print that
+     someone with ageing eyes, or anyone reading a phone outdoors in rain,
+     needs most. Darkened to the least-heavy grey that actually passes,
+     rather than to black: the visual hierarchy this token exists to create
+     is real and worth keeping. */
   --color-text-primary:  #1A1A1A;
   --color-text-secondary:#5A5A5A;
-  --color-text-muted:    #9A9A9A;
+  --color-text-muted:    #6B7280;
   --color-border:        #E0DDD8;
   --color-border-focus:  #C0181B;
 
