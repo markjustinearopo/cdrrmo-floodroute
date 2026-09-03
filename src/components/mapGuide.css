@@ -79,7 +79,7 @@
 }
 
 .mguide-kicker {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -87,7 +87,7 @@
 }
 
 .mguide-count {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #94a3b8;
   font-variant-numeric: tabular-nums;
@@ -193,20 +193,20 @@
 }
 
 .mg-chip rect { fill: #0f766e; }
-.mg-chip text { fill: #fff; font-size: 10px; font-weight: 700; font-family: 'Inter', system-ui, sans-serif; }
+.mg-chip text { fill: #fff; font-size: 12px; font-weight: 700; font-family: 'Inter', system-ui, sans-serif; }
 .mg-chip--dark rect { fill: #0f172a; }
 .mg-spin { fill: none; stroke: #38bdf8; stroke-width: 2; stroke-dasharray: 16 8; animation: mg-spin 900ms linear infinite; transform-origin: 18px 13px; }
 
 @keyframes mg-spin { to { transform: rotate(360deg); } }
 
-.mg-label { font-size: 9px; font-weight: 700; font-family: 'Inter', system-ui, sans-serif; text-anchor: middle; }
+.mg-label { font-size: 12px; font-weight: 700; font-family: 'Inter', system-ui, sans-serif; text-anchor: middle; }
 .mg-label--warn { fill: #c2410c; }
 
 .mg-banner { fill: #0f766e; }
 .mg-banner-icon { fill: rgba(255, 255, 255, 0.2); }
 .mg-banner-arrow { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .mg-banner-big { fill: #fff; font-size: 16px; font-weight: 800; font-family: 'Inter', system-ui, sans-serif; }
-.mg-banner-small { fill: rgba(255, 255, 255, 0.88); font-size: 10px; font-weight: 600; font-family: 'Inter', system-ui, sans-serif; }
+.mg-banner-small { fill: rgba(255, 255, 255, 0.88); font-size: 12px; font-weight: 600; font-family: 'Inter', system-ui, sans-serif; }
 
 .mg-voice { fill: #0f766e; stroke: none; }
 .mg-voice-wave { fill: none; stroke: #0f766e; stroke-width: 2; stroke-linecap: round; animation: mg-wave 1.6s ease-in-out infinite; }
@@ -219,7 +219,7 @@
 
 .mg-legend text {
   fill: #334155;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   font-family: 'Inter', system-ui, sans-serif;
 }
@@ -462,7 +462,7 @@
 
 /* Type. Sized rather than styled per-diagram so labels line up across steps. */
 .mg-t { font-family: 'Inter', system-ui, sans-serif; font-weight: 600; fill: #334155; }
-.mg-t--sm { font-size: 9px; }
+.mg-t--sm { font-size: 12px; }
 .mg-t--md { font-size: 10.5px; }
 .mg-t--lg { font-size: 13px; font-weight: 800; fill: #0f172a; }
 .mg-t--mute { fill: #94a3b8; }

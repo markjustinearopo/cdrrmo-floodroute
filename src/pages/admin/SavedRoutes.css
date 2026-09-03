@@ -46,7 +46,7 @@
 }
 
 .sr-page .sr-badge {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -94,7 +94,7 @@
 }
 .sr-page .sr-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .sr-page .sr-chip-count {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   background: rgba(255, 255, 255, 0.28);
   border-radius: 9999px;
@@ -103,7 +103,7 @@
 }
 .sr-page .sr-chip:not(.active) .sr-chip-count {
   background: #f0eee9;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 
 /* ── Body ── */
@@ -134,7 +134,7 @@
 .sr-page .sr-empty {
   padding: 40px 20px;
   font-size: 0.8125rem;
-  color: #9a9a9a;
+  color: #6B7280;
   text-align: center;
   line-height: 1.6;
 }
@@ -196,8 +196,8 @@
 }
 .sr-page .sr-item-meta {
   display: block;
-  font-size: 0.625rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -206,7 +206,7 @@
 .sr-page .sr-item-ovr { color: #b8860b; font-weight: 700; }
 .sr-page .sr-item-auto { color: #1a7a4a; font-weight: 700; }
 .sr-page .sr-item-eta {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #7a7a7a;
   white-space: nowrap;
@@ -289,8 +289,8 @@
   color: #3a3a3a;
 }
 .sr-page .sr-hint small {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   max-width: 260px;
   line-height: 1.4;
 }
@@ -325,7 +325,7 @@
   align-items: center;
   gap: 12px;
   margin-top: 5px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #7a7a7a;
   font-weight: 600;
   flex-wrap: wrap;
@@ -352,7 +352,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #5a5a5a;
 }
@@ -367,7 +367,7 @@
   border: 1px solid #e5e2dd;
   border-radius: 6px;
   padding: 4px 10px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #7a7a7a;
   font-variant-numeric: tabular-nums;
   z-index: 1000;
@@ -397,5 +397,5 @@
   }
   .sr-page .sr-hint svg { width: 19px; height: 19px; }
   .sr-page .sr-hint span { font-size: 0.75rem; }
-  .sr-page .sr-hint small { font-size: 0.625rem; max-width: 230px; }
+  .sr-page .sr-hint small { font-size: 0.75rem; max-width: 230px; }
 }

@@ -45,8 +45,8 @@
   color: #1a1a1a;
 }
 .notif-page-time {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -63,7 +63,7 @@
   text-align: center;
   gap: 6px;
   padding: 48px 24px;
-  color: #9a9a9a;
+  color: #6B7280;
   font-size: 0.8125rem;
 }
 

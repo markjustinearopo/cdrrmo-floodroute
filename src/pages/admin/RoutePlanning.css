@@ -142,7 +142,7 @@
 .route-plan .rp-btn--ghost {
   position: relative;
   border-style: dashed;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .route-plan .rp-btn--ghost svg {
   fill: #cbb26b;
@@ -249,8 +249,8 @@
   color: #3a3a3a;
 }
 .route-plan .rp-hint small {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
 }
 
 /* Coordinate readout (matches the other map screens) */
@@ -262,7 +262,7 @@
   border: 1px solid #e5e2dd;
   border-radius: 6px;
   padding: 4px 10px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #7a7a7a;
   font-variant-numeric: tabular-nums;
   z-index: 1000;
@@ -305,7 +305,7 @@
   align-items: center;
   gap: 8px;
   font-family: var(--font-display);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -313,7 +313,7 @@
   margin-bottom: 10px;
 }
 .route-plan .rp-pill {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #c0181b;
   background: #fef2f2;
@@ -332,7 +332,7 @@
   letter-spacing: normal;
 }
 .route-plan .rp-field > span {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #7a7a7a;
 }
@@ -346,7 +346,7 @@
   align-items: center;
   gap: 7px;
   margin-top: 10px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #7a7a7a;
 }
 
@@ -372,11 +372,11 @@
   font-variant-numeric: tabular-nums;
 }
 .route-plan .rp-metric-lbl {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 3px;
 }
 
@@ -409,7 +409,7 @@
   justify-content: center;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #fff;
   background: #c0181b;
 }
@@ -444,7 +444,7 @@
 
 .route-plan .rp-empty {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
   line-height: 1.5;
   padding: 6px 2px;
 }
@@ -539,8 +539,8 @@
   text-overflow: ellipsis;
 }
 .route-plan .rp-saved-meta {
-  font-size: 0.625rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
 }
 .route-plan .rp-saved-x {
   width: 26px;
@@ -592,7 +592,7 @@
   color: #1a1a1a;
 }
 .rp-evac-popup span {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #7a7a7a;
 }
 
@@ -632,7 +632,7 @@
 }
 .rp-evac-sub {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 2px;
 }
 .rp-evac-close {
@@ -640,7 +640,7 @@
   background: none;
   font-size: 1.5rem;
   line-height: 1;
-  color: #9a9a9a;
+  color: #6B7280;
   cursor: pointer;
   border-radius: 6px;
   width: 30px;
@@ -675,7 +675,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #7a7a7a;
 }
@@ -700,8 +700,8 @@
   gap: 10px;
 }
 .rp-evac-pinned {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   line-height: 1.4;
   padding: 8px 10px;
   background: #faf9f7;
@@ -848,7 +848,7 @@
   }
   .route-plan .rp-hint svg { width: 19px; height: 19px; }
   .route-plan .rp-hint span { font-size: 0.75rem; }
-  .route-plan .rp-hint small { font-size: 0.625rem; }
+  .route-plan .rp-hint small { font-size: 0.75rem; }
 
   /* Now that the tools wrap, keep them to two tidy rows rather than four:
      the buttons were mouse-sized (7px/12px padding around a 13px label).
@@ -870,7 +870,7 @@
      on its own line it reads better and stops stretching the strip. */
   .route-plan .rp-type-note {
     flex-basis: 100%;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     line-height: 1.45;
   }
 }

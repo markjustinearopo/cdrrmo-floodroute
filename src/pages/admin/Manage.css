@@ -55,7 +55,7 @@
 }
 .mng-sub {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 1px;
 }
 
@@ -124,11 +124,11 @@
   font-variant-numeric: tabular-nums;
 }
 .mng-stat-lbl {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 6px;
 }
 
@@ -151,7 +151,7 @@
   transform: translateY(-50%);
   width: 15px;
   height: 15px;
-  stroke: #9a9a9a;
+  stroke: #6B7280;
   fill: none;
   stroke-width: 2;
   pointer-events: none;
@@ -208,11 +208,11 @@
 .mng-table thead tr { background: #f7f5f2; }
 .mng-table th {
   padding: 10px 14px;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   text-align: left;
   border-bottom: 1px solid #e5e2dd;
   white-space: nowrap;
@@ -227,12 +227,12 @@
 .mng-table tbody tr:last-child td { border-bottom: none; }
 .mng-table tbody tr:hover td { background: #fafaf9; }
 .mng-strong { font-weight: 700; color: #1a1a1a; }
-.mng-muted { color: #9a9a9a; }
+.mng-muted { color: #6B7280; }
 .mng-num { font-variant-numeric: tabular-nums; }
 .mng-empty {
   padding: 30px 14px;
   text-align: center;
-  color: #9a9a9a;
+  color: #6B7280;
   font-size: 0.8125rem;
 }
 .mng-empty-strong {
@@ -247,7 +247,7 @@
   display: inline-block;
   padding: 3px 10px;
   border-radius: 9999px;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -317,7 +317,7 @@
   border-radius: 7px;
 }
 .mng-inline-select.unset {
-  color: #9a9a9a;
+  color: #6B7280;
   border-style: dashed;
 }
 
@@ -344,7 +344,7 @@
 .mng-occ-fill.warn { background: #f59e0b; }
 .mng-occ-fill.full { background: #dc2626; }
 .mng-occ-txt {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #5a5a5a;
   font-variant-numeric: tabular-nums;
@@ -393,8 +393,8 @@
   color: #1a1a1a;
 }
 .mng-modal-sub {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   margin-top: 1px;
 }
 .mng-modal-close {
@@ -450,9 +450,9 @@
 }
 /* A quiet sub-label under a form field's caption (e.g. "pre-filled from…"). */
 .mng-label-hint {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: -2px;
 }
 /* Inline checkbox row inside a modal form (e.g. "Schedule for later"). */
@@ -502,8 +502,8 @@
   border-left: 1px solid #f0eee9;
 }
 .mng-pinned {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   line-height: 1.4;
   padding: 8px 10px;
   background: #faf9f7;
@@ -535,8 +535,8 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   line-height: 1.5;
   padding: 2px 2px 0;
 }
@@ -589,7 +589,7 @@
 .mng-cam {
   width: 13px;
   height: 13px;
-  stroke: #9a9a9a;
+  stroke: #6B7280;
   fill: none;
   stroke-width: 2;
   flex-shrink: 0;
@@ -623,11 +623,11 @@
   padding: 10px 12px;
 }
 .mng-detail-heading {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-bottom: 6px;
 }
 .mng-timeline {
@@ -661,7 +661,7 @@
 }
 .mng-timeline-time {
   flex-shrink: 0;
-  color: #9a9a9a;
+  color: #6B7280;
   font-variant-numeric: tabular-nums;
 }
 .mng-timeline-add {
@@ -707,7 +707,7 @@
   padding: 40px 20px;
   text-align: center;
   font-size: 0.8125rem;
-  color: #9a9a9a;
+  color: #6B7280;
   line-height: 1.6;
 }
 
@@ -719,9 +719,9 @@
 .mng-form .mng-field-hint {
   display: block;
   margin-top: 4px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.5;
-  color: #9a9a9a;
+  color: #6B7280;
   font-weight: 400;
 }
 

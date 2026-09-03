@@ -18,9 +18,9 @@
   font-weight: 800;
   color: #1a1a1a;
 }
-.ep-sub { font-size: 0.6875rem; color: #9a9a9a; margin-top: 2px; }
+.ep-sub { font-size: 0.75rem; color: #6B7280; margin-top: 2px; }
 
-.ep-empty { font-size: 0.75rem; color: #9a9a9a; padding: 14px 0; }
+.ep-empty { font-size: 0.75rem; color: #6B7280; padding: 14px 0; }
 
 .ep-note {
   padding: 11px 13px;
@@ -56,18 +56,18 @@
 .ep-tot.bad .ep-tot-val { color: #dc2626; }
 .ep-tot.good .ep-tot-val { color: #16a34a; }
 .ep-tot-lbl {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 3px;
 }
 
 .ep-table td { vertical-align: top; }
 .ep-centre { font-weight: 600; color: #1a1a1a; }
-.ep-people { font-size: 0.6875rem; color: #6b7280; }
-.ep-via { font-size: 0.6875rem; color: #9a9a9a; display: block; }
+.ep-people { font-size: 0.75rem; color: #6b7280; }
+.ep-via { font-size: 0.75rem; color: #6B7280; display: block; }
 .ep-of { font-size: 0.75rem; color: #6b7280; }
 .ep-short { font-size: 0.75rem; font-weight: 700; color: #dc2626; }
 
@@ -81,7 +81,7 @@
   color: #7f1d1d;
 }
 
-.ep-foot { font-size: 0.6875rem; line-height: 1.6; color: #9a9a9a; }
+.ep-foot { font-size: 0.75rem; line-height: 1.6; color: #6B7280; }
 
 .ep-empty { display: flex; align-items: center; gap: 9px; }
 .ep-spinner {

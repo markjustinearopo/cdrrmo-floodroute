@@ -31,9 +31,9 @@
   padding: 8px 9px;
 }
 .wx-cell-top { display: flex; align-items: center; gap: 5px; color: #c0181b; }
-.wx-cell-label { font-size: 0.6rem; color: #7a7a7a; font-weight: 600; }
+.wx-cell-label { font-size: 0.75rem; color: #7a7a7a; font-weight: 600; }
 .wx-cell-val { font-family: var(--font-display, inherit); font-weight: 800; font-size: 1.05rem; color: #1a2a4a; margin-top: 3px; white-space: nowrap; }
-.wx-cell-unit { font-size: 0.58rem; font-weight: 700; color: #9a9a9a; margin-left: 2px; }
+.wx-cell-unit { font-size: 0.58rem; font-weight: 700; color: #6B7280; margin-left: 2px; }
 /* Always reserve the sub line so cells with/without a sub stay the same
    height and their values line up across each grid row. */
 .wx-cell-sub { font-size: 0.58rem; color: #8a8a8a; margin-top: 1px; min-height: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -53,7 +53,7 @@
   color: #1a2a4a;
 }
 .wx-sec-val { color: #2563eb; font-size: 0.72rem; }
-.wx-sub { font-size: 0.62rem; color: #9a9a9a; margin-bottom: 6px; }
+.wx-sub { font-size: 0.62rem; color: #6B7280; margin-bottom: 6px; }
 
 .wx-rain-bars { display: flex; align-items: flex-end; gap: 4px; height: 56px; }
 .wx-rain-bar { flex: 1; background: #bcd4f5; border-radius: 3px 3px 0 0; min-height: 4px; }

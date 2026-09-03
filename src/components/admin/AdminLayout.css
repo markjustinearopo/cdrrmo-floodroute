@@ -83,7 +83,7 @@
   color: #bbf7d0;
   font-weight: 700;
   text-transform: uppercase;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   margin-right: 2px;
 }
@@ -196,8 +196,8 @@
   white-space: nowrap;
 }
 .logo-text span {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   white-space: nowrap;
 }
 .topbar-right {
@@ -408,7 +408,7 @@
 .notif-count {
   background: #c0181b;
   color: #fff;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   padding: 1px 7px;
   border-radius: 99px;
@@ -454,7 +454,7 @@
 }
 .notif-empty-sub {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
   max-width: 220px;
 }
 .notif-item {
@@ -487,7 +487,7 @@
   border-radius: 50%;
   margin-top: 5px;
   flex-shrink: 0;
-  background: #9a9a9a;
+  background: #6B7280;
 }
 .notif-dot.high {
   background: #dc2626;
@@ -509,8 +509,8 @@
   line-height: 1.4;
 }
 .notif-item-time {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   margin-top: 2px;
 }
 .notif-foot {
@@ -557,7 +557,7 @@
   margin-bottom: 12px;
 }
 .notif-detail-badge {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -589,7 +589,7 @@
 }
 .notif-detail-time {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 2px;
 }
 .notif-detail-msg {
@@ -676,7 +676,7 @@
 }
 .account-role {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .account-close {
   width: 30px;
@@ -768,8 +768,8 @@
 .account-avatar { overflow: hidden; }
 .account-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .photo-hint {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   margin-top: 4px;
 }
 .account-actions {
@@ -810,11 +810,11 @@
   background: #fef2f2;
 }
 .settings-group-title {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .settings-divider {
   height: 1px;
@@ -834,7 +834,7 @@
 }
 .setting-sub {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 /* Reusable switch */
 .switch {
@@ -954,7 +954,7 @@
    legible now. The rail is a fixed width, so a 1.4px bump changes no
    layout. */
 .sidebar-section {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1099,7 +1099,7 @@
   }
   .logo-text span {
     display: block;
-    font-size: 0.625rem;
+    font-size: 0.75rem;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -1156,7 +1156,7 @@
     height: 18px;
   }
   .sidebar-section {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     padding: 14px 8px 6px;
   }
   .body-wrap {
@@ -1227,7 +1227,7 @@
   }
   .logo-text span {
     /* 10px was the smallest text in the whole shell. */
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
 }
 

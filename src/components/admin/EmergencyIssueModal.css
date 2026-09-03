@@ -61,7 +61,7 @@
 .eim-go:hover:not(:disabled) { background: #b91c1c; }
 .eim-go:disabled {
   background: #e5e2dd;
-  color: #9a9a9a;
+  color: #6B7280;
   box-shadow: none;
   cursor: not-allowed;
 }

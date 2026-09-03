@@ -18,7 +18,7 @@
      takes over the moment the strip is showing a projection. */
   --ts-accent: #2563eb;
   --ts-ink: #1a1a1a;
-  --ts-dim: #9a9a9a;
+  --ts-dim: #6B7280;
   --ts-rule: #e5e2dd;
   --ts-fill: #f7f5f2;
 
@@ -99,7 +99,7 @@
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   color: #15803d;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -160,13 +160,13 @@
 .ts-metric b i {
   font-style: normal;
   font-family: var(--font-body);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--ts-dim);
   margin-left: 2px;
 }
 .ts-metric span {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -182,7 +182,7 @@
 .ts-metric--alarm b { color: #dc2626; }
 
 .ts-working {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--ts-dim);
 }
@@ -295,13 +295,13 @@
   display: flex;
   justify-content: space-between;
   flex: 1 1 300px;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--ts-dim);
   font-variant-numeric: tabular-nums;
 }
 
-.ts-src { font-size: 0.625rem; color: var(--ts-dim); }
+.ts-src { font-size: 0.75rem; color: var(--ts-dim); }
 .ts-src summary {
   cursor: pointer;
   list-style: none;
@@ -345,7 +345,7 @@
   color: #fff;
   border-radius: 999px;
   padding: 6px 14px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   box-shadow: 0 4px 14px rgba(120, 53, 15, 0.28);

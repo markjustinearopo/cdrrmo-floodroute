@@ -90,11 +90,11 @@
 .bq-banner.moderate .bq-banner-level-val { color: #ea580c; }
 .bq-banner.high .bq-banner-level-val { color: #dc2626; }
 .bq-banner-level-lbl {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 2px;
 }
 
@@ -161,11 +161,11 @@
   font-variant-numeric: tabular-nums;
 }
 .bq-stat-lbl {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 7px;
 }
 
@@ -221,7 +221,7 @@
 }
 .bq-panel-sub {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: -8px;
   margin-bottom: 12px;
 }
@@ -263,7 +263,7 @@
   z-index: 500;
   background: rgba(26, 42, 74, 0.85);
   color: #fff;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   padding: 5px 11px;
   border-radius: 7px;
@@ -286,7 +286,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #3a3a3a;
 }
@@ -343,7 +343,7 @@
   border: 1px solid #f0eee9;
   border-radius: 10px;
 }
-.bq-feed-stripe { width: 3px; border-radius: 2px; flex-shrink: 0; background: #9a9a9a; }
+.bq-feed-stripe { width: 3px; border-radius: 2px; flex-shrink: 0; background: #6B7280; }
 .bq-feed-stripe.high { background: #dc2626; }
 .bq-feed-stripe.moderate { background: #f97316; }
 .bq-feed-stripe.safe { background: #16a34a; }
@@ -371,7 +371,7 @@
   height: 16px;
   flex: none;
   fill: none;
-  stroke: #9a9a9a;
+  stroke: #6B7280;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -381,7 +381,7 @@
 
 .bq-feed-title { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
 .bq-feed-msg { font-size: 0.75rem; color: #5a5a5a; line-height: 1.4; }
-.bq-feed-time { font-size: 0.6875rem; color: #9a9a9a; margin-top: 2px; }
+.bq-feed-time { font-size: 0.75rem; color: #6B7280; margin-top: 2px; }
 .bq-empty {
   display: flex;
   flex-direction: column;
@@ -389,11 +389,11 @@
   text-align: center;
   gap: 6px;
   padding: 28px 18px;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .bq-empty svg { width: 30px; height: 30px; stroke: #cbd5e1; fill: none; stroke-width: 1.6; stroke-linecap: round; }
 .bq-empty-title { font-size: 0.8125rem; font-weight: 700; color: #5a5a5a; }
-.bq-empty-sub { font-size: 0.75rem; color: #9a9a9a; max-width: 240px; }
+.bq-empty-sub { font-size: 0.75rem; color: #6B7280; max-width: 240px; }
 
 /* ── Operations — key/value profile grid ─────────────────────────────────── */
 .bq-kv-grid {
@@ -407,11 +407,11 @@
   padding: 11px 13px;
 }
 .bq-kv-label {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .bq-kv-val {
   font-size: 0.9375rem;
@@ -460,7 +460,7 @@
 }
 .bq-contact-main { flex: 1; min-width: 0; }
 .bq-contact-name { font-size: 0.8125rem; font-weight: 700; color: #1a1a1a; }
-.bq-contact-role { font-size: 0.6875rem; color: #9a9a9a; }
+.bq-contact-role { font-size: 0.75rem; color: #6B7280; }
 .bq-contact-num {
   font-size: 0.75rem;
   font-weight: 700;
@@ -506,9 +506,9 @@
 .bq-ready-row:last-child { border-bottom: none; }
 .bq-ready-main { flex: 1; min-width: 0; }
 .bq-ready-label { font-size: 0.8125rem; font-weight: 600; color: #1a1a1a; }
-.bq-ready-sub { font-size: 0.6875rem; color: #9a9a9a; }
+.bq-ready-sub { font-size: 0.75rem; color: #6B7280; }
 .bq-ready-state {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;

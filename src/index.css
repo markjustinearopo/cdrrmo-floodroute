@@ -26,9 +26,9 @@
      for normal text:
        primary   #1A1A1A  →  16.1:1
        secondary #5A5A5A  →   7.0:1
-       muted     #6B7280  →   4.8:1   (was #9A9A9A at 2.81:1 — FAILED)
+       muted     #6B7280  →   4.8:1   (was #6B7280 at 2.81:1 — FAILED)
 
-     #9A9A9A was used in 29 declarations across the app for timestamps,
+     #6B7280 was used in 29 declarations across the app for timestamps,
      helper text, placeholders and empty states — the small print that
      someone with ageing eyes, or anyone reading a phone outdoors in rain,
      needs most. Darkened to the least-heavy grey that actually passes,
@@ -321,7 +321,7 @@ input[type="password"]::-webkit-strong-password-auto-fill-button {
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -450,7 +450,7 @@ input[type="checkbox"] {
     #e7ebf1 20px
   );
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -492,7 +492,7 @@ input[type="checkbox"] {
   /* Leaflet's attribution/scale strip competes with the app's own coordinate
      readout for the bottom gutter; it is reference text, not a control. */
   .leaflet-control-attribution {
-    font-size: 9px;
+    font-size: 12px;
     max-width: 58vw;
     white-space: nowrap;
     overflow: hidden;

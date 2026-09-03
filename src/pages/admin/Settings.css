@@ -36,7 +36,7 @@
   align-items: center;
   gap: 8px;
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .set-savebar-note svg {
   width: 15px;
@@ -93,8 +93,8 @@
   line-height: 1.15;
 }
 .set-panel-sub {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   margin-top: 1px;
 }
 .set-panel-head-actions {
@@ -160,8 +160,8 @@
 }
 .set-panel .set-field textarea { resize: vertical; min-height: 74px; }
 .set-field-hint {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
 }
 .set-grid {
   display: grid;
@@ -198,7 +198,7 @@
   border-bottom-right-radius: 8px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #9a9a9a;
+  color: #6B7280;
   white-space: nowrap;
 }
 
@@ -225,18 +225,18 @@
 }
 .set-toggle-sub {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 1px;
   line-height: 1.45;
 }
 
 /* ── Section divider + subheading inside a panel body ── */
 .set-subhead {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .set-divider {
   height: 1px;
@@ -289,7 +289,7 @@
   color: #1a1a1a;
 }
 .set-int-cat {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -307,8 +307,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
 }
 .set-int-endpoint {
   font-variant-numeric: tabular-nums;
@@ -318,7 +318,7 @@
   white-space: nowrap;
 }
 .set-int-stats {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #6b7280;
   font-variant-numeric: tabular-nums;
 }
@@ -339,7 +339,7 @@
   gap: 6px;
   padding: 3px 10px 3px 8px;
   border-radius: 9999px;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -398,9 +398,9 @@
   color: #1a1a1a;
 }
 .set-role-count {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: #9a9a9a;
+  color: #6B7280;
   background: #f7f5f2;
   border-radius: 9999px;
   padding: 2px 8px;
@@ -408,8 +408,8 @@
 }
 .set-role.active .set-role-count { background: #fff; color: #c0181b; }
 .set-role-desc {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   line-height: 1.45;
 }
 
@@ -425,7 +425,7 @@
 }
 .set-matrix .switch { margin: 0 auto; }
 .set-locked {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #bcbab7;
   font-weight: 600;
 }
@@ -445,14 +445,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   flex-shrink: 0;
 }
 .set-user-av.admin { background: #c0181b; }
 .set-user-av-img { width: 100%; height: 100%; object-fit: cover; border-radius: 9px; display: block; }
 .set-user-name { font-weight: 700; color: #1a1a1a; }
-.set-user-email { font-size: 0.6875rem; color: #9a9a9a; }
+.set-user-email { font-size: 0.75rem; color: #6B7280; }
 
 /* Role badge tints (table) */
 .mng-badge.role-admin { background: #fee2e2; color: #b91c1c; }
@@ -566,11 +566,11 @@
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-bottom: 8px;
 }
 .set-readonly-rows {
@@ -630,7 +630,7 @@
   border-radius: 4px;
   background: #e2e8f0;
   font-family: 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #334155;
 }
 

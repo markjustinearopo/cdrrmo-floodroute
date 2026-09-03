@@ -58,7 +58,7 @@
 .smsp-pill {
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -79,7 +79,7 @@
   border-radius: 4px;
   background: #f1f5f9;
   font-family: 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #334155;
 }
 
@@ -127,7 +127,7 @@
 }
 
 .smsp-stat-lbl {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -160,7 +160,7 @@
   padding: 4px 10px;
   border-radius: 999px;
   background: #f1f5f9;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #475569;
 }
@@ -170,7 +170,7 @@
   border-radius: 999px;
   background: #0f766e;
   color: #fff;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -235,7 +235,7 @@
 .smsp-status {
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -248,14 +248,14 @@
 .smsp-status.failed { background: #fee2e2; color: #991b1b; }
 
 .smsp-msg-to {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #334155;
   font-variant-numeric: tabular-nums;
 }
 
 .smsp-msg-brgy {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #64748b;
   padding: 1px 6px;
@@ -265,7 +265,7 @@
 
 .smsp-msg-time {
   margin-left: auto;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   color: #94a3b8;
 }
 
@@ -277,7 +277,7 @@
 
 .smsp-msg-error {
   margin-top: 5px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #b91c1c;
   font-family: 'SF Mono', Menlo, Consolas, monospace;
   word-break: break-word;

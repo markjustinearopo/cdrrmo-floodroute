@@ -100,15 +100,15 @@
 .rb-group:last-child { margin-bottom: 4px; }
 .rb-group-label {
   font-family: var(--font-display);
-  font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--color-text-secondary); margin: 0 0 4px;
 }
 .rb-group-hint { font-size: 0.7rem; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 10px; }
 .rb-sublabel {
-  font-size: 0.6875rem; font-weight: 700; color: var(--color-text-secondary);
+  font-size: 0.75rem; font-weight: 700; color: var(--color-text-secondary);
   margin: 12px 0 6px;
 }
-.rb-note { font-size: 0.6875rem; color: var(--color-text-muted); line-height: 1.5; margin: 8px 0 0; }
+.rb-note { font-size: 0.75rem; color: var(--color-text-muted); line-height: 1.5; margin: 8px 0 0; }
 .rb-note.inline { margin: 0; }
 .rb-empty { font-size: 0.75rem; color: var(--color-text-muted); font-style: italic; padding: 6px 0; }
 
@@ -140,7 +140,7 @@
 
 .rb-link {
   border: none; background: none; padding: 6px 0 0; cursor: pointer;
-  font-family: var(--font-body); font-size: 0.6875rem; font-weight: 700;
+  font-family: var(--font-body); font-size: 0.75rem; font-weight: 700;
   color: var(--cdrrmo-red); text-decoration: underline;
 }
 
@@ -173,7 +173,7 @@
 .rb-seg button {
   flex: 1 1 0; min-width: 0;
   padding: 6px 4px; border: none; border-radius: 6px; background: transparent; cursor: pointer;
-  font-family: var(--font-body); font-size: 0.6875rem; font-weight: 700;
+  font-family: var(--font-body); font-size: 0.75rem; font-weight: 700;
   color: var(--color-text-secondary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: background var(--transition-fast), color var(--transition-fast);
@@ -183,7 +183,7 @@
 
 .rb-select { display: block; margin-top: 10px; }
 .rb-select span {
-  display: block; font-size: 0.6875rem; font-weight: 700;
+  display: block; font-size: 0.75rem; font-weight: 700;
   color: var(--color-text-secondary); margin-bottom: 5px;
 }
 .rb-select select {
@@ -197,7 +197,7 @@
 .rb-select select:focus { outline: none; border-color: var(--cdrrmo-red); background: #fff; }
 
 .rb-inline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
-.rb-mini { display: inline-flex; align-items: center; gap: 6px; font-size: 0.6875rem; color: var(--color-text-secondary); }
+.rb-mini { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--color-text-secondary); }
 .rb-num {
   width: 52px; padding: 5px 6px; text-align: center;
   border: 1px solid var(--color-border); border-radius: 6px;
@@ -213,7 +213,7 @@
   padding: 5px 9px;
   border: 1.5px solid var(--color-border); border-radius: var(--radius-full);
   background: var(--color-bg-secondary); cursor: pointer;
-  font-family: var(--font-body); font-size: 0.6875rem; font-weight: 600;
+  font-family: var(--font-body); font-size: 0.75rem; font-weight: 600;
   color: var(--color-text-secondary);
   transition: all var(--transition-fast);
 }
@@ -234,7 +234,7 @@
   display: block; font-family: var(--font-display);
   font-size: 0.8125rem; font-weight: 700; color: var(--color-text-primary);
 }
-.rb-preset-hint { display: block; font-size: 0.6875rem; color: var(--color-text-muted); line-height: 1.45; margin-top: 2px; }
+.rb-preset-hint { display: block; font-size: 0.75rem; color: var(--color-text-muted); line-height: 1.45; margin-top: 2px; }
 
 .rb-saverow { display: flex; gap: 6px; align-items: stretch; }
 .rb-saverow .rb-input { flex: 1 1 auto; }
@@ -254,7 +254,7 @@
   font-size: 0.75rem; font-weight: 700; color: var(--color-text-primary);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.rb-tpl-date { font-size: 0.625rem; color: var(--color-text-muted); flex-shrink: 0; }
+.rb-tpl-date { font-size: 0.75rem; color: var(--color-text-muted); flex-shrink: 0; }
 
 /* ── Coverage tab: reference rows ── */
 .rb-metarows { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -265,7 +265,7 @@
 }
 .rb-metarows li .rb-check { flex: 1 1 auto; min-width: 0; }
 .rb-auto {
-  flex-shrink: 0; font-size: 0.5625rem; font-weight: 800; letter-spacing: 0.06em;
+  flex-shrink: 0; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--color-text-muted);
   background: var(--color-bg-tertiary); border-radius: 4px; padding: 2px 6px;
 }
@@ -301,7 +301,7 @@
   display: block; font-size: 0.75rem; font-weight: 700; color: var(--color-text-primary);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.rb-block-type { display: block; font-size: 0.625rem; color: var(--color-text-muted); margin-top: 1px; }
+.rb-block-type { display: block; font-size: 0.75rem; color: var(--color-text-muted); margin-top: 1px; }
 .rb-block-tools { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
 .rb-block-opts {
   padding: 10px 12px 12px;
@@ -324,7 +324,7 @@
 }
 .rb-addmenu button:hover { background: #fff; }
 .rb-add-name { display: block; font-size: 0.75rem; font-weight: 700; color: var(--color-text-primary); }
-.rb-add-hint { display: block; font-size: 0.625rem; color: var(--color-text-muted); line-height: 1.4; margin-top: 1px; }
+.rb-add-hint { display: block; font-size: 0.75rem; color: var(--color-text-muted); line-height: 1.4; margin-top: 1px; }
 
 /* ── Footer / export ── */
 .rb-foot {
@@ -343,7 +343,7 @@
 }
 .rb-print:hover { background: var(--cdrrmo-red-dark); }
 .rb-print svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-.rb-tip { font-size: 0.6875rem; color: var(--color-text-muted); line-height: 1.5; margin: 9px 0 0; }
+.rb-tip { font-size: 0.75rem; color: var(--color-text-muted); line-height: 1.5; margin: 9px 0 0; }
 .rb-tip b { color: var(--color-text-secondary); }
 
 /* ══════════════════════════════════════════════════════════════
@@ -363,7 +363,7 @@
 .report-sheetbar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 0 2px 10px;
-  font-size: 0.6875rem; color: var(--color-text-muted);
+  font-size: 0.75rem; color: var(--color-text-muted);
 }
 .rs-zoom {
   margin-left: auto; display: flex; gap: 2px; padding: 2px;
@@ -372,7 +372,7 @@
 .rs-zoom button {
   border: none; background: none; cursor: pointer;
   padding: 3px 10px; border-radius: var(--radius-full);
-  font-family: var(--font-body); font-size: 0.6875rem; font-weight: 700;
+  font-family: var(--font-body); font-size: 0.75rem; font-weight: 700;
   color: var(--color-text-secondary);
 }
 .rs-zoom button.on { background: #fff; color: var(--cdrrmo-red); box-shadow: var(--shadow-sm); }
@@ -544,7 +544,7 @@
 /* ── Map ── */
 .rd-map { width: 100%; height: auto; display: block; border: 1px solid var(--accent-line); }
 .rd-map-lbl {
-  font-size: 9px; font-family: var(--font-body); fill: #2A2F38; font-weight: 600;
+  font-size: 12px; font-family: var(--font-body); fill: #2A2F38; font-weight: 600;
   paint-order: stroke; stroke: #fff; stroke-width: 2.5px;
 }
 .rd-legend {

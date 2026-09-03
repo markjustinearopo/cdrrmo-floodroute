@@ -63,7 +63,7 @@
 .msb-lead {
   width: 17px;
   height: 17px;
-  color: #9a9a9a;
+  color: #6B7280;
   flex: none;
 }
 .msb-bar input {
@@ -76,7 +76,7 @@
   font-size: 0.85rem;
   color: #1a1a1a;
 }
-.msb-bar input::placeholder { color: #9a9a9a; }
+.msb-bar input::placeholder { color: #6B7280; }
 .msb-go {
   flex: none;
   width: 34px;
@@ -99,7 +99,7 @@
   border: none;
   border-radius: 50%;
   background: none;
-  color: #9a9a9a;
+  color: #6B7280;
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -142,7 +142,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .msb-row {
   display: flex;
@@ -164,7 +164,7 @@
 }
 .msb-row-sub {
   font-size: 0.66rem;
-  color: #9a9a9a;
+  color: #6B7280;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -190,7 +190,7 @@
 .msb-empty {
   padding: 14px;
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
   text-align: center;
 }
 
@@ -248,7 +248,7 @@
   gap: 8px;
 }
 .msr-card-title { font-size: 0.9rem; font-weight: 800; color: #1a1a1a; line-height: 1.25; }
-.msr-card-sub { font-size: 0.68rem; color: #9a9a9a; margin-top: 2px; }
+.msr-card-sub { font-size: 0.68rem; color: #6B7280; margin-top: 2px; }
 .msr-card-rows { margin-top: 9px; display: flex; flex-direction: column; gap: 4px; }
 .msr-card-row {
   display: flex;
@@ -394,7 +394,7 @@
 .fsc-hint { font-size: 0.64rem; color: #7a7a7a; line-height: 1.25; }
 .fsc-counts { display: flex; gap: 6px; margin-top: 8px; }
 .fsc-count {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 8px;
@@ -407,8 +407,8 @@
   margin-top: 8px;
   padding-top: 7px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
-  font-size: 0.6rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   line-height: 1.5;
 }
 .fsc-meta b { color: #3a3a3a; }
@@ -498,7 +498,7 @@
   color: #3a3a3a;
   font-variant-numeric: tabular-nums;
 }
-.wxc-clock small { display: block; font-size: 0.56rem; font-weight: 500; color: #9a9a9a; }
+.wxc-clock small { display: block; font-size: 0.56rem; font-weight: 500; color: #6B7280; }
 .wxc-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -511,7 +511,7 @@
   padding: 6px 4px;
   text-align: center;
 }
-.wxc-cell small { display: block; font-size: 0.56rem; color: #9a9a9a; }
+.wxc-cell small { display: block; font-size: 0.56rem; color: #6B7280; }
 .wxc-cell b { font-size: 0.72rem; color: #1a1a1a; }
 
 /* ── Floating action buttons ────────────────────────────────────────────── */
@@ -596,7 +596,7 @@
 }
 .emg-toggle:hover { background: #a5151a; transform: translateY(-1px); }
 .emg-toggle svg { width: 14px; height: 14px; }
-.emg-caret { font-size: 0.6rem; opacity: 0.85; }
+.emg-caret { font-size: 0.75rem; opacity: 0.85; }
 .emg-body {
   width: 100%;
   margin-bottom: 8px;
@@ -620,7 +620,7 @@
   color: #7a7a7a;
   margin-bottom: 6px;
 }
-.emg-sec-title small { text-transform: none; letter-spacing: 0; font-weight: 500; color: #9a9a9a; }
+.emg-sec-title small { text-transform: none; letter-spacing: 0; font-weight: 500; color: #6B7280; }
 .emg-row {
   width: 100%;
   display: flex;
@@ -657,7 +657,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.emg-row-txt small { font-size: 0.62rem; color: #9a9a9a; }
+.emg-row-txt small { font-size: 0.62rem; color: #6B7280; }
 .emg-row-km { font-size: 0.68rem; font-weight: 800; color: #1a3a7a; white-space: nowrap; }
 .emg-call {
   font-size: 0.66rem;
@@ -667,7 +667,7 @@
   padding: 3px 10px;
   border-radius: 999px;
 }
-.emg-empty { font-size: 0.7rem; color: #9a9a9a; padding: 4px 6px; }
+.emg-empty { font-size: 0.7rem; color: #6B7280; padding: 4px 6px; }
 
 /* ── Map skeleton / loading experience ──────────────────────────────────── */
 .map-skeleton {
@@ -751,7 +751,7 @@
   letter-spacing: 0.06em;
   color: #16a34a;
 }
-.fsp-updated { font-size: 0.62rem; color: #9a9a9a; white-space: nowrap; }
+.fsp-updated { font-size: 0.62rem; color: #6B7280; white-space: nowrap; }
 .fsp-chips { display: flex; gap: 6px; }
 .fsp-chip {
   flex: 1;

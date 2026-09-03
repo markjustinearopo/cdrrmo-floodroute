@@ -25,8 +25,8 @@
   stroke: #c0181b; fill: none; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round;
 }
-.cut-hd-s { font-size: 0.6875rem; color: #9a9a9a; }
-.cut-loading { font-size: 0.75rem; color: #9a9a9a; padding: 16px 0; }
+.cut-hd-s { font-size: 0.75rem; color: #6B7280; }
+.cut-loading { font-size: 0.75rem; color: #6B7280; padding: 16px 0; }
 
 /* ── Headline ── */
 .cut-lead {
@@ -57,7 +57,7 @@
 }
 .cut-lead-txt { font-size: 0.8125rem; line-height: 1.55; color: #c9d4e2; }
 .cut-lead-txt b { color: #fff; font-weight: 700; }
-.cut-lead-txt span { display: block; margin-top: 3px; font-size: 0.6875rem; color: #7d8da2; }
+.cut-lead-txt span { display: block; margin-top: 3px; font-size: 0.75rem; color: #7d8da2; }
 
 .cut-choke {
   display: flex;
@@ -84,7 +84,7 @@
   justify-content: space-between;
   /* Line the ticks up with the gauge column of the rows below. */
   margin: 2px 92px 0 calc(22px + 10px + 150px + 12px);
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #b8b3aa;
   font-variant-numeric: tabular-nums;
@@ -142,9 +142,9 @@
 .cut-btn:hover .cut-name { color: #c0181b; }
 .cut-name em {
   font-style: normal;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  color: #9a9a9a;
+  color: #6B7280;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -214,16 +214,16 @@
 }
 .cut-val em {
   font-style: normal;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #16a34a;
 }
 .cut-val i {
   font-style: normal;
   font-family: var(--font-body);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .cut-val i.tight { color: #dc2626; }
 
@@ -231,10 +231,10 @@
 .cut-ft { display: flex; align-items: center; gap: 14px; }
 .cut-more, .cut-how {
   border: none; background: none; padding: 0;
-  font: inherit; font-size: 0.6875rem; font-weight: 700;
+  font: inherit; font-size: 0.75rem; font-weight: 700;
   color: #c0181b; cursor: pointer;
 }
-.cut-how { color: #9a9a9a; font-weight: 600; margin-left: auto; }
+.cut-how { color: #6B7280; font-weight: 600; margin-left: auto; }
 .cut-more:hover { text-decoration: underline; }
 .cut-how:hover { color: #6b7280; }
 
@@ -244,7 +244,7 @@
   border-radius: 9px;
   background: #faf9f7;
   border: 1px solid #ece9e3;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.6;
   color: #6b7280;
 }

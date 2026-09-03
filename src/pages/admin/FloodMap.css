@@ -156,7 +156,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: #5a5a5a;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -176,7 +176,7 @@
 }
 .floodmap .legend-live {
   color: #bcbab7;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
 }
 .floodmap .legend-ramp {
   display: flex;
@@ -192,8 +192,8 @@
 .floodmap .legend-ramp i:last-of-type { border-radius: 0 3px 3px 0; }
 .floodmap .legend-ramp small {
   margin-left: 5px;
-  font-size: 0.5625rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
 }
 
 .floodmap .map-coords {
@@ -204,7 +204,7 @@
   border: 1px solid #e5e2dd;
   border-radius: 6px;
   padding: 4px 10px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #7a7a7a;
   font-variant-numeric: tabular-nums;
   z-index: 1000;
@@ -236,9 +236,9 @@
   min-width: 0;
   text-align: center;
   padding: 8px 4px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #9a9a9a;
+  color: #6B7280;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   transition: all 0.15s;
@@ -314,7 +314,7 @@
 /* Secondary figure under a stat — e.g. "5 full" beside the centres accepting,
    so the headline number never has to carry two meanings. */
 .floodmap .stat-note {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #c2410c;
@@ -332,7 +332,7 @@
   border-radius: 8px;
   background: #fef2f2;
   border: 1px solid #fecaca;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #b91c1c;
 }
@@ -377,7 +377,7 @@
   margin-top: 4px;
 }
 .floodmap .section-hdr > span {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #3a3a3a;
   letter-spacing: 0.03em;
@@ -415,7 +415,7 @@
 .floodmap .section-hdr .badge-rt {
   flex: 0 0 auto;
   align-self: center;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #16a34a;
   background: #dcfce7;
@@ -479,7 +479,7 @@
   color: #c0181b;
 }
 .floodmap .rain-sub {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   color: #bcbab7;
   margin-bottom: 4px;
 }
@@ -503,7 +503,7 @@
   margin-top: 3px;
 }
 .floodmap .rain-ticks span {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   color: #bcbab7;
 }
 
@@ -523,10 +523,10 @@
   gap: 3px;
 }
 .floodmap .forecast-day .day-name {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   letter-spacing: 0.05em;
 }
 .floodmap .forecast-day .day-icon {
@@ -534,7 +534,7 @@
   line-height: 1;
 }
 .floodmap .forecast-day .day-temp {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #3a3a3a;
 }
@@ -580,7 +580,7 @@
   color: #3a3a3a;
 }
 .floodmap .risk-badge {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   padding: 2px 7px;
@@ -615,8 +615,8 @@
   color: #5a5a5a;
 }
 .floodmap .panel-empty-sub {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   line-height: 1.4;
   max-width: 180px;
 }
@@ -672,7 +672,7 @@
   .floodmap .subtab {
     padding: 6px 7px;
     gap: 4px;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
   .floodmap .subtab svg {
     width: 12px;
@@ -688,7 +688,7 @@
      sideways if the result does not fit, which costs nothing. */
   .floodmap .subtab-bar .map3d-viewtoggle button {
     padding: 0.3rem 0.7rem;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     min-height: 40px;
   }
 }
@@ -731,7 +731,7 @@
 .fm-alert-title { font-size: 0.8rem; font-weight: 700; color: #1a1a1a; }
 .fm-alert-resolve { border: none; background: none; font-family: var(--font-body); font-size: 0.7rem; font-weight: 700; color: #c0181b; cursor: pointer; flex-shrink: 0; }
 .fm-alert-resolve:hover { text-decoration: underline; }
-.fm-alert-meta { font-size: 0.68rem; color: #9a9a9a; margin-top: 1px; }
+.fm-alert-meta { font-size: 0.68rem; color: #6B7280; margin-top: 1px; }
 .fm-alert-msg { font-size: 0.72rem; color: #5a5a5a; margin-top: 3px; line-height: 1.4; }
 
 /* Severity escalation: a HIGH alert row can never read like an all-clear. */
@@ -747,8 +747,8 @@
 /* Honesty caption under the risk donut — the depths are modeled. */
 .fm-model-note {
   margin: 8px 0 0;
-  font-size: 0.625rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   font-style: italic;
   line-height: 1.45;
   text-align: center;
@@ -762,11 +762,11 @@
 .fm-hazard-sec { display: flex; flex-direction: column; }
 .fm-hazard-title {
   margin: 0 0 9px;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .fm-hazard-stats {
   display: grid;
@@ -788,20 +788,20 @@
   font-variant-numeric: tabular-nums;
 }
 .fm-hazard-stat-unit {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-left: 3px;
 }
 .fm-hazard-stat-lbl {
   margin-top: 4px;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .fm-hazard-note {
   margin: 9px 0 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1.5;
   color: #7a7a7a;
 }
@@ -819,7 +819,7 @@
   flex-shrink: 0;
 }
 .fm-hazard-legend-lbl { font-weight: 600; color: #2a2a2a; }
-.fm-hazard-legend-sub { margin-left: auto; font-size: 0.6875rem; color: #9a9a9a; }
+.fm-hazard-legend-sub { margin-left: auto; font-size: 0.75rem; color: #6B7280; }
 .fm-hazard-feed {
   display: flex;
   align-items: baseline;
@@ -836,7 +836,7 @@
   color: #1a1a1a;
   font-variant-numeric: tabular-nums;
 }
-.fm-hazard-feed-src { margin-left: auto; font-size: 0.625rem; color: #9a9a9a; }
+.fm-hazard-feed-src { margin-left: auto; font-size: 0.75rem; color: #6B7280; }
 .fm-hazard-refresh {
   margin-top: 9px;
   width: 100%;
@@ -858,7 +858,7 @@
 .subtab-bar .subtab--link {
   margin-left: auto;
   text-decoration: none;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .subtab-bar .subtab--link:hover { color: #c0181b; }
 .subtab-ext { width: 11px; height: 11px; opacity: 0.7; flex-shrink: 0; }
@@ -945,7 +945,7 @@
   color: #fff;
   padding: 7px 11px;
   font: inherit;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.3;
   text-align: left;
@@ -962,7 +962,7 @@
 }
 .floodmap .cutoff-chip em {
   font-style: normal;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -982,7 +982,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #6b7280;
   cursor: pointer;
@@ -1025,7 +1025,7 @@
   font-variant-numeric: tabular-nums;
 }
 .fm-cut-fig b i { font-style: normal; font-size: 1rem; margin-left: 1px; }
-.fm-cut-fig span { font-size: 0.6875rem; line-height: 1.4; color: #6b7280; }
+.fm-cut-fig span { font-size: 0.75rem; line-height: 1.4; color: #6b7280; }
 
 .fm-cut-lbl { font-size: 0.75rem; color: #6b7280; margin-bottom: 6px; }
 .fm-cut-lbl b {
@@ -1036,7 +1036,7 @@
 }
 .fm-cut-ctl input[type='range'] { width: 100%; margin: 0; accent-color: #dc2626; cursor: pointer; }
 .fm-cut-ticks { display: flex; justify-content: space-between; margin-top: 2px; }
-.fm-cut-ticks i { font-style: normal; font-size: 0.5625rem; font-weight: 600; color: #b8b3aa; }
+.fm-cut-ticks i { font-style: normal; font-size: 0.75rem; font-weight: 600; color: #b8b3aa; }
 
 /* The Map Layers rail owns the left 200px of the canvas, so the search bar
    centres in what is LEFT of the canvas rather than on the canvas — otherwise
@@ -1175,8 +1175,8 @@
 }
 .fm-hz-close:hover { background: rgba(0, 0, 0, 0.06); color: #c0181b; }
 .fm-hz-sub {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   margin: 1px 0 9px;
 }
 .fm-hz-bands {
@@ -1212,8 +1212,8 @@
 }
 .fm-hz-stats > div { display: flex; align-items: baseline; gap: 8px; }
 .fm-hz-stats dt {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -1229,9 +1229,9 @@
   margin: 9px 0 0;
   padding-top: 8px;
   border-top: 1px solid #e5e2dd;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   line-height: 1.5;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 
 /* On phones the search bar spans the top edge, so mapUpgrade.css pushes the
@@ -1254,10 +1254,10 @@
   padding-left: 10px;
   margin-left: 2px;
   border-left: 1px solid #e5e2dd;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: #9a9a9a;
+  color: #6B7280;
   white-space: nowrap;
 }
 

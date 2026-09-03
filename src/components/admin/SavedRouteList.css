@@ -71,8 +71,8 @@
 }
 .srl--page .srl-name { font-size: 0.875rem; }
 .srl-meta {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -88,13 +88,13 @@
 
 .srl-tag {
   flex-shrink: 0;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   padding: 2px 5px;
   border-radius: 4px;
   background: #f0eee9;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .srl-tag.on {
   background: #b8860b;
@@ -108,7 +108,7 @@
   border-left: 1px solid #f0eee9;
   background: none;
   cursor: pointer;
-  color: #9a9a9a;
+  color: #6B7280;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -119,7 +119,7 @@
 
 .srl-empty {
   font-size: 0.75rem;
-  color: #9a9a9a;
+  color: #6B7280;
   line-height: 1.55;
   padding: 14px 12px;
   border: 1px dashed #e5e2dd;
@@ -162,7 +162,7 @@
 }
 .srl-chip.active .srl-chip-dot { background: #fff !important; }
 .srl-chip-count {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
 }

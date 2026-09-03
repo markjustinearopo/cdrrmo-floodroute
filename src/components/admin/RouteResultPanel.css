@@ -28,11 +28,11 @@
   font-variant-numeric: tabular-nums;
 }
 .rrp-metric-lbl {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-top: 3px;
 }
 
@@ -43,7 +43,7 @@
   margin-top: 10px;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #5a5a5a;
   background: #f7f5f2;
@@ -61,7 +61,7 @@
   margin-top: 7px;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #6b5300;
   background: #fefce8;
@@ -76,7 +76,7 @@
   border-radius: 9px;
   background: #fff;
 }
-.rrp-compare-note { font-size: 0.6875rem; color: #7a7a7a; line-height: 1.5; }
+.rrp-compare-note { font-size: 0.75rem; color: #7a7a7a; line-height: 1.5; }
 .rrp-compare-row {
   display: flex;
   align-items: center;
@@ -92,7 +92,7 @@
   margin-top: 7px;
   padding-top: 7px;
   border-top: 1px dashed #e5e2dd;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #7a7a7a;
   line-height: 1.5;
 }
@@ -110,17 +110,17 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   margin-bottom: 7px;
 }
 .rrp-via-title svg {
   width: 12px;
   height: 12px;
-  stroke: #9a9a9a;
+  stroke: #6B7280;
   fill: none;
   stroke-width: 2;
   stroke-linecap: round;
@@ -130,7 +130,7 @@
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   color: #b8b3aa;
 }
 .rrp-via-list {
@@ -182,15 +182,15 @@
 .rrp-via-dist {
   margin-left: auto;
   flex-shrink: 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .rrp-via-more {
   margin-top: 5px;
   padding-left: 16px;
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
 }
 
 /* Avoid-a-road: the via row becomes a button that reveals "avoid" on hover. */
@@ -210,7 +210,7 @@
 }
 .rrp-via-x {
   flex-shrink: 0;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -231,7 +231,7 @@
   background: #fff7f7;
 }
 .rrp-avoided-title {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -252,7 +252,7 @@
   border-radius: 999px;
   padding: 4px 9px;
   font: inherit;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #8b1416;
   cursor: pointer;

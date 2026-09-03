@@ -109,7 +109,7 @@
 }
 .viz-now-chip b { font-variant-numeric: tabular-nums; }
 .viz-badge {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -171,7 +171,7 @@
   font-size: 26px;
   font-weight: 800;
 }
-.rg-center-sub { text-anchor: middle; font-size: 6.2px; fill: #9a9a9a; font-family: var(--font-body); font-weight: 600; letter-spacing: 0.02em; }
+.rg-center-sub { text-anchor: middle; font-size: 6.2px; fill: #6B7280; font-family: var(--font-body); font-weight: 600; letter-spacing: 0.02em; }
 .rg-legend { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
 .rg-legend-row { display: flex; align-items: center; gap: 7px; font-size: 0.74rem; }
 .rg-legend-row.zero { opacity: 0.45; }
@@ -342,12 +342,12 @@
 /* Trend chip — only rendered when a stat has real history behind it
    (currently the rainfall card, hour-over-hour from Open-Meteo). */
 .stat-delta {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 10px;
   background: #f0eee9;
-  color: #9a9a9a;
+  color: #6B7280;
   font-variant-numeric: tabular-nums;
 }
 .stat-delta.up { background: #fee2e2; color: #dc2626; }
@@ -378,9 +378,9 @@
   margin-bottom: 3px;
 }
 .stat-lbl {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  color: #9a9a9a;
+  color: #6B7280;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -473,11 +473,11 @@
   color: #1a1a1a;
 }
 .section-sub {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
 }
 .section-badge {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #16a34a;
   display: flex;
@@ -595,8 +595,8 @@
   color: #1a1a1a;
 }
 .alert-time {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   font-variant-numeric: tabular-nums;
 }
 .alert-desc {
@@ -621,8 +621,8 @@
   font-weight: 600;
 }
 .alert-open {
-  color: #9a9a9a;
-  font-size: 0.6875rem;
+  color: #6B7280;
+  font-size: 0.75rem;
   white-space: nowrap;
   opacity: 0;
   transition: opacity 0.12s;
@@ -635,7 +635,7 @@
 }
 .empty-state {
   padding: 18px 16px;
-  color: #9a9a9a;
+  color: #6B7280;
   font-size: 0.8125rem;
   text-align: center;
 }
@@ -700,8 +700,8 @@
 .brgy-model-note {
   flex-shrink: 0;
   padding: 6px 16px;
-  font-size: 0.625rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   font-style: italic;
   border-top: 1px solid #f7f5f2;
 }
@@ -795,9 +795,9 @@
   gap: 6px;
 }
 .road-brush-label {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #9a9a9a;
+  color: #6B7280;
 }
 .road-brush {
   display: inline-flex;
@@ -874,7 +874,7 @@
   z-index: 500;
   background: rgba(26, 26, 26, 0.78);
   color: #fff;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -892,7 +892,7 @@
   border: 1px solid #e5e2dd;
   border-radius: 8px;
   padding: 6px 10px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #3a3a3a;
 }
@@ -907,7 +907,7 @@
   border: 1px solid #e5e2dd;
   border-radius: 8px;
   padding: 5px 10px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #3a3a3a;
   pointer-events: none;
@@ -926,11 +926,11 @@
   justify-content: space-between;
   padding: 11px 16px;
   border-bottom: 1px solid #f0eee9;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9a9a9a;
+  color: #6B7280;
   flex-shrink: 0;
 }
 .road-list-count {
@@ -938,7 +938,7 @@
   color: #7a7a7a;
   border-radius: 99px;
   padding: 1px 8px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .road-list-scroll {
   flex: 1 1 auto;
@@ -964,8 +964,8 @@
   text-overflow: ellipsis;
 }
 .road-list-brgy {
-  font-size: 0.6875rem;
-  color: #9a9a9a;
+  font-size: 0.75rem;
+  color: #6B7280;
   font-variant-numeric: tabular-nums;
 }
 
@@ -973,7 +973,7 @@
   display: inline-block;
   padding: 3px 10px;
   border-radius: 20px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 .road-status-badge.closed,
@@ -1090,7 +1090,7 @@
 .alert-level-badge {
   padding: 4px 12px;
   border-radius: 20px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
@@ -1247,7 +1247,7 @@
   font-family: var(--font-display);
   font-size: 0.875rem; font-weight: 800; color: #1a1a1a;
 }
-.dash-sitrep em { font-style: normal; font-size: 0.6875rem; color: #9a9a9a; }
+.dash-sitrep em { font-style: normal; font-size: 0.75rem; color: #6B7280; }
 
 @media (max-width: 900px) {
   .dash-actionbar { grid-template-columns: 1fr; }
