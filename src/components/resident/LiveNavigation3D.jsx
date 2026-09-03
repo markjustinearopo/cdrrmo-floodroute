@@ -113,6 +113,13 @@ export default function LiveNavigation3D({
     })
     setRouteLine3D(map, ROUTE_BEHIND, v.behind)
     setRouteLine3D(map, ROUTE_AHEAD, v.ahead)
+
+    /* No initial fitBounds here on purpose. It looks like it is needed — the
+       map would otherwise open on the whole of Cabuyao — but `position` is
+       never actually absent: LiveNavigation falls back to the route's first
+       coordinate when there is no GPS fix, so the camera effect below always
+       has somewhere to go and takes the view to street level immediately.
+       A fit would be unreachable code that reads like a safety net. */
   })
 
   /* The walker's puck.
@@ -123,7 +130,7 @@ export default function LiveNavigation3D({
      until something else moved it. Creating it lazily in the effect that
      already has the fresh position removes that ordering dependency
      entirely. */
-  function ensurePuck(map) {
+  function ensurePuck(map, lngLat) {
     if (puckRef.current) return puckRef.current
     const el = document.createElement('div')
     el.className = 'nav3d-puck'
@@ -134,7 +141,15 @@ export default function LiveNavigation3D({
     puckRef.current = new mapboxgl.Marker({
       element: el, pitchAlignment: 'map', rotationAlignment: 'map',
     })
-    puckRef.current.addTo(map)
+      /* setLngLat BEFORE addTo, and that order is the whole bug this used to
+         have. addTo() immediately calls Marker._update(), which hands the
+         marker's position to smartWrap() — and smartWrap reads `.lng` off it
+         with no guard. A marker added before it has a position throws
+         "Cannot read properties of undefined (reading 'lng')" from inside
+         Mapbox, which took the entire 3D navigation view down every single
+         time a resident switched to it. */
+      .setLngLat(lngLat)
+      .addTo(map)
     return puckRef.current
   }
 
@@ -164,14 +179,18 @@ export default function LiveNavigation3D({
       turnRef.current = null
       return
     }
+    const at = toLngLat(turnPoint)
     if (!turnRef.current) {
       const el = document.createElement('div')
       el.className = 'nav3d-turn'
       el.innerHTML = '<span class="nav3d-turn-ring"></span>'
+      // Positioned before it is added, for the same reason as the puck above.
       turnRef.current = new mapboxgl.Marker({ element: el, pitchAlignment: 'map' })
-      turnRef.current.addTo(map)
+        .setLngLat(at)
+        .addTo(map)
+      return
     }
-    turnRef.current.setLngLat(toLngLat(turnPoint))
+    turnRef.current.setLngLat(at)
   }, [turnPoint, ready, mapRef])
 
   // ── Camera: ride behind the walker, heading-up, eased ────────────────────
@@ -179,7 +198,8 @@ export default function LiveNavigation3D({
     const map = mapRef.current
     if (!ready || !map || !isLatLng(position)) return
 
-    ensurePuck(map).setLngLat(toLngLat(position))
+    const here = toLngLat(position)
+    ensurePuck(map, here).setLngLat(here)
     if (!follow) return
 
     /* Prefer the device heading; fall back to the direction of the route
@@ -196,7 +216,7 @@ export default function LiveNavigation3D({
     cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(() => {
       map.easeTo({
-        center: toLngLat(position),
+        center: here,
         bearing: bearingRef.current,
         pitch: 62,          // enough tilt to read the street ahead, not so much
         zoom: 17.4,         // that the horizon eats the screen
