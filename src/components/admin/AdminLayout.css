@@ -1234,6 +1234,13 @@
 /* ── Phone: account panel ────────────────────────────────────────────────
    The close "×" was 30px, and it is the only way out of the panel on a
    phone; the profile buttons under it were 36-38px. */
+/* Touch targets, phone only.
+   Everything here sat at 40px, which clears WCAG 2.5.8 (24px) but not the
+   45-ish px an adult thumb actually covers. The desktop sizes are left
+   alone — a mouse pointer is one pixel, and inflating a dense admin header
+   for a cursor costs density for nothing. 44px is the number both Apple's
+   HIG and WCAG 2.5.5 land on, and this app is used one-handed, outdoors,
+   in the rain, by someone who may be moving. */
 @media (max-width: 760px) {
   .account-close {
     min-width: 44px;
@@ -1242,5 +1249,11 @@
   .btn-primary-sm,
   .btn-soft {
     min-height: 44px;
+  }
+  .nav-burger,
+  .icon-btn,
+  .avatar {
+    width: 44px;
+    height: 44px;
   }
 }

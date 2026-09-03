@@ -72,6 +72,13 @@
   .map3d-viewtoggle button {
     padding: 0.6rem 0.95rem;
     font-size: 0.75rem;
-    min-height: 40px;
+    min-height: 44px;
   }
+}
+
+/* Phone floor: 44px. Set here rather than in index.css because this file is
+   injected after it (the route is lazy-loaded), so a global rule of equal
+   specificity loses on source order. */
+@media (max-width: 760px) {
+  .map3d-viewtoggle button { min-width: 44px; min-height: 44px; }
 }

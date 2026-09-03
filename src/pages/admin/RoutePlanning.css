@@ -769,7 +769,7 @@
      hit and the destructive control next to it did not. */
   .route-plan .rp-saved-x {
     min-width: 40px;
-    min-height: 40px;
+    min-height: 44px;
   }
 
   /* This toolbar is what dragged the whole SCREEN sideways on a phone.
@@ -857,14 +857,14 @@
   .route-plan .rp-btn {
     padding: 8px 10px;
     font-size: 0.75rem;
-    min-height: 40px;
+    min-height: 44px;
     gap: 5px;
   }
   .route-plan .rp-btn svg { width: 15px; height: 15px; }
   .route-plan .rp-type {
     padding: 7px 10px;
     font-size: 0.75rem;
-    min-height: 40px;
+    min-height: 44px;
   }
   /* The explanatory note is a full sentence sitting inside a control strip;
      on its own line it reads better and stops stretching the strip. */

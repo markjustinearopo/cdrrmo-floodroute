@@ -167,7 +167,7 @@
    33px on nineteen screens. */
 @media (max-width: 760px) {
   .drill-launch {
-    min-height: 40px;
+    min-height: 44px;
     padding-top: 0;
     padding-bottom: 0;
   }

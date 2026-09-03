@@ -49,12 +49,12 @@
 
 /* Silences the tone only — the takeover and the acknowledge button stay.
    Pushed to the far edge and styled quietly so it never competes with
-   "I have read this", which is the action that actually matters. 40px min
+   "I have read this", which is the action that actually matters. 44px min
    height keeps it a real touch target. */
 .ea-mute {
   margin-left: auto;
   align-self: flex-start;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;

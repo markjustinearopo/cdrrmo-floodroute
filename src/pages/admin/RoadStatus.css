@@ -801,7 +801,7 @@
   /* "Clear all" wipes the whole board and was a 16px text link. Give it a
      real target — and enough padding that it is not adjacent to a brush. */
   .road-status .rs-clear {
-    min-height: 40px;
+    min-height: 44px;
     padding: 8px 12px;
   }
 
@@ -815,7 +815,7 @@
     gap: 10px;
   }
   .road-status .rs-flagged-name {
-    min-height: 40px;
+    min-height: 44px;
     display: flex;
     align-items: center;
   }

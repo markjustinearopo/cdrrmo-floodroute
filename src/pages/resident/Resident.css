@@ -195,13 +195,13 @@
 .res-evac-name.muted { color: #bcbab7; font-weight: 700; font-style: italic; font-size: 1rem; }
 .res-evac-meta { font-size: 0.8125rem; color: #5a5a5a; margin-top: 3px; }
 
-/* Slower-pace toggle on the route panel. 40px min-height so it stays a real
+/* Slower-pace toggle on the route panel. 44px min-height so it stays a real
    touch target on a phone (see the mobile conventions in this file). */
 .rp-mobility {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 44px;
   margin-top: 8px;
   font-size: 0.8125rem;
   color: #4a4a4a;
@@ -340,15 +340,16 @@
 .res-alert-main { flex: 1; min-width: 0; }
 
 /* The title is the tap target that expands the row. A real <button> so it is
-   keyboard-reachable and announces its expanded state; 40px min-height so it
-   is a legitimate touch target on a phone. */
+   keyboard-reachable and announces its expanded state; 44px min-height so it
+   is a legitimate touch target on a phone — this is the control a resident
+   taps to read an alert, so it is sized for a thumb, not a cursor. */
 .res-alert-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0;
   background: none;
   border: 0;
@@ -395,6 +396,7 @@
   justify-content: center;
   gap: 4px;
   margin-top: 10px;
+  min-height: 44px;
   padding: 10px;
   border-radius: 9px;
   background: #fafafa;
@@ -785,14 +787,14 @@
   .res-filter-tab {
     padding: 10px 15px;
     font-size: 0.8125rem;
-    min-height: 42px;
+    min-height: 44px;
     flex-shrink: 0;
   }
   .res-search {
     margin-left: 0;
     max-width: none;
     width: 100%;
-    min-height: 42px;
+    min-height: 44px;
     /* 16px is the threshold below which iOS Safari zooms the page on focus —
        that zoom then leaves the layout scrolled sideways with no way back. */
     font-size: 1rem;
@@ -802,7 +804,7 @@
     align-self: flex-end;
     font-size: 0.8125rem;
     padding: 8px 4px;
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .res-notif-card { padding: 13px; gap: 10px; }

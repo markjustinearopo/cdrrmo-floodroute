@@ -415,11 +415,11 @@
 @media (max-width: 560px) {
   /* Phone toolbars are already fighting for the row; the icon alone still
      reads as "help" and buys back ~46px. Dropping the label must not shrink
-     the button below a thumb, though — the phone rules put the floor at 40px,
-     and the view switches sitting beside it are 42px tall. */
+     the button below a thumb, though — the phone floor across the app is
+     44px in both directions, which is what the switches beside it use. */
   .mguide-trigger {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 6px;
     justify-content: center;
   }

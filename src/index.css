@@ -471,7 +471,10 @@ input[type="checkbox"] {
    Leaflet ships 30px zoom buttons and the app's locate control is 34px —
    both sized for a mouse pointer. On a phone they are the primary way to
    work the map and they sit under a thumb, so below the drawer breakpoint
-   every on-map control is brought up to a 40px target.
+   every on-map control is brought up to a 44px target — the size Apple's
+   HIG and WCAG 2.5.5 both settle on, and roughly the width of an adult
+   thumb. 40px cleared WCAG 2.5.8 (24px) but still asked for a careful aim
+   from someone walking through floodwater one-handed.
 
    Scoped by width rather than `pointer: coarse` on purpose: a narrow window
    on a laptop gets the same layout, and the size costs nothing there.
@@ -480,10 +483,85 @@ input[type="checkbox"] {
   .leaflet-touch .leaflet-bar a,
   .leaflet-control-zoom a,
   .locate-btn {
-    width: 40px !important;
-    height: 40px !important;
-    line-height: 40px;
+    width: 44px !important;
+    height: 44px !important;
+    line-height: 44px;
   }
+
+  /* The rest of the phone-reachable controls, audited by measuring every
+     focusable element's box at 375px rather than by reading CSS — which is
+     how the ones below were found sitting between 34px and 43px while
+     looking fine on screen.
+
+     Deliberately NOT included: map pins (.cd-pin-wrap). A pin's size is its
+     meaning — the severity scale sizes them, and its position is the datum.
+     WCAG 2.5.5 exempts targets whose presentation is essential, and this is
+     that case. Tapping a pin is never the only way to reach its information;
+     the same records are in the lists behind the map. */
+  .subtab,
+  .mguide-trigger,
+  .report-flood-btn,
+  .fsc-chip,
+  .wxc--chip,
+  .fab,
+  .emg-toggle,
+  .res-filter-tab,
+  .res-mark-all,
+  .toggle-pw,
+  .lang-toggle button,
+  .map3d-viewtoggle button {
+    min-height: 44px;
+  }
+  .mguide-trigger,
+  .fab,
+  .toggle-pw {
+    min-width: 44px;
+  }
+
+  /* Admin controls. The CDRRMO screens are a desktop command centre and keep
+     their density there, but an operator does open them on a phone during an
+     event, and these were still at their mouse sizes (30–42px). */
+  .btn-issue,
+  .view-all-link,
+  .road-brush,
+  .btn-soft-sm,
+  .msb-fab,
+  .fm-add-area,
+  .rs-flagged-x,
+  .ar-mode,
+  .ar-refresh,
+  .rb-mode-btn,
+  .rb-tab,
+  .rb-btn,
+  .rb-icon,
+  .mng-chip,
+  .mng-cell-link,
+  .set-tab,
+  .smsp-refresh,
+  .ts-chip,
+  .ts-play {
+    min-height: 44px;
+  }
+  .msb-fab,
+  .rs-flagged-x,
+  .rb-icon,
+  .ts-play,
+  .smsp-refresh,
+  .fm-hz-close {
+    min-width: 44px;
+  }
+
+  /* NOT sized up, and each for a reason rather than an oversight:
+       .sky-tower   a bar in the barangay risk skyline. Its height IS the
+                    risk value and its width is the column pitch; padding it
+                    to 44px would draw a different chart.
+       .rd-edit     contenteditable text in the report editor. These are text
+                    runs, and a line of text is as tall as the line.
+       .ts-hit / range inputs — slider internals, where the thumb is the
+                    target and the track is the scale.
+       map pins     position is the datum; see the map-controls note above.
+     WCAG 2.5.5 exempts targets whose presentation is essential, which is
+     what all four of these are. */
   .leaflet-touch .leaflet-bar a svg,
   .locate-btn svg {
     width: 19px;

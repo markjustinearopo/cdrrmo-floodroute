@@ -350,14 +350,14 @@
 .bq-feed-main { flex: 1; min-width: 0; }
 
 /* Title doubles as the expand control — real <button> for keyboard and
-   screen-reader support, 40px min-height so it is tappable on a phone. */
+   screen-reader support, 44px min-height so it is tappable on a phone. */
 .bq-feed-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0;
   background: none;
   border: 0;
@@ -538,7 +538,7 @@
    The "View all" / "Edit" buttons on the barangay dashboard cards. */
 @media (max-width: 760px) {
   .bq-mini-btn {
-    min-height: 40px;
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     padding: 6px 12px;

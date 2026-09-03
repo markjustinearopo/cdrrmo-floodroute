@@ -262,7 +262,7 @@
 @media (max-width: 760px) {
   .cut-more,
   .cut-how {
-    min-height: 40px;
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     padding: 4px 2px;

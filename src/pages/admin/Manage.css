@@ -762,7 +762,7 @@
      area: 12px inside a table row is the smallest control in the portal. */
   .mng-inline-select {
     font-size: 0.875rem;
-    min-height: 40px;
+    min-height: 44px;
   }
 
   /* ── Shared controls: bigger target, smaller footprint ──────────────────
@@ -821,9 +821,29 @@
    height has to come from padding rather than a taller row. */
 @media (max-width: 760px) {
   .mng-link {
-    min-height: 40px;
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     padding: 6px 10px;
   }
+}
+
+/* Phone floor: 44px. Set here rather than in index.css because this file is
+   injected after it (the route is lazy-loaded), so a global rule of equal
+   specificity loses on source order. */
+@media (max-width: 760px) {
+  .mng-chip,
+  .mng-cell-link { min-width: 44px; min-height: 44px; }
+}
+
+/* Phone floor: 44px — see the note above. These are the LABEL wrapping a
+   checkbox, not the box itself: the box stays its drawn size and the whole
+   labelled row becomes the target, which is how it already behaves with a
+   mouse. */
+@media (max-width: 760px) {
+  /* Row-selection boxes stay compact: a 44px box in every row of a 200-row
+     table pushes the data off a phone screen entirely. 24px is the WCAG
+     2.5.8 (AA) minimum and these are never the only route to an action —
+     each row also has its own named buttons. */
+  .mng-check-col input { width: 24px; height: 24px; }
 }

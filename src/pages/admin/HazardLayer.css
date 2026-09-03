@@ -571,7 +571,7 @@
   .hazard .map3d-viewtoggle button {
     padding: 0.28rem 0.7rem;
     font-size: 0.75rem;
-    min-height: 40px;
+    min-height: 44px;
   }
 
   /* The opacity slider is a 4px track with a 16px thumb: a 16px target that
@@ -596,6 +596,6 @@
    miss and easy to hit twice. */
 @media (max-width: 760px) {
   .hazard .hz-refresh {
-    min-height: 40px;
+    min-height: 44px;
   }
 }

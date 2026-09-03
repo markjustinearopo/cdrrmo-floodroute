@@ -103,7 +103,7 @@
   .tsm-meter { flex-direction: column; gap: 2px; }
   .tsm-go,
   .tsm .mng-btn-ghost {
-    min-height: 40px;
+    min-height: 44px;
     flex: 1;
   }
 }

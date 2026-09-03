@@ -1023,8 +1023,17 @@
   .msb-icon-btn { width: 34px; height: 34px; }
   .fsc-chip {
     padding: 10px 15px;
-    min-height: 42px;
+    min-height: 44px;
     font-size: 0.8125rem;
   }
-  .emg-toggle { min-height: 42px; }
+  .emg-toggle { min-height: 44px; }
+}
+
+/* Phone: the search bar Go button, same reasoning as .locate-btn. */
+@media (max-width: 760px) {
+  .msb-go {
+    width: 44px;
+    height: 44px;
+  }
+  .msb-go svg { width: 17px; height: 17px; }
 }

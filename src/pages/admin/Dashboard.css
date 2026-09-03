@@ -1253,3 +1253,19 @@
   .dash-actionbar { grid-template-columns: 1fr; }
   .dash-actionbar > .ds { margin-bottom: 0; }
 }
+
+/* Phone floor: 44px. Set here rather than in index.css because this file is
+   injected after it (the route is lazy-loaded), so a global rule of equal
+   specificity loses on source order. */
+@media (max-width: 760px) {
+  .view-all-link,
+  .road-clear-btn { min-height: 44px; }
+}
+
+/* Phone floor: 44px — see the note above. These are the LABEL wrapping a
+   checkbox, not the box itself: the box stays its drawn size and the whole
+   labelled row becomes the target, which is how it already behaves with a
+   mouse. */
+@media (max-width: 760px) {
+  .road-clear-btn { min-width: 44px; }
+}
