@@ -56,7 +56,15 @@ export const CITY_WIDE = 'All Barangays'
 
 export function alertAppliesTo(alert, barangay) {
   if (!alert) return false
-  return alert.barangay === CITY_WIDE || alert.barangay === barangay
+  /* Checks the WHOLE target list, not just the first entry. An alert aimed
+     at five lakeshore barangays must reach all five — reading only
+     barangays[0] meant four of them never saw it, which is why operators
+     fell back to tagging everything city-wide. Falls back to the legacy
+     singular field for any caller still constructing alerts by hand. */
+  const targets = Array.isArray(alert.barangays) && alert.barangays.length
+    ? alert.barangays
+    : [alert.barangay]
+  return targets.some((t) => t === CITY_WIDE || t === 'All' || t === barangay)
 }
 
 /* ── Alert ordering ────────────────────────────────────────────────────────

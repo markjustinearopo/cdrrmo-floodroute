@@ -560,3 +560,11 @@ input[type="checkbox"] {
   white-space: nowrap;
   border: 0;
 }
+
+/* On the dark red auth background, the brand-red focus ring from the global
+   rule above is effectively invisible — red on red. Login and Register get a
+   white ring instead, so tabbing through the sign-in form is actually
+   followable. */
+.auth-body :focus-visible {
+  outline-color: #fff;
+}

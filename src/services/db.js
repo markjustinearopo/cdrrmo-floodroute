@@ -41,12 +41,24 @@ function unwrap({ data, error }) {
    Alerts
    ============================================================ */
 function alertFromDb(r) {
+  /* `barangays` is a text[] and always has been, but every reader took [0]
+     and threw the rest away — so an alert for five lakeshore barangays was
+     inexpressible. Faced with that, operators tagged it "All Barangays"
+     instead: live alert 150 is a PRE-EMPTIVE EVACUATION whose own text names
+     Baclaran, Bigaa, Butong, Marinig and Gulod, but it went to all eighteen.
+     Over-alerting is not a harmless default — it is how people learn to
+     ignore the channel.
+
+     `barangays` (plural) is now the real field. `barangay` (singular) stays
+     as the first entry so existing callers keep working while they migrate. */
+  const list = Array.isArray(r.barangays) && r.barangays.length ? r.barangays : null
   return {
     id: r.id,
     level: r.level,
     title: r.title,
     message: r.message,
-    barangay: (Array.isArray(r.barangays) && r.barangays[0]) || 'All',
+    barangays: list || ['All'],
+    barangay: (list && list[0]) || 'All',
     status: r.status || 'active',
     issuedAt: epochOf(r.issued_at),
     issued: label(r.issued_at),
@@ -59,7 +71,15 @@ function alertToDb(a) {
   if ('level' in a) out.level = a.level
   if ('title' in a) out.title = a.title
   if ('message' in a) out.message = a.message
-  if ('barangay' in a) out.barangays = a.barangay ? [a.barangay] : null
+  /* Accepts either shape: `barangays: [...]` for a real multi-barangay
+     alert, or the legacy single `barangay`. Writing several is now possible
+     without touching the schema — the column was always an array. */
+  if ('barangays' in a) {
+    const list = Array.isArray(a.barangays) ? a.barangays.filter(Boolean) : []
+    out.barangays = list.length ? list : null
+  } else if ('barangay' in a) {
+    out.barangays = a.barangay ? [a.barangay] : null
+  }
   if ('status' in a) out.status = a.status
   if ('depth' in a) out.depth_m = a.depth ?? null
   if ('scheduledFor' in a) out.scheduled_for = isoOf(a.scheduledFor)
