@@ -185,7 +185,7 @@ export default function RecordList({
             <thead>
               <tr>
                 {selection && (
-                  <th className="mng-check-col">
+                  <th scope="col" className="mng-check-col">
                     <input
                       type="checkbox"
                       checked={allVisibleSelected}
@@ -195,9 +195,14 @@ export default function RecordList({
                   </th>
                 )}
                 {columns.map((c) => (
-                  <th key={c.key} style={c.headerStyle}>{c.header}</th>
+                  /* scope="col" is what lets a screen reader say "Barangay:
+                   Marinig" instead of reading a bare "Marinig" with no idea
+                   which column it came from. Without it a 26-row incident
+                   table is an undifferentiated stream of values — the header
+                   row exists visually and means nothing to a listener. */
+                <th key={c.key} scope="col" style={c.headerStyle}>{c.header}</th>
                 ))}
-                {hasActions && <th style={{ textAlign: 'right' }}>Actions</th>}
+                {hasActions && <th scope="col" style={{ textAlign: 'right' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
