@@ -17,6 +17,7 @@ import {
   arrivalClock,
 } from '../../services/navigation.js'
 import * as speech from '../../services/speech.js'
+import ErrorBoundary from '../ErrorBoundary.jsx'
 import './liveNavigation.css'
 
 /* Lazy: Mapbox GL is ~500 kB gzipped and most residents will never switch to
@@ -602,17 +603,29 @@ export default function LiveNavigation({
            draws comes from the same `nav` result the 2D view uses — it is a
            different presentation of one navigation state, never a second
            source of truth. */
-        <Suspense fallback={<div className="lnav-map lnav-map-loading">Loading 3D view…</div>}>
-          <LiveNavigation3D
-            position={navPosition}
-            heading={nav?.heading}
-            ahead={navSplit.remaining}
-            behind={navSplit.traveled}
-            turnPoint={turnPoint}
-            hazard={hazard3D}
-            follow={follow}
-          />
-        </Suspense>
+        /* Boundaried: a fault in the 3D renderer used to unmount the whole
+           app and leave a resident mid-evacuation staring at a white screen,
+           with the 2D map and turn list that were working fine taken down
+           with it. Now it drops back to 2D and the walk continues. resetKey
+           lets a later 3D attempt start clean instead of staying tripped. */
+        <ErrorBoundary
+          label="LiveNavigation3D"
+          resetKey={view3D}
+          onError={() => setView3D(false)}
+          fallback={<div className="lnav-map lnav-map-loading">3D unavailable — switching to the standard map…</div>}
+        >
+          <Suspense fallback={<div className="lnav-map lnav-map-loading">Loading 3D view…</div>}>
+            <LiveNavigation3D
+              position={navPosition}
+              heading={nav?.heading}
+              ahead={navSplit.remaining}
+              behind={navSplit.traveled}
+              turnPoint={turnPoint}
+              hazard={hazard3D}
+              follow={follow}
+            />
+          </Suspense>
+        </ErrorBoundary>
       ) : (
         <MapContainer
           center={center}

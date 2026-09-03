@@ -62,6 +62,24 @@ function angleDelta(from, to) {
   return ((((to - from) % 360) + 540) % 360) - 180
 }
 
+/**
+ * Is this a usable [lat, lng] pair?
+ *
+ * toLngLat destructures an ARRAY. Hand it undefined, or an object shaped
+ * {lat, lng}, and it silently produces [undefined, undefined]; Mapbox then
+ * throws deep inside LngLat.convert, which unmounts this component — and,
+ * before the ErrorBoundary in LiveNavigation.jsx, the whole app with it.
+ *
+ * The inputs here are genuinely allowed to be absent: turnPoint is null on
+ * the last leg, and pointAtAlong returns undefined when the walked distance
+ * runs past the end of the route. Those are ordinary states, not faults, so
+ * they are checked rather than caught.
+ */
+function isLatLng(p) {
+  return Array.isArray(p) && p.length >= 2
+    && Number.isFinite(p[0]) && Number.isFinite(p[1])
+}
+
 export default function LiveNavigation3D({
   position,        // [lat, lng] — current fix
   heading = null,  // degrees, when the device reports one
@@ -140,7 +158,8 @@ export default function LiveNavigation3D({
     const map = mapRef.current
     if (!ready || !map) return
 
-    if (!turnPoint) {
+    // Also covers pointAtAlong returning undefined past the end of the route.
+    if (!isLatLng(turnPoint)) {
       turnRef.current?.remove()
       turnRef.current = null
       return
@@ -158,7 +177,7 @@ export default function LiveNavigation3D({
   // ── Camera: ride behind the walker, heading-up, eased ────────────────────
   useEffect(() => {
     const map = mapRef.current
-    if (!ready || !map || !position) return
+    if (!ready || !map || !isLatLng(position)) return
 
     ensurePuck(map).setLngLat(toLngLat(position))
     if (!follow) return
