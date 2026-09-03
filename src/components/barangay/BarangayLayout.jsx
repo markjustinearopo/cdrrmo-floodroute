@@ -255,7 +255,7 @@ export default function BarangayLayout({ children, mainClassName = '' }) {
           />
         )}
 
-        <aside className={`sidebar ${navOpen ? 'open' : ''}`.trim()}>
+        <aside className={`sidebar ${navOpen ? 'open' : ''}`.trim()} aria-label="Main navigation">
           {NAV.map((group) => (
             <div key={group.section}>
               <div className="sidebar-section">{group.section}</div>
@@ -285,7 +285,7 @@ export default function BarangayLayout({ children, mainClassName = '' }) {
           </div>
         </aside>
 
-        <main className={`main ${mainClassName}`.trim()}>{children}</main>
+        <main className={`main ${mainClassName}`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">Barangay Official Portal</h1>{children}</main>
       </div>
 
       {confirmSignout && (

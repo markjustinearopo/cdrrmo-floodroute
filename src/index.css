@@ -538,3 +538,25 @@ input[type="checkbox"] {
     min-height: 44px;
   }
 }
+
+/* ── Screen-reader-only ──────────────────────────────────────────────────
+   Present to assistive technology, invisible on screen. Used for the page
+   <h1> in each portal layout: every page needs a heading that names it, but
+   these screens are dense command surfaces whose visible titles live inside
+   cards, and bolting a visible page title on top would be a design change
+   rather than an accessibility fix.
+
+   The clip/1px technique rather than display:none — the latter removes the
+   element from the accessibility tree entirely, which would defeat the
+   purpose. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

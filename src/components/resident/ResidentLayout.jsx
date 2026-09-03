@@ -249,7 +249,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
           />
         )}
 
-        <aside className={`sidebar ${navOpen ? 'open' : ''}`.trim()}>
+        <aside className={`sidebar ${navOpen ? 'open' : ''}`.trim()} aria-label="Main navigation">
           {NAV.map((group) => (
             <div key={group.section}>
               <div className="sidebar-section">{t(group.section)}</div>
@@ -281,7 +281,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
 
         {/* `main--restabs` reserves the height the bottom tab bar occupies, so
             content is never parked underneath it (see residentTabBar.css). */}
-        <main className={`main ${mainClassName} main--restabs`.trim()}>{children}</main>
+        <main className={`main ${mainClassName} main--restabs`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">My Safety Info</h1>{children}</main>
       </div>
 
       <ResidentTabBar />

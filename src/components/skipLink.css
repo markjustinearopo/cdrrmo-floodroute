@@ -1,0 +1,29 @@
+/* Off-screen until focused, then pinned top-left over everything.
+
+   Deliberately NOT display:none or visibility:hidden — both remove the
+   element from the tab order entirely, which is the most common way a skip
+   link ends up present in the markup and useless in practice. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 10000;
+  padding: 12px 18px;
+  background: #8f1113;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 0 0 8px 0;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  left: 0;
+  outline: 3px solid #fff;
+  outline-offset: -3px;
+}
+
+/* The <main> takes focus when the link is followed; it is a programmatic
+   target, not an interactive control, so it should not draw a focus ring. */
+#main-content:focus { outline: none; }

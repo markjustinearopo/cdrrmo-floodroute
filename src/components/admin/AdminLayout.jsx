@@ -321,7 +321,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           />
         )}
 
-        <aside className={`sidebar ${navOpen ? 'open' : ''}`.trim()}>
+        <aside className={`sidebar ${navOpen ? 'open' : ''}`.trim()} aria-label="Main navigation">
           {NAV.map((group) => (
             <div key={group.section}>
               <div className="sidebar-section">{t(group.section)}</div>
@@ -351,7 +351,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           </div>
         </aside>
 
-        <main className={`main ${mainClassName}`.trim()}>{children}</main>
+        <main className={`main ${mainClassName}`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">CDRRMO Command Center</h1>{children}</main>
       </div>
 
       {confirmSignout && (

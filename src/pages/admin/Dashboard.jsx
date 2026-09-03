@@ -462,7 +462,7 @@ export default function Dashboard() {
             <div className="section-hdr-left">
               <BellIcon />
               <div>
-                <div className="section-title">{t('Active Hazard Alerts')}</div>
+                <h2 className="section-title">{t('Active Hazard Alerts')}</h2>
                 <div className="section-sub">{t('Real-time alert feed · click an alert for details')}</div>
               </div>
             </div>
@@ -525,7 +525,7 @@ export default function Dashboard() {
             <div className="section-hdr-left">
               <HomeIcon />
               <div>
-                <div className="section-title">{t('Barangay Flood Status')}</div>
+                <h2 className="section-title">{t('Barangay Flood Status')}</h2>
                 <div className="section-sub">
                   {t('Current monitoring · All {n} Barangays · click one for its profile', { n: barangays.length })}
                 </div>
@@ -583,7 +583,7 @@ export default function Dashboard() {
           <div className="section-hdr-left">
             <ListIcon />
             <div>
-              <div className="section-title">{t('Road Status')}</div>
+              <h2 className="section-title">{t('Road Status')}</h2>
               <div className="section-sub">{t('Click a road on the map to flag it')}</div>
             </div>
           </div>

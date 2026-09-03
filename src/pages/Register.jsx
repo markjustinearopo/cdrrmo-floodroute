@@ -47,10 +47,18 @@ const BARANGAYS = [
   'San Isidro',
 ]
 
+/* Indexed BY SCORE (0-4), not by score-1.
+
+   scorePassword returns 0 for a password that meets none of the four
+   criteria — the weakest input possible. The arrays were four long and read
+   with `labels[score - 1]`, so score 0 hit labels[-1] → undefined → the
+   `|| ''` fallback rendered nothing. The one password that most needed a
+   warning was the only one that got none, while "a" plus a capital showed a
+   reassuring "Weak". Five entries now, read directly by score. */
 const STRENGTH = {
-  colors: ['#EF4444', '#F97316', '#EAB308', '#22C55E'],
-  labels: ['Weak', 'Fair', 'Good', 'Strong'],
-  labelColors: ['#991B1B', '#9A3412', '#854D0E', '#166534'],
+  colors: ['#EF4444', '#EF4444', '#F97316', '#EAB308', '#22C55E'],
+  labels: ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'],
+  labelColors: ['#991B1B', '#991B1B', '#9A3412', '#854D0E', '#166534'],
 }
 
 function scorePassword(val) {
@@ -141,8 +149,8 @@ export default function Register() {
   }, [])
 
   const score = scorePassword(password)
-  const strengthLabel = password.length > 0 ? STRENGTH.labels[score - 1] || '' : ''
-  const strengthColor = password.length > 0 ? STRENGTH.labelColors[score - 1] || '' : ''
+  const strengthLabel = password.length > 0 ? STRENGTH.labels[score] : ''
+  const strengthColor = password.length > 0 ? STRENGTH.labelColors[score] : ''
 
   async function handleRegister(e) {
     e.preventDefault()
@@ -423,7 +431,7 @@ export default function Register() {
                     className="strength-seg"
                     style={{
                       background:
-                        i < score ? STRENGTH.colors[score - 1] : 'var(--color-border)',
+                        i < score ? STRENGTH.colors[score] : 'var(--color-border)',
                     }}
                   />
                 ))}
