@@ -3,6 +3,7 @@ import api from '../../services/api.js'
 import db from '../../services/db.js'
 import { getUserLanguage, setUserLanguage } from '../../services/i18n.js'
 import { notifyAvatarChange } from '../Avatar.jsx'
+import DialogOverlay from '../DialogOverlay.jsx'
 
 /** Downscale a chosen image to a small square-ish JPEG data URL so it stores
  *  cheaply on the account row and in the session cache (avatars are tiny). */
@@ -83,16 +84,9 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
     return () => { alive = false }
   }, [meId])
 
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-    }
-  }, [onClose])
+  /* Escape-to-close and the background scroll lock used to live here. They
+     now belong to DialogOverlay, so every modal in the app gets them rather
+     than the two that happened to be written with them. */
 
   function flash(msg) {
     setToast(msg)
@@ -171,7 +165,7 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
   const initials = (profile.name || identity.name || '?').trim().slice(0, 2).toUpperCase() || identity.initials
 
   return (
-    <div className="account-overlay" onMouseDown={onClose}>
+    <DialogOverlay className="account-overlay" onDismiss={onClose}>
       <div
         className="account-modal"
         role="dialog"
@@ -381,6 +375,6 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
       </div>
 
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
-    </div>
+    </DialogOverlay>
   )
 }

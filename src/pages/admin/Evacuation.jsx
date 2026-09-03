@@ -8,6 +8,7 @@ import { useFloodRisk } from '../../components/admin/floodRisk.js'
 import EvacuationPlanPanel from '../../components/admin/EvacuationPlanPanel.jsx'
 import EvacLocationPicker from '../../components/admin/EvacLocationPicker.jsx'
 import './Manage.css'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Admin — Evacuation.
@@ -202,7 +203,7 @@ function EvacCentreModal({ center, addEvacCenter, updateEvacCenter, onClose, onS
   }
 
   return (
-    <div className="mng-overlay" onMouseDown={onClose}>
+    <DialogOverlay className="mng-overlay" onDismiss={onClose}>
       <div
         className="mng-modal mng-modal--map"
         role="dialog"
@@ -277,7 +278,7 @@ function EvacCentreModal({ center, addEvacCenter, updateEvacCenter, onClose, onS
           </form>
         </div>
       </div>
-    </div>
+    </DialogOverlay>
   )
 }
 

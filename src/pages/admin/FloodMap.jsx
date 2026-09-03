@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, ZoomControl, Tooltip, Polyline, Marker, Popup,
 import L from 'leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import PromptDialog from '../../components/PromptDialog.jsx'
 import { MapGuideButton } from '../../components/MapGuide.jsx'
 import { adminFloodMapSteps } from '../../components/mapGuideSteps.jsx'
 import {
@@ -213,6 +214,7 @@ export default function FloodMap() {
   // Shared "are you sure?" prompt for destructive actions (resolve alert /
   // resolve incident) — one confirmation pattern across the whole page.
   const [confirm, setConfirm] = useState(null) // { title, message, confirmLabel, onConfirm }
+  const [occupancyFor, setOccupancyFor] = useState(null) // evacuation centre being counted
 
   // Focus view + detail card.
   const [selected, setSelected] = useState(null) // barangay name
@@ -473,16 +475,7 @@ export default function FloodMap() {
                       <div className="fm-popup-row">{(c.occupancy || 0).toLocaleString()} / {(c.capacity || 0).toLocaleString()} evacuees</div>
                       {c.manager && <div className="fm-popup-row">Manager: {c.manager}</div>}
                       <div className="fm-popup-actions">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const v = window.prompt(`Update occupancy for ${c.name}`, String(c.occupancy || 0))
-                            if (v == null) return
-                            const occ = Math.max(0, Number(v) || 0)
-                            const status = c.capacity && occ >= c.capacity ? 'full' : c.status === 'full' ? 'open' : c.status
-                            updateEvacCenter(c.id, { occupancy: occ, status })
-                          }}
-                        >
+                        <button type="button" onClick={() => setOccupancyFor(c)}>
                           Update occupancy
                         </button>
                         {c.status !== 'closed'
@@ -855,6 +848,41 @@ export default function FloodMap() {
             onCancel={() => setConfirm(null)}
           />
         )}
+
+      {/* Headcount for a shelter. Was a window.prompt(), which froze the map
+          and turned any typo into a silent zero — see PromptDialog.jsx. */}
+      {occupancyFor && (
+        <PromptDialog
+          title="Update occupancy"
+          message={<>How many people are currently sheltering at <b>{occupancyFor.name}</b>?</>}
+          label="Number of evacuees"
+          type="number"
+          min={0}
+          defaultValue={occupancyFor.occupancy || 0}
+          confirmLabel="Save headcount"
+          hint={(v) => {
+            const cap = occupancyFor.capacity || 0
+            if (!cap) return 'No capacity recorded for this centre.'
+            const n = Number(v)
+            if (!Number.isFinite(n)) return `Capacity ${cap.toLocaleString()}.`
+            const pct = Math.round((n / cap) * 100)
+            if (n > cap) return <>Over capacity by <b>{(n - cap).toLocaleString()}</b> — the centre will be marked full.</>
+            return <>That is <b>{pct}% full</b> of {cap.toLocaleString()}.</>
+          }}
+          onSubmit={(occ) => {
+            /* Reaching capacity marks the centre full so routing stops
+               sending people to it; dropping back below reopens it — but
+               only from 'full'. A centre someone deliberately closed stays
+               closed no matter what the headcount says. */
+            const status = occupancyFor.capacity && occ >= occupancyFor.capacity
+              ? 'full'
+              : occupancyFor.status === 'full' ? 'open' : occupancyFor.status
+            updateEvacCenter(occupancyFor.id, { occupancy: occ, status })
+            setOccupancyFor(null)
+          }}
+          onCancel={() => setOccupancyFor(null)}
+        />
+      )}
       </div>
     </AdminLayout>
   )

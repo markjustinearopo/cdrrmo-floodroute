@@ -17,6 +17,7 @@
 import { useState } from 'react'
 import { ROAD_STATUS } from './routingHelpers.jsx'
 import { ftToM, mToFt, formatFeetHint } from '../../services/depth.js'
+import DialogOverlay from '../DialogOverlay.jsx'
 
 export default function RoadConditionModal({
   road,
@@ -43,7 +44,7 @@ export default function RoadConditionModal({
   }
 
   return (
-    <div className="mng-overlay" onMouseDown={onClose}>
+    <DialogOverlay className="mng-overlay" onDismiss={onClose}>
       <div className="mng-modal" role="dialog" aria-modal="true" style={{ maxWidth: 460 }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="mng-modal-head">
           <div>
@@ -118,6 +119,6 @@ export default function RoadConditionModal({
           </div>
         </form>
       </div>
-    </div>
+    </DialogOverlay>
   )
 }

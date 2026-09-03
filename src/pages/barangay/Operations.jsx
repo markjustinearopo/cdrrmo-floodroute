@@ -8,6 +8,7 @@ import { useBarangayAssignments, useAlerts, useEvacCenters } from '../../context
 import './Barangay.css'
 import '../admin/Manage.css'
 import { alertAppliesTo } from '../../data/cabuyao.js'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Barangay — Barangay Operations (Manage).
@@ -268,7 +269,7 @@ export default function Operations() {
 
       {/* Edit profile modal */}
       {editingProfile && (
-        <div className="mng-overlay" onMouseDown={() => setEditingProfile(false)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setEditingProfile(false)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Edit barangay profile" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -292,12 +293,12 @@ export default function Operations() {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {/* Add / edit contact modal */}
       {editingContact && (
-        <div className="mng-overlay" onMouseDown={() => setEditingContact(null)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setEditingContact(null)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label={currentContact ? 'Edit contact' : 'Add contact'} onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -327,7 +328,7 @@ export default function Operations() {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {confirmDelContact && (

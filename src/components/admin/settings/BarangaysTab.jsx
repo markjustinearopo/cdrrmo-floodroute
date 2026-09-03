@@ -4,6 +4,7 @@ import { useBarangayAssignments } from '../../../context/AdminDataContext.jsx'
 import { useFloodRisk, barangayRiskSamples } from '../floodRisk.js'
 import { SettingsNote, TabHead } from '../SettingsKit.jsx'
 import RecordList from '../RecordList.jsx'
+import DialogOverlay from '../../DialogOverlay.jsx'
 
 /**
  * Settings → Barangays (was the Barangay page under Manage).
@@ -135,7 +136,7 @@ export default function BarangaysTab({ onToast }) {
 
       {/* Assign / edit modal */}
       {current && (
-        <div className="mng-overlay" onMouseDown={() => setEditing(null)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setEditing(null)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label={`Assign ${current.name}`} onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -186,7 +187,7 @@ export default function BarangaysTab({ onToast }) {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   )

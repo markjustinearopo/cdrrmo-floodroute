@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { BARANGAYS } from '../../data/cabuyao.js'
 import { smsStats } from '../../services/smsAlert.js'
 import './TextSmsModal.css'
+import DialogOverlay from '../DialogOverlay.jsx'
 
 /**
  * Plain bulk SMS — the operator writes a sentence and it goes to residents.
@@ -75,7 +76,7 @@ export default function TextSmsModal({ onClose, onSend }) {
   }
 
   return (
-    <div className="mng-overlay" onMouseDown={onClose}>
+    <DialogOverlay className="mng-overlay" onDismiss={onClose}>
       <div
         className="mng-modal tsm"
         role="dialog"
@@ -164,6 +165,6 @@ export default function TextSmsModal({ onClose, onSend }) {
           </div>
         </form>
       </div>
-    </div>
+    </DialogOverlay>
   )
 }

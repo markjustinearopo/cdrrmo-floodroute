@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BARANGAYS, CITY_WIDE } from '../../data/cabuyao.js'
 import './EmergencyIssueModal.css'
+import DialogOverlay from '../DialogOverlay.jsx'
 
 /**
  * Issuing an emergency alert.
@@ -40,7 +41,7 @@ export default function EmergencyIssueModal({ onClose, onIssue }) {
   }
 
   return (
-    <div className="mng-overlay" onMouseDown={onClose}>
+    <DialogOverlay className="mng-overlay" onDismiss={onClose}>
       <div
         className="mng-modal eim"
         role="dialog"
@@ -123,6 +124,6 @@ export default function EmergencyIssueModal({ onClose, onIssue }) {
           </div>
         </form>
       </div>
-    </div>
+    </DialogOverlay>
   )
 }

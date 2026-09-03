@@ -17,6 +17,7 @@ import { useState } from 'react'
 import api from '../services/api.js'
 import db from '../services/db.js'
 import './FirstLoginPasswordPrompt.css'
+import DialogOverlay from './DialogOverlay.jsx'
 
 const SKIP_KEY = 'cdrrmo_pw_prompt_skipped'
 
@@ -61,7 +62,7 @@ export default function FirstLoginPasswordPrompt() {
   const firstName = (user.fullName || '').split(' ')[0] || 'there'
 
   return (
-    <div className="flp-overlay" role="dialog" aria-modal="true" aria-label="Set your own password">
+    <DialogOverlay className="flp-overlay" role="dialog" aria-modal="true" aria-label="Set your own password">
       <div className="flp-card">
         <div className="flp-head">
           <span className="flp-icon">
@@ -133,6 +134,6 @@ export default function FirstLoginPasswordPrompt() {
           </form>
         </div>
       </div>
-    </div>
+    </DialogOverlay>
   )
 }

@@ -18,6 +18,7 @@ import { getGraph, nearestNode } from '../../components/admin/routeEngine.js'
 import { getCabuyaoRoads, haversineMeters } from '../../components/admin/routingHelpers.jsx'
 import api from '../../services/api.js'
 import '../admin/Manage.css'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Admin — Flood Reports (resident submissions + verification).
@@ -213,7 +214,7 @@ export default function FloodReports() {
 
       {/* Detail / verification modal */}
       {detail && (
-        <div className="mng-overlay" onMouseDown={() => setDetailId(null)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setDetailId(null)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Review flood report" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -323,7 +324,7 @@ export default function FloodReports() {
               </div>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {confirmDelete && (

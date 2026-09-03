@@ -1,0 +1,77 @@
+/* ============================================================
+   PromptDialog — "type one value" styles.
+
+   Rides on Modal.css for the overlay/card and ConfirmDialog.css for the
+   two-button footer; this file only adds the field, its hint and its
+   error state.
+   ============================================================ */
+
+.prompt-card {
+  max-width: 420px;
+}
+
+.prompt-body {
+  display: block;
+  padding-top: 4px;
+}
+
+.prompt-msg {
+  margin: 0 0 14px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary, #5a5a5a);
+}
+
+.prompt-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #5a5a5a);
+}
+
+/* 16px is not a taste call: iOS Safari zooms the whole page in when a focused
+   input's text is smaller, and the map behind this dialog never zooms back
+   out. Every field in the product is at least this size for that reason. */
+.prompt-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--color-text-primary, #1a1a1a);
+  background: #fff;
+  border: 1.5px solid var(--color-border, #d8d8d8);
+  border-radius: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.prompt-input:focus {
+  outline: none;
+  border-color: var(--cdrrmo-navy, #1a2a4a);
+  box-shadow: 0 0 0 3px rgba(26, 42, 74, 0.13);
+}
+.prompt-input.invalid {
+  border-color: #dc2626;
+}
+.prompt-input.invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.16);
+}
+
+/* The consequence of what is being typed, live — "76% full", not just a
+   number going into a box. */
+.prompt-hint {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary, #5a5a5a);
+}
+.prompt-hint b { color: var(--color-text-primary, #1a1a1a); }
+
+.prompt-error {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #b91c1c;
+}

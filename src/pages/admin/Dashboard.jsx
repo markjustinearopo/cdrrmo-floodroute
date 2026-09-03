@@ -43,6 +43,7 @@ function affectedCount(counts) {
 }
 import { dispatchAlert, describeDispatch } from '../../services/alertDispatch.js'
 import './Dashboard.css'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Admin — Dashboard.
@@ -695,7 +696,7 @@ export default function Dashboard() {
 
       {/* ── Hazard Alert modal (Active Hazard Alerts feed) ── */}
       {modal === 'hazard' && (
-        <div className="dash-modal-overlay" onMouseDown={() => setModal(null)}>
+        <DialogOverlay className="dash-modal-overlay" onDismiss={() => setModal(null)}>
           <div
             className="issue-modal"
             role="dialog"
@@ -774,12 +775,12 @@ export default function Dashboard() {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {/* ── Alert detail modal (opened by clicking a feed row) ── */}
       {detailAlert && (
-        <div className="dash-modal-overlay" onMouseDown={() => setAlertDetail(null)}>
+        <DialogOverlay className="dash-modal-overlay" onDismiss={() => setAlertDetail(null)}>
           <div
             className={`issue-modal alert-detail sev-${detailAlert.level}`}
             role="dialog"
@@ -832,16 +833,16 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {/* ── Barangay profile modal (reuses the map pages' detail card) ── */}
       {brgySample && (
-        <div className="dash-modal-overlay" onMouseDown={() => setBrgyDetail(null)}>
+        <DialogOverlay className="dash-modal-overlay" onDismiss={() => setBrgyDetail(null)}>
           <div className="dash-bdc-wrap" onMouseDown={(e) => e.stopPropagation()}>
             <BarangayDetailCard sample={brgySample} onClose={() => setBrgyDetail(null)} />
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {/* ── Road condition editor (click-to-flag) ── */}

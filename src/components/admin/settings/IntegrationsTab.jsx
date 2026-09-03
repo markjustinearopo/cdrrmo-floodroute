@@ -3,6 +3,7 @@ import { useIntegrations, nowLabel } from '../../../context/AdminDataContext.jsx
 import { INTEGRATION_STATUS_LABEL as STATUS_LABEL, INTEGRATION_SECRET_KEYS } from '../../../data/integrations.js'
 import { SettingsNote, TabHead } from '../SettingsKit.jsx'
 import RecordList from '../RecordList.jsx'
+import DialogOverlay from '../../DialogOverlay.jsx'
 
 /**
  * Settings → Integrations (was the API Integrations page).
@@ -190,7 +191,7 @@ export default function IntegrationsTab({ onToast }) {
 
       {/* Configure modal */}
       {current && (
-        <div className="mng-overlay" onMouseDown={() => setConfiguring(null)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setConfiguring(null)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label={`Configure ${current.name}`} onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -218,7 +219,7 @@ export default function IntegrationsTab({ onToast }) {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
     </div>
   )

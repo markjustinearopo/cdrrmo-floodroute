@@ -9,6 +9,7 @@ import { useUsers } from '../../../context/AdminDataContext.jsx'
 import db from '../../../services/db.js'
 import { SaveBar, SettingsNote, TabHead } from '../SettingsKit.jsx'
 import RecordList from '../RecordList.jsx'
+import DialogOverlay from '../../DialogOverlay.jsx'
 
 /**
  * Settings → Users & Access (was User Management + Permissions & Roles).
@@ -516,7 +517,7 @@ export default function UsersTab({ onToast }) {
 
       {/* Bulk import modal */}
       {importing && (
-        <div className="mng-overlay" onMouseDown={closeImport}>
+        <DialogOverlay className="mng-overlay" onDismiss={closeImport}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Bulk import users" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -571,7 +572,7 @@ export default function UsersTab({ onToast }) {
               </div>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {/* Add / edit account modal */}
@@ -580,7 +581,7 @@ export default function UsersTab({ onToast }) {
           insert — so if the operator closes this without copying it, the
           account has to be recreated. Hence the deliberately blunt wording. */}
       {newCredential && (
-        <div className="mng-overlay" onMouseDown={() => setNewCredential(null)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setNewCredential(null)}>
           <div
             className="mng-modal"
             role="dialog"
@@ -641,11 +642,11 @@ export default function UsersTab({ onToast }) {
               </div>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {editing && (
-        <div className="mng-overlay" onMouseDown={() => setEditing(null)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setEditing(null)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label={editing.id ? 'Edit account' : 'Add account'} onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -692,12 +693,12 @@ export default function UsersTab({ onToast }) {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {/* Add account-type modal */}
       {showRoleModal && (
-        <div className="mng-overlay" onMouseDown={() => setShowRoleModal(false)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setShowRoleModal(false)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Add account type" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -727,7 +728,7 @@ export default function UsersTab({ onToast }) {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {confirmRoleDelete && role && (

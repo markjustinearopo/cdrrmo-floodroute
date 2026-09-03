@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../../context/AdminDataContext.jsx'
+import DialogOverlay from '../DialogOverlay.jsx'
 
 /**
  * Notifications popup for the CDRRMO Admin (anchored under the topbar bell).
@@ -20,16 +21,15 @@ export default function NotificationsPanel({ onClose }) {
   // The notification currently expanded in the detail popup (null = none).
   const [selected, setSelected] = useState(null)
 
+  /* This is a popover rather than a full overlay, so it keeps its own Escape.
+     The detail popup on top of it is a DialogOverlay, which swallows Escape
+     while it is the topmost dialog — so Escape closes the detail first and
+     this panel second, without the two needing to know about each other. */
   useEffect(() => {
-    function onKey(e) {
-      if (e.key === 'Escape') {
-        if (selected) setSelected(null)
-        else onClose()
-      }
-    }
+    function onKey(e) { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, selected])
+  }, [onClose])
 
   function viewAll() {
     onClose()
@@ -88,7 +88,7 @@ export default function NotificationsPanel({ onClose }) {
 
       {/* Detail popup for a single notification */}
       {selected && (
-        <div className="notif-detail-overlay" onMouseDown={() => setSelected(null)}>
+        <DialogOverlay className="notif-detail-overlay" onDismiss={() => setSelected(null)}>
           <div
             className="notif-detail"
             role="dialog"
@@ -121,7 +121,7 @@ export default function NotificationsPanel({ onClose }) {
               </button>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
     </>
   )

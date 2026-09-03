@@ -11,6 +11,7 @@ import api from '../../services/api.js'
 import EmergencyIssueModal from '../../components/admin/EmergencyIssueModal.jsx'
 import TextSmsModal from '../../components/admin/TextSmsModal.jsx'
 import { sendNoticeSms } from '../../services/smsAlert.js'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Admin — Alerts.
@@ -238,7 +239,7 @@ export default function Alerts() {
 
       {/* Issue modal */}
       {showModal && (
-        <div className="mng-overlay" onMouseDown={() => { setShowModal(false); setScheduling(false) }}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => { setShowModal(false); setScheduling(false) }}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Issue Alert" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -319,7 +320,7 @@ export default function Alerts() {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {confirm && (

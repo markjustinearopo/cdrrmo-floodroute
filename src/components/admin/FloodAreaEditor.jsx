@@ -13,6 +13,7 @@ import {
 } from '../../data/floodAreas.js'
 import { formatFeetHint, depthMeters } from '../../services/depth.js'
 import '../../pages/admin/FloodAreas.css'
+import DialogOverlay from '../DialogOverlay.jsx'
 
 /**
  * Add / edit a flood-prone area — pin the location, record the peak depth and
@@ -75,7 +76,7 @@ export default function FloodAreaEditor({ area, onClose, onSave }) {
   }
 
   return (
-    <div className="mng-overlay" onMouseDown={onClose}>
+    <DialogOverlay className="mng-overlay" onDismiss={onClose}>
       <div className="mng-modal mng-modal--map" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
         <div className="mng-modal-head">
           <div>
@@ -192,6 +193,6 @@ export default function FloodAreaEditor({ area, onClose, onSave }) {
           </form>
         </div>
       </div>
-    </div>
+    </DialogOverlay>
   )
 }

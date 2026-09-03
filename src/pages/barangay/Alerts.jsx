@@ -6,6 +6,7 @@ import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.
 import { useAlerts } from '../../context/AdminDataContext.jsx'
 import { dispatchAlert, describeDispatch } from '../../services/alertDispatch.js'
 import '../admin/Manage.css'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Barangay — Alerts.
@@ -212,7 +213,7 @@ export default function Alerts() {
 
       {/* Issue modal */}
       {showModal && (
-        <div className="mng-overlay" onMouseDown={() => setShowModal(false)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setShowModal(false)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Issue Alert" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -248,7 +249,7 @@ export default function Alerts() {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {confirmDel && (

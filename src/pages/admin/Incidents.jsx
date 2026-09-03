@@ -8,6 +8,7 @@ import { getCabuyaoRoads, useRoadStatus, useTrafficStatus, formatDistance } from
 import { getGraph, planRoute } from '../../components/admin/routeEngine.js'
 import { useFloodRisk } from '../../components/admin/floodRisk.js'
 import './Manage.css'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Admin — Incidents.
@@ -307,7 +308,7 @@ export default function Incidents({ embedded = false }) {
 
       {/* Report modal */}
       {showModal && (
-        <div className="mng-overlay" onMouseDown={() => { setShowModal(false); setPhoto(null) }}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => { setShowModal(false); setPhoto(null) }}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Report Incident" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -372,12 +373,12 @@ export default function Incidents({ embedded = false }) {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {/* Detail / timeline modal */}
       {detail && (
-        <div className="mng-overlay" onMouseDown={() => setDetailId(null)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setDetailId(null)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label={`${detail.type} details`} onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -436,7 +437,7 @@ export default function Incidents({ embedded = false }) {
               </div>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
 

@@ -13,6 +13,7 @@ import { useFloodReports } from '../../context/AdminDataContext.jsx'
 import { getResidentBarangay } from '../../data/resident.js'
 import api from '../../services/api.js'
 import './FloodReportModal.css'
+import DialogOverlay from '../DialogOverlay.jsx'
 
 /**
  * Resident "Report Flood Status" modal.
@@ -142,7 +143,7 @@ export default function FloodReportModal({ onClose, onSubmitted }) {
   }
 
   return (
-    <div className="fr-overlay" onMouseDown={onClose}>
+    <DialogOverlay className="fr-overlay" onDismiss={onClose}>
       <div
         className="fr-modal"
         role="dialog"
@@ -265,7 +266,7 @@ export default function FloodReportModal({ onClose, onSubmitted }) {
           {!point && <div className="fr-need">Drop a pin on the map to submit your report.</div>}
         </form>
       </div>
-    </div>
+    </DialogOverlay>
   )
 }
 

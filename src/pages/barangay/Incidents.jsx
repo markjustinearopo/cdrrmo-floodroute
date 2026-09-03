@@ -5,6 +5,7 @@ import { INCIDENT_TYPES, PRIORITIES, RESPONSE_TEAMS } from '../../data/cabuyao.j
 import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
 import { useIncidents } from '../../context/AdminDataContext.jsx'
 import '../admin/Manage.css'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Barangay — Incidents.
@@ -228,7 +229,7 @@ export default function Incidents() {
 
       {/* Report modal */}
       {showModal && (
-        <div className="mng-overlay" onMouseDown={() => setShowModal(false)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setShowModal(false)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label="Report Incident" onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -280,7 +281,7 @@ export default function Incidents() {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {confirmDel && (

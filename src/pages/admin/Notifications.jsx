@@ -4,6 +4,7 @@ import { useNotifications } from '../../context/AdminDataContext.jsx'
 import RecordList from '../../components/admin/RecordList.jsx'
 import './Manage.css'
 import './Notifications.css'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Admin — Notifications.
@@ -99,7 +100,7 @@ export default function Notifications() {
 
       {/* Detail popup */}
       {selected && (
-        <div className="notif-detail-overlay" onMouseDown={() => setSelected(null)}>
+        <DialogOverlay className="notif-detail-overlay" onDismiss={() => setSelected(null)}>
           <div
             className="notif-detail"
             role="dialog"
@@ -129,7 +130,7 @@ export default function Notifications() {
               </button>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
     </AdminLayout>
   )

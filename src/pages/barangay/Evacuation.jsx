@@ -5,6 +5,7 @@ import { EVAC_STATUSES } from '../../data/cabuyao.js'
 import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
 import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import '../admin/Manage.css'
+import DialogOverlay from '../../components/DialogOverlay.jsx'
 
 /**
  * CDRRMO Barangay — Evacuation.
@@ -217,7 +218,7 @@ export default function Evacuation() {
 
       {/* Add / manage modal */}
       {editing && (
-        <div className="mng-overlay" onMouseDown={() => setEditing(null)}>
+        <DialogOverlay className="mng-overlay" onDismiss={() => setEditing(null)}>
           <div className="mng-modal" role="dialog" aria-modal="true" aria-label={current ? 'Manage centre' : 'Add centre'} onMouseDown={(e) => e.stopPropagation()}>
             <div className="mng-modal-head">
               <div>
@@ -267,7 +268,7 @@ export default function Evacuation() {
               </div>
             </form>
           </div>
-        </div>
+        </DialogOverlay>
       )}
 
       {confirmDel && (
