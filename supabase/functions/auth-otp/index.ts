@@ -177,7 +177,11 @@ async function sendCodeSms(phone: string, purpose: string, code: string) {
   const url = Deno.env.get('SUPABASE_URL')
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!url || !key) throw new Error('SMS is not configured on the server.')
-  const what = purpose === 'login_mfa' ? 'sign-in code' : 'account code'
+  const what = purpose === 'login_mfa'
+    ? 'sign-in code'
+    : purpose === 'reset_password'
+      ? 'password reset code'
+      : 'account code'
   const res = await fetch(`${url}/functions/v1/sms-alert`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, apikey: key, 'Content-Type': 'application/json' },
@@ -617,6 +621,89 @@ serve(async (req) => {
       }
 
       return json({ verified: true, user: sessionOf(acc), token: await mintToken(acc), smsEnrolled })
+    }
+
+    /* ── Password reset, step 1: send a code ──────────────────────────
+       Until now there was no reset path at all. An official who forgot their
+       password needed a developer to edit the database by hand — which, for
+       a system whose whole job is to be reachable during a flood, is a
+       guaranteed future outage rather than a hypothetical one.
+
+       Reuses the same one-time-code machinery as verification and 2FA.
+
+       ALWAYS ANSWERS THE SAME WAY, whether or not the account exists. A
+       reset form that says "no such account" is an account-enumeration
+       oracle: point it at a list of addresses and it tells you which ones
+       are real CDRRMO officials. The code is only actually sent when there
+       is somewhere to send it. */
+    if (action === 'request-reset') {
+      const identifier = String(body.identifier ?? '').trim().toLowerCase()
+      const sameAnswer = json({
+        sent: true,
+        message: 'If that account exists, a reset code is on its way.',
+      })
+      if (!identifier) return sameAnswer
+
+      const { data: acc } = await db.from('accounts')
+        .select('id, email, full_name, phone, status')
+        .or(`email.ilike.${identifier},username.ilike.${identifier}`)
+        .maybeSingle()
+
+      // Suspended accounts do not get to reset their way back in.
+      if (!acc?.email || acc.status === 'suspended') return sameAnswer
+
+      try {
+        await issueCode(db, {
+          accountId: acc.id,
+          email: acc.email,
+          name: (acc.full_name ?? '').split(' ')[0],
+          purpose: 'reset_password',
+          phone: acc.phone,
+        })
+      } catch (_e) {
+        /* Undeliverable is not disclosed either — same answer, so a bad mail
+           channel cannot be used to probe which addresses are real. It is
+           recorded for an operator instead. */
+        await db.from('notifications').insert({
+          level: 'moderate',
+          title: 'Password reset code could not be delivered',
+          message: `A reset was requested for ${acc.email} but no channel could carry the code.`,
+        })
+      }
+      return sameAnswer
+    }
+
+    /* ── Password reset, step 2: check the code, set the new password ──
+       The new password is written through app_change_password's sibling path:
+       accounts.password_plain, which the hashing trigger bcrypts and nulls on
+       write. The plaintext never rests in a column. */
+    if (action === 'confirm-reset') {
+      const addr = String(body.email ?? '').trim().toLowerCase()
+      const next = String(body.password ?? '')
+
+      if (next.length < 8) {
+        return json({ error: 'Choose a password of at least 8 characters.' }, 400)
+      }
+
+      const res = await consumeCode(db, addr, 'reset_password', body.code)
+      if (!res.ok) return json({ error: res.error }, 400)
+
+      const { data: acc, error } = await db.from('accounts')
+        .update({
+          password_plain: next,
+          // Reset is itself proof of control of the address, and it clears
+          // the temporary-password state if they were still on one.
+          must_change_password: false,
+          email_verified_at: new Date().toISOString(),
+        })
+        .ilike('email', addr)
+        .select('*').single()
+      if (error) return json({ error: error.message }, 500)
+
+      /* Signed straight in. Making someone who just proved control of their
+         address, and chose a new password, then type it again on the login
+         screen is friction with no security value. */
+      return json({ reset: true, user: sessionOf(acc), token: await mintToken(acc) })
     }
 
     /* ── Login: password, then either a session or a 2FA code ────────── */
