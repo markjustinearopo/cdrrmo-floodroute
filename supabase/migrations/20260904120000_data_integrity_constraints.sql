@@ -59,12 +59,29 @@ alter table public.evacuation_centers
 --
 --    NULL is still allowed — several existing rows use it, and the app reads
 --    a null list as city-wide.
+--
+--    USE cardinality(), NOT array_length(). The first version of this said
+--
+--        check (barangays is null or array_length(barangays, 1) >= 1)
+--
+--    and was completely inert. For an empty array Postgres returns NULL from
+--    array_length (an empty array has no dimension to measure), so the test
+--    became `NULL >= 1` → NULL, and a CHECK constraint only rejects an
+--    explicit FALSE. It ran clean, reported success, and accepted the exact
+--    row it existed to block — caught by actually trying to write '{}' after
+--    applying it. cardinality() returns 0 for an empty array, which compares
+--    properly.
+--
+--    Third time this project has been bitten by a "migration that ran clean
+--    and did nothing" (see the column-level REVOKE in
+--    20260817120000_lock_account_password_columns.sql). Always write the
+--    violating row and confirm it is refused.
 -- ---------------------------------------------------------------------------
 alter table public.alerts
   drop constraint if exists alerts_barangays_not_empty;
 alter table public.alerts
   add constraint alerts_barangays_not_empty
-  check (barangays is null or array_length(barangays, 1) >= 1);
+  check (barangays is null or cardinality(barangays) >= 1);
 
 
 -- ---------------------------------------------------------------------------
