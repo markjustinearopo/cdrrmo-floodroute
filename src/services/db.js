@@ -651,8 +651,90 @@ export const appSettingsDb = {
    The app works with coordinate arrays (points / path / override), so the
    full route object lives in the `data` jsonb column; the scalar columns
    (name, route_type, mean_risk, …) are populated for the schema / ERD.
+
+   THE SPATIAL COLUMNS
+   The PostGIS migration gave this table origin_lat/lng, dest_lat/lng, a
+   `path` LineString, an `override_path` LineString, and GiST indexes over
+   origin_geom / dest_geom — and nothing ever wrote to any of them. Every
+   coordinate went into the jsonb blob instead, so the generated geometry
+   columns were always NULL and the spatial indexes indexed nothing. A
+   PostGIS schema that no query can use is decoration.
+
+   So the writes below fill them from the same route object, which makes the
+   spatial questions this system is actually about answerable in SQL rather
+   than by pulling every row into JavaScript first:
+
+     "routes that pass within 200 m of this flooded segment"
+     "routes ending at a shelter that is now full"
+     "routes crossing this barangay"
+
+   The jsonb stays the source of truth for the app — these are a queryable
+   projection of it, written in the same statement so they cannot drift.
    ============================================================ */
 const VALID_ROUTE_TYPES = ['evacuation', 'relief', 'response']
+
+/**
+ * [lat,lng][] → an EWKT LineString PostGIS will accept over PostgREST.
+ *
+ * Note the axis order flip: the app carries [lat, lng] (Leaflet's order) and
+ * WKT is written (x y) — longitude first. Getting this backwards does not
+ * error; it silently files every Cabuyao route somewhere off Somalia.
+ */
+function toLineStringWKT(coords) {
+  if (!Array.isArray(coords) || coords.length < 2) return null
+  const pts = coords
+    .filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+    .map(([lat, lng]) => `${lng} ${lat}`)
+  if (pts.length < 2) return null
+  return `SRID=4326;LINESTRING(${pts.join(',')})`
+}
+
+/* Metres between two [lat,lng] points.
+   Inlined rather than imported from routingHelpers on purpose: that module
+   pulls in the 914 kB bundled road network, and this file is loaded by every
+   screen in the app. */
+function metresBetween([lat1, lng1], [lat2, lng2]) {
+  const R = 6371000
+  const toRad = (d) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+
+function pathLengthM(coords) {
+  if (!Array.isArray(coords) || coords.length < 2) return null
+  let m = 0
+  for (let i = 1; i < coords.length; i++) {
+    const a = coords[i - 1]
+    const b = coords[i]
+    if (!Array.isArray(a) || !Array.isArray(b)) continue
+    m += metresBetween(a, b)
+  }
+  return Math.round(m)
+}
+
+/** The spatial projection of a route: the columns the ERD promised. */
+function routeGeometryColumns(route) {
+  /* Prefer the road-following path's own endpoints over the A/B anchors: the
+     anchors are where the operator clicked, which can be a few metres off the
+     road the route actually starts on. */
+  const line = Array.isArray(route.path) && route.path.length > 1 ? route.path : route.points
+  const first = Array.isArray(line) ? line[0] : null
+  const last = Array.isArray(line) ? line[line.length - 1] : null
+  const ok = (p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])
+
+  return {
+    origin_lat: ok(first) ? first[0] : null,
+    origin_lng: ok(first) ? first[1] : null,
+    dest_lat: ok(last) ? last[0] : null,
+    dest_lng: ok(last) ? last[1] : null,
+    path: toLineStringWKT(route.path),
+    override_path: toLineStringWKT(route.override),
+    distance_m: pathLengthM(route.path) ?? pathLengthM(route.points),
+  }
+}
 
 function routeFromRow(r) {
   return {
@@ -673,6 +755,7 @@ function routeToRow(route) {
     mean_risk: route.meanRisk ?? null,
     barangay: route.barangay ?? null,
     data,
+    ...routeGeometryColumns(route),
   }
 }
 
@@ -693,6 +776,13 @@ export const savedRoutesDb = {
     if ('type' in patch) upd.route_type = VALID_ROUTE_TYPES.includes(patch.type) ? patch.type : null
     if ('meanRisk' in patch) upd.mean_risk = patch.meanRisk
     if ('destination' in patch) upd.destination = patch.destination ?? null
+    /* Recomputed from the MERGED object, not the patch: the Override tab
+       sends only { override, … }, and the geometry columns have to stay
+       consistent with the whole route or `path` would be nulled out every
+       time somebody drew an override over it. */
+    if ('path' in patch || 'points' in patch || 'override' in patch) {
+      Object.assign(upd, routeGeometryColumns(data))
+    }
     unwrap(await supabase.from('saved_routes').update(upd).eq('id', id))
   },
   async remove(id) {
