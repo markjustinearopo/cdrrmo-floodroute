@@ -11,7 +11,8 @@ import {
 } from '../components/policyContent.jsx'
 import CodeVerification from '../components/auth/CodeVerification.jsx'
 import LanguageToggle from '../components/LanguageToggle.jsx'
-import { authApi, getRoleForRedirect } from '../services/api.js'
+import PasswordReset from '../components/auth/PasswordReset.jsx'
+import api, { authApi, getRoleForRedirect } from '../services/api.js'
 import { OFFICIAL_BRGY_KEY } from '../data/barangay.js'
 import './auth.css'
 import './Login.css'
@@ -74,6 +75,10 @@ export default function Login() {
 
   /* Second-factor / verification step. `challenge.kind` is 'mfa' or 'verify'. */
   const [challenge, setChallenge] = useState(null)
+
+  /* Password reset lives on this screen too — a person who cannot sign in
+     should not have to go anywhere else to fix that. */
+  const [reset, setReset] = useState(null)
 
   // keep the dark red backdrop only while this page is mounted
   useEffect(() => {
@@ -201,7 +206,18 @@ export default function Login() {
 
         {/* ── Right: Login Card ── */}
         <div className="login-card">
-          {challenge ? (
+          {reset ? (
+            <PasswordReset
+              onDone={() => {
+                /* confirmReset already started the session, so read the role
+                   off the stored user rather than assuming a panel. */
+                const u = api.getUser()
+                setReset(null)
+                navigate(getRoleForRedirect(u?.role))
+              }}
+              onCancel={() => { setReset(null); setError('') }}
+            />
+          ) : challenge ? (
             challenge.kind === 'mfa' ? (
               <CodeVerification
                 email={challenge.email}
@@ -391,6 +407,17 @@ export default function Login() {
             }}
           >
             <div className="secure-badge">Secure Government Portal</div>
+            {/* Before this existed, a forgotten password meant a developer
+                editing the database by hand. */}
+            <p className="support-link">
+              <button
+                type="button"
+                className="link-inline"
+                onClick={() => { setReset({ step: 'ask', identifier: '' }); setError('') }}
+              >
+                Forgot your password?
+              </button>
+            </p>
             <p className="support-link">
               Having trouble?{' '}
               <button
