@@ -13,9 +13,14 @@ import DialogOverlay from '../../DialogOverlay.jsx'
  * and web push. Each card carries a connection status, the keys/endpoints
  * needed to reach it and an enable switch. Secrets are masked.
  *
- * Configuration lives in the shared AdminDataContext store (persisted,
- * mirrored on the Flood Map's System Modules panel). "Test" really probes the
- * keyless live feeds and records the response time and last-check stamp.
+ * Configuration lives in the shared AdminDataContext store (persisted).
+ * "Test" really probes the keyless live feeds and records the response time
+ * and last-check stamp.
+ *
+ * This screen is the only place integration status lives. The Flood Map used
+ * to carry a second System Modules panel showing the same thing, which meant
+ * two surfaces could disagree about whether a service was up; it is now a
+ * link to here.
  */
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -185,8 +190,8 @@ export default function IntegrationsTab({ onToast }) {
       />
 
       <SettingsNote>
-        Keys are masked; configuration persists and mirrors onto the Flood Map's System Modules panel. "Test" really
-        probes the keyless live feeds and records response time.
+        Keys are masked and configuration persists. "Test" really probes the keyless live feeds and records
+        response time — this screen is the single record of what is connected.
       </SettingsNote>
 
       {/* Configure modal */}
