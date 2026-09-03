@@ -123,6 +123,38 @@ const KNOWN_ID = { admin: 182, barangay: 183, resident: 184 }
 const NO_SUCH_ID = -999999
 const KNOWN_CENTER = { own: 25, other: 17 } // Baclaran (testbarangay's own) / Poblacion Tres
 
+/* Fixtures resolved against the live database at startup rather than
+   hardcoded.
+
+   This used to pin alert id 162. That alert was later deleted in the normal
+   course of using the system, and the suite started reporting
+   "admin UPDATE (any alert): denied" — which reads exactly like an RLS
+   regression and is nothing of the kind: PostgREST returns 200 with an empty
+   array when the WHERE matches no row, and the harness correctly treats
+   "no rows touched" as not-allowed.
+
+   A security check that fails because unrelated data changed is a check
+   people learn to ignore, which is worse than not having one. Resolved live
+   below; if nothing suitable exists the affected assertions are skipped and
+   say so, rather than failing. */
+const FIXTURES = { alertId: null, ownBrgyAlertId: null, otherBrgyAlertId: null }
+
+async function resolveFixtures(token) {
+  const rows = await call(token, 'GET', 'alerts?select=id,barangays&order=id.desc&limit=60')
+  const list = Array.isArray(rows.json) ? rows.json : []
+  if (!list.length) return
+
+  const inBrgy = (a, name) => Array.isArray(a.barangays) && a.barangays.includes(name)
+
+  FIXTURES.alertId = list[0].id
+  FIXTURES.ownBrgyAlertId = list.find((a) => inBrgy(a, 'Baclaran'))?.id ?? null
+  FIXTURES.otherBrgyAlertId =
+    list.find((a) => Array.isArray(a.barangays)
+      && a.barangays.length
+      && !a.barangays.includes('Baclaran')
+      && !a.barangays.includes('All Barangays'))?.id ?? null
+}
+
 const ASSERTIONS = {
   accounts: [
     // SELECT
@@ -216,13 +248,22 @@ const ASSERTIONS = {
     { op: 'SELECT', role: 'anon', expect: true,
       run: (t) => call(t, 'GET', 'alerts?select=id,title&limit=3') },
     { op: 'UPDATE (own barangay alert, no-op value)', role: 'barangay', expect: true,
-      run: (t) => call(t, 'PATCH', 'alerts?id=eq.136&select=id', { status: 'active' }) },
+      skipIf: () => !FIXTURES.ownBrgyAlertId,
+      run: (t) => call(t, 'PATCH', `alerts?id=eq.${FIXTURES.ownBrgyAlertId}&select=id`, { status: 'active' }) },
     { op: 'UPDATE (alert not tagged to my barangay)', role: 'barangay', expect: false,
-      run: (t) => call(t, 'PATCH', 'alerts?id=eq.162&select=id', { status: 'resolved' }) },
+      skipIf: () => !FIXTURES.otherBrgyAlertId,
+      run: (t) => call(t, 'PATCH', `alerts?id=eq.${FIXTURES.otherBrgyAlertId}&select=id`, { status: 'resolved' }) },
     { op: 'INSERT (claims a different barangay)', role: 'barangay', expect: false,
       run: (t) => call(t, 'POST', 'alerts?select=id', { level: 'low', title: 'RLS probe', message: 'harmless', barangays: ['Mamatid'], status: 'active' }) },
+    /* No-op by construction: writes each alert's CURRENT status back, so a
+       pass proves the policy permits the write without changing live data. */
     { op: 'UPDATE (any alert)', role: 'admin', expect: true,
-      run: (t) => call(t, 'PATCH', 'alerts?id=eq.162&select=id', { status: 'resolved' }) },
+      skipIf: () => !FIXTURES.alertId,
+      run: async (t) => {
+        const cur = await call(t, 'GET', `alerts?id=eq.${FIXTURES.alertId}&select=status`)
+        const status = cur.json?.[0]?.status ?? 'active'
+        return call(t, 'PATCH', `alerts?id=eq.${FIXTURES.alertId}&select=id`, { status })
+      } },
     { op: 'DELETE (nonexistent row — policy shape only)', role: 'resident', expect: false,
       run: (t) => call(t, 'DELETE', `alerts?id=eq.${NO_SUCH_ID}&select=id`) },
   ],
@@ -349,6 +390,16 @@ async function runTable(table, sessions) {
   let pass = 0, fail = 0
   for (const a of rows) {
     const token = sessions[a.role]
+
+    /* A fixture this assertion needs could not be resolved (e.g. no alert
+       targeted at a barangay other than testbarangay's exists right now).
+       Reported as SKIP, never counted as a pass — an assertion that silently
+       vanishes is how a suite drifts into proving nothing. */
+    if (a.skipIf?.()) {
+      console.log(`  ${YELLOW}SKIP${RESET}  ${a.role.padEnd(9)} ${a.op.padEnd(38)} ${DIM}no suitable row in the live data${RESET}`)
+      continue
+    }
+
     const res = await a.run(token)
     let ok, wanted, got, detail = ''
 
@@ -383,6 +434,9 @@ console.log(`${DIM}Logging in as testadmin / testbarangay / testresident for rea
 
 const sessions = await buildSessions()
 console.log(`${GREEN}Got tokens for: ${Object.keys(sessions).join(', ')}${RESET}`)
+
+await resolveFixtures(sessions.admin)
+console.log(`${DIM}Fixtures from live data — alert #${FIXTURES.alertId ?? 'none'}, own-barangay #${FIXTURES.ownBrgyAlertId ?? 'none'}, other-barangay #${FIXTURES.otherBrgyAlertId ?? 'none'}${RESET}`)
 
 const requested = process.argv[2] ? [process.argv[2]] : Object.keys(ASSERTIONS)
 let totalPass = 0, totalFail = 0, anyUnknown = false
