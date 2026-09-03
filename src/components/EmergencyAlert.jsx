@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAlerts } from '../context/AdminDataContext.jsx'
 import api from '../services/api.js'
+import { useFocusTrap } from '../hooks/useFocusTrap.js'
 import './EmergencyAlert.css'
 
 /* ============================================================
@@ -140,6 +141,11 @@ export default function EmergencyAlert() {
   const [muted, setMuted] = useState(false)
   useSiren(Boolean(live) && !muted)
 
+  /* The takeover covers the whole screen, so focus being left on whatever was
+     behind it means a screen-reader user is read the page underneath while an
+     evacuation order sits unread on top. Only active once an alert is live. */
+  const eaRef = useFocusTrap(Boolean(live))
+
   const acknowledge = useCallback(() => {
     if (!live) return
     const next = [...acked, live.id]
@@ -159,7 +165,14 @@ export default function EmergencyAlert() {
   if (!live) return null
 
   return (
-    <div className="ea" role="alertdialog" aria-modal="true" aria-label="Emergency alert">
+    <div
+      ref={eaRef}
+      tabIndex={-1}
+      className="ea"
+      role="alertdialog"
+      aria-modal="true"
+      aria-label="Emergency alert"
+    >
       <div className="ea-card">
         <div className="ea-bar" aria-hidden="true" />
 

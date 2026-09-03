@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap.js'
 import './Modal.css'
 
 /**
@@ -8,6 +9,10 @@ import './Modal.css'
  * Closes on backdrop click, the X button, the "Got it" button, or Escape.
  */
 export default function Modal({ title, icon, children, onClose }) {
+  // Focus moves into the dialog on open, is trapped while it is up, and is
+  // handed back to whatever opened it on close. See hooks/useFocusTrap.js.
+  const dialogRef = useFocusTrap(true)
+
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onClose()
@@ -25,6 +30,8 @@ export default function Modal({ title, icon, children, onClose }) {
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="modal-card"
         role="dialog"
         aria-modal="true"

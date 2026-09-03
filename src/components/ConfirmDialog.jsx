@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap.js'
 import './Modal.css'
 import './ConfirmDialog.css'
 
@@ -33,6 +34,12 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }) {
+  /* This dialog guards every destructive action in the product — resolving an
+     alert, deleting an evacuation centre, signing out. It is the one that
+     most needs focus to actually be inside it rather than left on the page
+     behind the backdrop. */
+  const dialogRef = useFocusTrap(true)
+
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onCancel?.()
@@ -56,6 +63,8 @@ export default function ConfirmDialog({
   return (
     <div className="modal-overlay" onMouseDown={onCancel}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className={`modal-card confirm-card ${tone}`}
         role="alertdialog"
         aria-modal="true"
