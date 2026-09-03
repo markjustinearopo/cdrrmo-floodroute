@@ -32,6 +32,29 @@ import '../components/auth/codeVerification.css'
  *                            dead-ending them on an error.
  */
 
+/* Which accounts.role values belong to which login panel. Mirrors ROLE_GROUP
+   in components/RequireAuth.jsx — the route guard and the login screen have to
+   agree on what "an admin account" means, or one will admit someone the other
+   turns away. */
+const ROLE_GROUP = {
+  admin: 'admin', staff: 'admin', operator: 'admin', viewer: 'admin',
+  barangay: 'barangay', officer: 'barangay',
+  resident: 'resident',
+}
+
+const PANEL_LABEL = {
+  admin: 'CDRRMO Admin',
+  barangay: 'Barangay Official',
+  resident: 'Resident',
+}
+
+const BARANGAYS = [
+  'Baclaran', 'Banay-Banay', 'Banlic', 'Bigaa', 'Butong', 'Casile',
+  'Diezmo', 'Gulod', 'Mamatid', 'Marinig', 'Niugan', 'Pittland',
+  'Poblacion Dos', 'Poblacion Tres', 'Poblacion Uno', 'Pulo', 'Sala',
+  'San Isidro',
+]
+
 export default function Login() {
   const navigate = useNavigate()
   const [role, setRole] = useState('admin')
@@ -41,6 +64,7 @@ export default function Login() {
   // form fields
   const [adminId, setAdminId] = useState('')
   const [adminPw, setAdminPw] = useState('')
+  const [brgy, setBrgy] = useState('')
   const [staffId, setStaffId] = useState('')
   const [brgyPw, setBrgyPw] = useState('')
   const [resEmail, setResEmail] = useState('')
@@ -73,7 +97,10 @@ export default function Login() {
     } else if (role === 'barangay') {
       email = staffId.trim()
       password = brgyPw.trim()
-      // No barangay to collect: jurisdiction comes from the account itself.
+      if (!brgy) {
+        setError('Please select your barangay to continue.')
+        return
+      }
     } else {
       email = resEmail.trim()
       password = resPw.trim()
@@ -94,14 +121,14 @@ export default function Login() {
       const res = await authApi.login(email, password)
 
       if (res.mfaRequired) {
-        setChallenge({ kind: 'mfa', email: res.email, role })
+        setChallenge({ kind: 'mfa', email: res.email, role, brgy })
         return
       }
       if (res.unverified) {
-        setChallenge({ kind: 'verify', email: res.email, role })
+        setChallenge({ kind: 'verify', email: res.email, role, brgy })
         return
       }
-      finishLogin(res.user, role)
+      finishLogin(res.user, role, brgy)
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.')
     } finally {
@@ -111,13 +138,41 @@ export default function Login() {
 
   /**
    * Common tail for every route into a session — password-only, after the
-   * second factor, or after a late email verification. Jurisdiction is
-   * server-authoritative: an official is scoped to the barangay on their own
-   * account, which travels as a signed claim and is enforced by RLS.
+   * second factor, or after a late email verification.
+   *
+   * The panel the person chose has to MATCH the account they signed in with.
+   * It did not before: the three role tabs only decided which fields were
+   * drawn, and the redirect was taken from the account's own role, so a
+   * resident could type their address into the CDRRMO Admin panel, be let
+   * through, and land on the resident dashboard. Nothing was exposed — the
+   * route guards and RLS are keyed to the real role — but it made the tabs
+   * look decorative, and "why did the admin login accept me?" is not a
+   * question a government portal should raise.
+   *
+   * Jurisdiction stays server-authoritative: the barangay dropdown below is
+   * checked against the barangay ON THE ACCOUNT, never trusted in its place.
    */
-  function finishLogin(user, forRole) {
+  function finishLogin(user, forRole, chosenBrgy) {
+    const group = ROLE_GROUP[user.role]
+
+    if (group !== forRole) {
+      authApi.logout()
+      setChallenge(null)
+      setError(`This account is not a ${PANEL_LABEL[forRole]} account. Use the ${PANEL_LABEL[group] || 'correct'} tab to sign in.`)
+      return
+    }
+
     if (forRole === 'barangay') {
-      localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay || '')
+      /* Deliberately does NOT name the account's real barangay. The earlier
+         version said "This Staff ID belongs to Barangay X", which told anyone
+         holding a Staff ID which barangay it was for. */
+      if (chosenBrgy && user.barangay && user.barangay !== chosenBrgy) {
+        authApi.logout()
+        setChallenge(null)
+        setError('That Staff ID does not belong to the barangay you selected.')
+        return
+      }
+      localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay || chosenBrgy || '')
     }
     if (user.role === 'resident' && user.barangay) {
       localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay)
@@ -128,13 +183,13 @@ export default function Login() {
   /** Second factor: the emailed code, plus the optional trusted-device tick. */
   async function handleMfa(code, trustDevice) {
     const user = await authApi.completeMfa(challenge.email, code, trustDevice)
-    finishLogin(user, challenge.role)
+    finishLogin(user, challenge.role, challenge.brgy)
   }
 
   /** Late email verification for an account that never finished sign-up. */
   async function handleVerify(code) {
     const res = await authApi.verifyEmail(challenge.email, code)
-    if (res?.user) finishLogin(res.user, challenge.role)
+    if (res?.user) finishLogin(res.user, challenge.role, challenge.brgy)
   }
 
   return (
@@ -237,13 +292,26 @@ export default function Login() {
             {/* PANEL 2: Barangay Official */}
             {role === 'barangay' && (
               <div className="login-panel active">
-                {/* The barangay dropdown that used to sit here is gone.
-                    Jurisdiction now comes from the `barangay` claim inside the
-                    signed session token and is enforced by RLS in Postgres, so
-                    asking the official to pick it added no security — it only
-                    added a way to be turned away with the correct password for
-                    picking the wrong entry, and the rejection message named
-                    the barangay the Staff ID belonged to. */}
+                {/* Restored at the client's request. It is NOT the source of
+                    jurisdiction — that is the `barangay` claim in the signed
+                    token, enforced by RLS — but it is a useful second thing to
+                    know: a stolen Staff ID alone no longer gets you in unless
+                    you also know which barangay it belongs to. The mismatch
+                    message in finishLogin() deliberately does not name the
+                    real barangay, which is what the old version leaked. */}
+                <div className="field-group">
+                  <label htmlFor="brgy-select">Barangay</label>
+                  <select
+                    id="brgy-select"
+                    value={brgy}
+                    onChange={(e) => setBrgy(e.target.value)}
+                  >
+                    <option value="" disabled>Select Barangay ▾</option>
+                    {BARANGAYS.map((b) => (
+                      <option key={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="field-group">
                   <label htmlFor="staff-id">Staff ID</label>
                   <input
