@@ -72,6 +72,29 @@ export default function RouteResultPanel({
         )}
       </div>
 
+      {/* COUNTERFLOW.
+          planRoute could not reach the destination without going the wrong way
+          up a one-way street, so it relaxed the rule rather than answering
+          "no route" during an emergency. That decision is only defensible if
+          the person dispatching the vehicle is told, by name, before they send
+          it — finding out at the junction is how a responder ends up nose to
+          nose with traffic on a flooded road. Ranked above congestion because
+          it is a legality and safety problem, not a delay. */}
+      {plan.onewayRelaxed && (
+        <div className="rrp-counterflow" role="alert">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>
+            <b>Runs against a one-way street.</b> No legal route exists right now, so this
+            one counterflows for {formatDistance(safe.wrongWayM)}
+            {plan.wrongWayRoads?.length ? <> on <b>{plan.wrongWayRoads.join(', ')}</b></> : null}.
+            Send an escort or clear the direction before dispatching.
+          </span>
+        </div>
+      )}
+
       {/* Congestion readout — vehicle routes only (β > 0 there, 0 on foot). */}
       {!walkEta && (safe.trafficDelayMins >= 0.5 || safe.congestedSegments > 0) && (
         <div className="rrp-trafficline">

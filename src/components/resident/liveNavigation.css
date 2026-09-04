@@ -904,3 +904,30 @@ body.lnav-open {
   color: #cbd5e1;
   font-size: 0.875rem;
 }
+
+/* ── One-way notice on the instruction banner ─────────────────────────────
+   Sits under the instruction, quieter than the flood hazard chip above it.
+   That ranking is deliberate: water is what the resident is running from,
+   and traffic direction must never draw the eye away from "road closed
+   ahead". This is context on the road they are being sent along, not an
+   alarm about it. */
+.lnav-oneway {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.82);
+}
+.lnav-oneway svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

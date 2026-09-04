@@ -17,7 +17,7 @@ import {
   formatWalkEta,
   activeRouteGeometry,
 } from '../../components/admin/routingHelpers.jsx'
-import { useRouteGraph, planRoute, planToNearestSafe, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
+import { useRouteGraph, planRoute, planToNearestSafe, profileFor, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import '../../components/map/mapUpgrade.css'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
@@ -36,6 +36,7 @@ import RoutingGuide, { hasSeenRoutingGuide } from '../../components/resident/Rou
 import * as speech from '../../services/speech.js'
 import '../admin/RoutePlanning.css'
 import './Resident.css'
+import OneWayArrowsLayer from '../../components/map/OneWayArrowsLayer.jsx'
 
 // "You are here" draggable pin (blue dot with a white ring).
 const youPinIcon = L.divIcon({
@@ -153,6 +154,7 @@ export default function EvacuationRouting() {
 
     const plan = planRoute(graph, start, dest.coords, {
       riskAt: field?.riskAt, statusMap, alpha: DEFAULT_ALPHA, compare: false,
+      ...profileFor('evacuation'), // walking: one-way streets do not bind
     })
     if (!plan?.ok || plan.safe.coords.length < 2) {
       return setGenMsg('No route from your location to that shelter right now. Try another centre or call CDRRMO.')
@@ -224,6 +226,7 @@ export default function EvacuationRouting() {
       riskAt: field?.riskAt,
       statusMap,
       alpha: DEFAULT_ALPHA,
+      ...profileFor('evacuation'),
     })
     if (!best) return setGenMsg('No reachable open evacuation centre right now.')
       setSelectedId(null)
@@ -356,6 +359,7 @@ export default function EvacuationRouting() {
               <CabuyaoLock />
               {/* Live road conditions as context so residents see what to avoid. */}
               {roads && <RoadNetworkLayer roads={roads} statusMap={statusMap} interactive={false} />}
+              {roads && <OneWayArrowsLayer roads={roads} />}
 
               {/* Click-to-pin while in pinning mode; the pin itself is draggable. */}
               <ClickToAddWaypoint enabled={pinning} onAdd={([lat, lng]) => { setPin({ lat, lng }); setPinning(false) }} />

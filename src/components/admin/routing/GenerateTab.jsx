@@ -11,7 +11,7 @@ import {
   useRoadStatus,
   useTrafficStatus,
 } from '../routingHelpers.jsx'
-import { planRoute, planToNearestSafe, DEFAULT_ALPHA, DEFAULT_BETA } from '../routeEngine.js'
+import { planRoute, planToNearestSafe, profileFor, DEFAULT_ALPHA } from '../routeEngine.js'
 import { barangayRiskSamples, projectedRoadStatus } from '../floodRisk.js'
 import { liveThresholds } from '../../../services/systemConfig.js'
 import { BarangayRiskLayer, InundationGrid } from '../BarangayRiskLayer.jsx'
@@ -46,6 +46,7 @@ import MapSearchBar from '../../map/MapSearchBar.jsx'
 import SearchResultLayer from '../../map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../map/searchTools.js'
 import RouteResultPanel, { SHORTEST_COLOR } from '../RouteResultPanel.jsx'
+import OneWayArrowsLayer from '../../map/OneWayArrowsLayer.jsx'
 
 /**
  * Routing → Generate (was the Auto Route page).
@@ -186,13 +187,13 @@ export default function GenerateTab({ shared, onToast }) {
     return next
   }, [statusMap, avoided, projectedClosures])
 
-  // Traffic only weighs on VEHICLE routes — evacuation is on foot, so
-  // car congestion neither detours nor slows it (β = 0). Convoy/response
-  // routes drive, so they steer around jams (β = DEFAULT_BETA).
-  const beta = type === 'evacuation' ? 0 : DEFAULT_BETA
+  /* What kind of trip this is. Evacuation is on foot: car congestion neither
+     detours nor slows it (β = 0), and one-way streets do not restrict a
+     pedestrian. Relief and response drive, so both apply. */
+  const { beta, onFoot } = profileFor(type)
   const routeOpts = useMemo(
-    () => ({ riskAt: live.riskAt, statusMap: effectiveStatus, trafficMap, alpha, beta }),
-    [live, effectiveStatus, trafficMap, alpha, beta],
+    () => ({ riskAt: live.riskAt, statusMap: effectiveStatus, trafficMap, alpha, beta, onFoot }),
+    [live, effectiveStatus, trafficMap, alpha, beta, onFoot],
   )
 
   // Which hazard field the route currently on screen was solved against.
@@ -392,6 +393,15 @@ export default function GenerateTab({ shared, onToast }) {
             {/* Live road hazards flagged on Road Status */}
             {showHazards && hazardRoads && (
               <RoadNetworkLayer roads={hazardRoads} statusMap={statusMap} interactive={false} />
+            )}
+            {/* Always on (zoom-gated): direction of travel belongs to the road,
+                not to the hazard overlay. Legs the plan counterflows along are
+                drawn red so "where is it illegal?" is answerable by looking. */}
+            {hazardRoads && (
+              <OneWayArrowsLayer
+                roads={hazardRoads}
+                wrongWays={plan?.onewayRelaxed ? plan.wrongWayWays : []}
+              />
             )}
 
             {/* Live traffic congestion (Road Status → Traffic board) */}

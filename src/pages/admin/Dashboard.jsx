@@ -44,6 +44,7 @@ function affectedCount(counts) {
 import { dispatchAlert, describeDispatch } from '../../services/alertDispatch.js'
 import './Dashboard.css'
 import DialogOverlay from '../../components/DialogOverlay.jsx'
+import OneWayArrowsLayer from '../../components/map/OneWayArrowsLayer.jsx'
 
 /**
  * CDRRMO Admin — Dashboard.
@@ -636,7 +637,10 @@ export default function Dashboard() {
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
               {roadNetwork && (
-                <RoadNetworkLayer roads={roadNetwork} statusMap={roadStatus} onPick={paintRoad} interactive />
+                <>
+                  <RoadNetworkLayer roads={roadNetwork} statusMap={roadStatus} onPick={paintRoad} interactive />
+                  <OneWayArrowsLayer roads={roadNetwork} />
+                </>
               )}
               <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=draw" />
             </MapContainer>

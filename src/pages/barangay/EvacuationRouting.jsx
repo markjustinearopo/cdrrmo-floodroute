@@ -21,7 +21,7 @@ import {
   useCabuyaoRoads,
   useRoadStatus,
 } from '../../components/admin/routingHelpers.jsx'
-import { useRouteGraph, planRoute, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
+import { useRouteGraph, planRoute, profileFor, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
 import { useFloodRisk } from '../../components/admin/floodRisk.js'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import { MapGuideButton } from '../../components/MapGuide.jsx'
@@ -119,7 +119,9 @@ export default function EvacuationRouting() {
   function autoSuggest() {
     if (points.length < 2) return flash('Drop at least two stops, then Auto-suggest.')
     if (!graph || graph.size === 0) return flash('Road network unavailable.')
-    const opts = { riskAt: field?.riskAt, statusMap, alpha: DEFAULT_ALPHA }
+    // Residents walk out: no congestion penalty, and one-way signs do not
+    // bind a pedestrian (see profileFor / edgeAllowed in routeEngine).
+    const opts = { riskAt: field?.riskAt, statusMap, alpha: DEFAULT_ALPHA, ...profileFor('evacuation') }
     let line = []
     let gaps = 0
     for (let i = 1; i < points.length; i++) {

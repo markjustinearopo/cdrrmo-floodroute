@@ -1,0 +1,56 @@
+/* ============================================================
+   One-way direction arrows (OneWayArrowsLayer).
+
+   Drawn as a chevron rather than a full arrow: a chevron reads as "flow this
+   way" at 14 px, where an arrowhead-plus-shaft turns into a smudge. Slate
+   grey with a white halo so it stays legible over both the pale OSM basemap
+   and the orange/red flood colouring underneath — the road status is the
+   information these screens exist for, and this must never compete with it.
+   ============================================================ */
+
+.ow-arrow-wrap {
+  background: none;
+  border: 0;
+  pointer-events: none;
+}
+
+.ow-arrow {
+  display: block;
+  width: 18px;
+  height: 18px;
+  /* The chevron itself: two strokes meeting at a point, drawn with borders so
+     no SVG node is needed per arrow (there can be a hundred on screen). */
+  position: relative;
+}
+.ow-arrow::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -5px 0 0 -3.5px;
+  border-top: 2.5px solid #475569;
+  border-right: 2.5px solid #475569;
+  transform: rotate(-45deg); /* point it at 0° = north, then the marker rotates */
+  /* White halo, so the chevron survives a dark red "closed road" underneath. */
+  filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff);
+}
+
+/* A leg the current route runs the WRONG way along, after planRoute had to
+   relax the one-way rule. Red, and the only red on this layer, so "where
+   exactly does it counterflow?" is answerable by looking. */
+.ow-arrow--wrong::before {
+  border-top-color: #dc2626;
+  border-right-color: #dc2626;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ow-arrow--wrong::before {
+    animation: ow-wrong-pulse 1.4s ease-in-out infinite;
+  }
+}
+@keyframes ow-wrong-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}

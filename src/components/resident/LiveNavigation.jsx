@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { planRoute, DEFAULT_ALPHA } from '../admin/routeEngine.js'
+import { planRoute, profileFor, DEFAULT_ALPHA } from '../admin/routeEngine.js'
 import { FlaggedRoadsLayer } from '../map/RoadConditionsLayer.jsx'
 import { formatDistance } from '../../services/systemConfig.js'
 import { getUserLanguage } from '../../services/i18n.js'
@@ -414,6 +414,7 @@ export default function LiveNavigation({
       try {
         const plan = planRoute(graph, from, destination.coords, {
           riskAt, statusMap, alpha: DEFAULT_ALPHA, compare: false,
+          ...profileFor('evacuation'), // the resident is walking
         })
         if (plan?.ok && plan.safe.coords.length > 1) {
           const next = prepareRoute(plan.safe.coords, plan.safe.segments, {
@@ -686,6 +687,21 @@ export default function LiveNavigation({
               )}
             </div>
             <div className="lnav-instruction">{stepTitle(step, lang)}</div>
+            {/* One-way, on screen as well as spoken — someone who has the
+                phone muted, or who glanced down a moment after the voice,
+                still needs to know which way the traffic runs. */}
+            {step?.oneway ? (
+              <div className="lnav-oneway">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 19V5M12 5l-5 5M12 5l5 5" />
+                </svg>
+                <span>
+                  {step.wrongWay
+                    ? (lang === 'fil' ? 'Isang direksyon — paharap sa iyo ang trapiko' : 'One-way — traffic towards you')
+                    : (lang === 'fil' ? 'Isang direksyon — trapiko mula sa likod' : 'One-way — traffic from behind')}
+                </span>
+              </div>
+            ) : null}
           </div>
         </div>
         {hazardAhead && (

@@ -23,6 +23,7 @@ import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
 import { ftToM, formatMeters } from '../../services/depth.js'
 import './Manage.css'
 import './RoadStatus.css'
+import OneWayArrowsLayer from '../../components/map/OneWayArrowsLayer.jsx'
 
 /**
  * CDRRMO Admin — Road Status.
@@ -323,6 +324,7 @@ export default function RoadStatus() {
                   onPick={handlePick}
                 />
               )}
+              {roads && <OneWayArrowsLayer roads={roads} />}
               <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=draw" />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
@@ -454,6 +456,15 @@ export default function RoadStatus() {
                         <span className="rs-legend-name">{m.label}</span>
                       </div>
                     ))}
+                {/* The arrows only appear once the map is zoomed in far enough
+                    to read them, so the legend says so — otherwise the entry
+                    looks broken on the city-wide view this screen opens at. */}
+                <div className="rs-legend-row">
+                  <span className="rs-legend-line rs-legend-line--oneway" aria-hidden="true">
+                    <span className="ow-arrow" style={{ transform: 'rotate(90deg)' }} />
+                  </span>
+                  <span className="rs-legend-name">One-way (zoom in)</span>
+                </div>
               </div>
             </section>
 

@@ -13,12 +13,13 @@ import {
   useRoadStatus,
   useTrafficStatus,
 } from '../routingHelpers.jsx'
-import { planRoute, DEFAULT_BETA } from '../routeEngine.js'
+import { planRoute, profileFor } from '../routeEngine.js'
 import { useEvacCenters, useSavedRoutes } from '../../../context/AdminDataContext.jsx'
 import MapSearchBar from '../../map/MapSearchBar.jsx'
 import SearchResultLayer from '../../map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../map/searchTools.js'
 import SavedRouteList from '../SavedRouteList.jsx'
+import OneWayArrowsLayer from '../../map/OneWayArrowsLayer.jsx'
 
 const OVERRIDE_COLOR = '#B8860B' // gold — distinct from any route-type colour
 
@@ -113,9 +114,10 @@ export default function OverrideTab({ shared, onToast, onGoToTab }) {
     if (!waypoints || waypoints.length < 2) return onToast('This route has no endpoints to re-route.')
 
     // High avoidance weight: take a meaningful detour to stay out of the water.
-    // Traffic weighs in for vehicle routes; an on-foot evacuation ignores it.
-    const beta = selected.type === 'evacuation' ? 0 : DEFAULT_BETA
-    const opts = { riskAt: live?.riskAt, statusMap: roadStatus, trafficMap, alpha: 14, beta }
+    /* Traffic and one-way both weigh on vehicle routes; an on-foot
+       evacuation is bound by neither. */
+    const { beta, onFoot } = profileFor(selected.type)
+    const opts = { riskAt: live?.riskAt, statusMap: roadStatus, trafficMap, alpha: 14, beta, onFoot }
     let line = []
     let gaps = 0
     for (let i = 1; i < waypoints.length; i++) {
@@ -187,6 +189,9 @@ export default function OverrideTab({ shared, onToast, onGoToTab }) {
           {showHazards && hazardRoads && (
             <RoadNetworkLayer roads={hazardRoads} statusMap={roadStatus} interactive={false} />
           )}
+          {/* Direction of travel is a property of the road, not a hazard
+              overlay, so it does not follow the hazard toggle. Zoom-gated. */}
+          {hazardRoads && <OneWayArrowsLayer roads={hazardRoads} />}
 
           <ClickToAddWaypoint onAdd={addPoint} enabled={Boolean(selected) && !overrideAuto} />
 

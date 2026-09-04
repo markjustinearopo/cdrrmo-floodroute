@@ -259,3 +259,34 @@
 }
 .rrp-avoided-chip:hover { background: #fee2e2; }
 .rrp-avoided-x { font-size: 0.875rem; line-height: 1; opacity: 0.7; }
+
+/* ── Counterflow warning ──────────────────────────────────────────────────
+   Shown when planRoute had to relax the one-way rule to find any route at
+   all. Deliberately the loudest thing in this panel: every other row here
+   describes how good a route is, and this one says the route is not legal.
+   Red on red-tinted ground, an alert role so a screen reader announces it
+   without the operator having to go looking. */
+.rrp-counterflow {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border-left: 3px solid #dc2626;
+  background: #fef2f2;
+  color: #8b1416;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.rrp-counterflow svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

@@ -84,23 +84,11 @@ export function roadClassMeta(highway) {
 }
 
 /* ── Geometry helpers ────────────────────────────────────────────────────── */
-const R_EARTH = 6371000 // metres
-
-export function haversineMeters([lat1, lng1], [lat2, lng2]) {
-  const toRad = (d) => (d * Math.PI) / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return 2 * R_EARTH * Math.asin(Math.sqrt(a))
-}
-
-export function pathLengthMeters(points) {
-  let total = 0
-  for (let i = 1; i < points.length; i++) total += haversineMeters(points[i - 1], points[i])
-  return total
-}
+/* Defined in ./geo.js so pure logic — routeEngine's graph search, the
+   evacuation planner — can measure a distance without importing this file,
+   which brings Leaflet and the 914 kB road bundle with it. Re-exported here
+   because every existing caller imports them from this module. */
+export { haversineMeters, pathLengthMeters } from './geo.js'
 
 // Distance readout honours the operator's configured unit (km / miles) from
 // System Configuration — see services/systemConfig.js.
@@ -239,6 +227,16 @@ function bundleToGeoJSON(bundle) {
         // Where the name came from: undefined = the way's own OSM name tag.
         nameSource: w.n ? (w.ns || 'osm') : null,
         highway: w.h || 'road',
+        /* One-way direction, from scripts/fetch-oneway.mjs.
+             0/absent  two-way
+             +1        one-way along the stored geometry
+             -1        one-way against it (OSM `oneway=-1`)
+           `onewayFoot` is set only where OSM says pedestrians are restricted
+           too, which is almost never — a one-way street is one-way for
+           VEHICLES, and that distinction is load-bearing here. See the
+           ONE-WAY block in routeEngine.js. */
+        oneway: w.o || 0,
+        onewayFoot: Boolean(w.of),
       },
       geometry: { type: 'LineString', coordinates },
     }

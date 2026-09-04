@@ -824,3 +824,16 @@
     height: 40px;
   }
 }
+
+/* One-way legend swatch: a chevron rather than a colour bar, because the map
+   marks direction with a shape, not a colour, and a legend that shows the
+   wrong kind of thing is worse than no legend. */
+.road-status .rs-legend-line--oneway {
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Every other swatch is a 4px colour bar. A chevron needs room to read as a
+     chevron, so this one takes the row's height rather than the line's. */
+  height: 16px;
+}

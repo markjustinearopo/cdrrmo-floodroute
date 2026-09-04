@@ -11,7 +11,7 @@ import {
   useRoadStatus,
   useTrafficStatus,
 } from '../routingHelpers.jsx'
-import { planRoute, DEFAULT_ALPHA, DEFAULT_BETA } from '../routeEngine.js'
+import { planRoute, profileFor, DEFAULT_ALPHA } from '../routeEngine.js'
 import { useEvacCenters, useSavedRoutes } from '../../../context/AdminDataContext.jsx'
 import MapSearchBar from '../../map/MapSearchBar.jsx'
 import SearchResultLayer from '../../map/SearchResultLayer.jsx'
@@ -91,10 +91,10 @@ export default function DrawTab({ shared, onToast, onGoToTab }) {
     if (!graph || graph.size === 0) {
       return onToast(roads ? 'Road network unavailable.' : 'Road network still loading…')
     }
-    // Vehicle routes (relief/response) steer around congestion; on-foot
-    // evacuation ignores car traffic (β = 0).
-    const beta = type === 'evacuation' ? 0 : DEFAULT_BETA
-    const opts = { riskAt: live?.riskAt, statusMap, trafficMap, alpha: DEFAULT_ALPHA, beta }
+    /* Vehicle routes (relief/response) steer around congestion and obey
+       one-way streets; an on-foot evacuation does neither. */
+    const { beta, onFoot } = profileFor(type)
+    const opts = { riskAt: live?.riskAt, statusMap, trafficMap, alpha: DEFAULT_ALPHA, beta, onFoot }
     let line = []
     let gaps = 0
     for (let i = 1; i < points.length; i++) {

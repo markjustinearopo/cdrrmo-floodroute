@@ -232,6 +232,8 @@ export function buildSteps(coords, segments = [], opts = {}) {
     kind: 'depart',
     road: startName,
     heading: smoothedBearing(coords, cum, 0, 40, true),
+    oneway: segments[0]?.oneway || 0,
+    wrongWay: Boolean(segments[0]?.wrongWay),
   }]
 
   let currentName = nameAt(0)
@@ -272,6 +274,12 @@ export function buildSteps(coords, segments = [], opts = {}) {
           kind: kind === 'straight' ? (renamed || named ? 'continue' : 'straight') : kind,
           road: outName,
           delta,
+          /* One-way state of the road being turned ONTO. Carried per step
+             rather than announced per segment so the walker hears it once,
+             at the junction where it becomes true, instead of every time the
+             way id changes along the same street. */
+          oneway: seg.oneway || 0,
+          wrongWay: Boolean(seg.wrongWay),
         })
       }
       currentName = outName
@@ -389,14 +397,52 @@ export function spokenDistance(m, lang = 'en') {
  * The sentence the voice says.
  * `phase` is how urgent it is: 'far' (~400 m), 'near' (~150 m), 'now' (~30 m).
  */
+/**
+ * The one-way warning appended to a spoken instruction, or '' when there is
+ * nothing to say.
+ *
+ * WHY A PEDESTRIAN IS TOLD AT ALL
+ * A one-way street is one-way for vehicles, so an evacuating resident on foot
+ * is routed along it in either direction (see routeEngine's ONE-WAY block).
+ * That is the right routing decision and it is NOT the whole duty of care:
+ * the walker still needs to know which way the cars will be coming, at night,
+ * in rain, possibly in the roadway because the footpath is under water.
+ *
+ * The two cases carry genuinely different advice, and getting them the wrong
+ * way round would be worse than saying nothing:
+ *
+ *   against the flow — traffic approaches head-on. You can see it. This is
+ *                      the safer of the two, and it is the direction road
+ *                      safety advice tells pedestrians to walk.
+ *   with the flow    — traffic comes from BEHIND. You cannot see it coming,
+ *                      which is the case worth warning about.
+ *
+ * Spoken only at the junction itself ('now'), and only when turning onto the
+ * street — repeating it at every distance callout would train the listener to
+ * tune the voice out, which costs more than it gains.
+ */
+export function onewayNote(step, lang = 'en', phase = 'near') {
+  if (!step?.oneway || phase !== 'now') return ''
+  const fil = lang === 'fil'
+  if (step.wrongWay) {
+    return fil
+      ? ' Isang direksyon lang ang kalsadang ito — paharap sa iyo ang mga sasakyan.'
+      : ' This is a one-way street — traffic will be coming towards you.'
+  }
+  return fil
+    ? ' Isang direksyon lang ang kalsadang ito — manggagaling sa likuran mo ang mga sasakyan.'
+    : ' This is a one-way street — traffic comes from behind you.'
+}
+
 export function stepPhrase(step, distM, lang = 'en', phase = 'near') {
   if (!step) return ''
   const fil = lang === 'fil'
   if (step.kind === 'depart') {
     const dir = compassName(step.heading, lang)
-    return fil
+    return (fil
       ? `Simulan ang paglikas. Maglakad pa-${dir}${step.road ? ` sa ${step.road}` : ''}.`
-      : `Starting your evacuation route. Head ${dir}${step.road ? ` on ${step.road}` : ''}.`
+      : `Starting your evacuation route. Head ${dir}${step.road ? ` on ${step.road}` : ''}.`)
+      + onewayNote(step, lang, 'now')
   }
   if (step.kind === 'arrive') {
     if (phase === 'now') {
@@ -410,12 +456,13 @@ export function stepPhrase(step, distM, lang = 'en', phase = 'near') {
   }
   const verb = (fil ? KIND_FIL : KIND_EN)[step.kind] || (fil ? KIND_FIL.continue : KIND_EN.continue)
   const onto = step.road ? (fil ? ` sa ${step.road}` : ` onto ${step.road}`) : ''
+  const note = onewayNote(step, lang, phase)
   if (phase === 'now') {
-    return fil ? `${verb} ngayon${onto}.` : `Now, ${verb.toLowerCase()}${onto}.`
+    return (fil ? `${verb} ngayon${onto}.` : `Now, ${verb.toLowerCase()}${onto}.`) + note
   }
-  return fil
+  return (fil
     ? `Sa ${spokenDistance(distM, lang)}, ${verb.toLowerCase()}${onto}.`
-    : `In ${spokenDistance(distM, lang)}, ${verb.toLowerCase()}${onto}.`
+    : `In ${spokenDistance(distM, lang)}, ${verb.toLowerCase()}${onto}.`) + note
 }
 
 /* ── Live navigation state ──────────────────────────────────────────────── */

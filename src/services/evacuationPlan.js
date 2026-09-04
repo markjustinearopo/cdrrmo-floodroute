@@ -1,5 +1,5 @@
-import { getGraph, planRoute } from '../components/admin/routeEngine.js'
-import { haversineMeters } from '../components/admin/routingHelpers.jsx'
+import { getGraph, planRoute, profileFor } from '../components/admin/routeEngine.js'
+import { haversineMeters } from '../components/admin/geo.js'
 import { BARANGAY_CENTROIDS } from '../data/cabuyaoBarangays.js'
 
 /* ============================================================
@@ -80,7 +80,7 @@ export function computeEvacuationPlan({
 
     const reachable = []
     for (const { c } of shortlist) {
-      const plan = planRoute(graph, b.coords, c.coords, opts)
+      const plan = planRoute(graph, b.coords, c.coords, { ...profileFor('evacuation'), ...opts })
       if (!plan.ok) continue
       reachable.push({
         centre: c,

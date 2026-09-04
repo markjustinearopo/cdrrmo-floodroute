@@ -17,6 +17,7 @@ import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
 import { useEvacCenters } from '../../context/AdminDataContext.jsx'
 import '../admin/RoadStatus.css'
+import OneWayArrowsLayer from '../../components/map/OneWayArrowsLayer.jsx'
 
 /**
  * CDRRMO Resident — Road Status (Routing).
@@ -139,6 +140,7 @@ export default function RoadStatus() {
               <ZoomControl position="bottomright" />
               <CabuyaoLock />
               {roads && <RoadNetworkLayer roads={roads} statusMap={statusMap} interactive={false} />}
+              {roads && <OneWayArrowsLayer roads={roads} />}
               <SearchResultLayer result={searchResult} />
               <CoordReadout onChange={setCoords} />
             </MapContainer>

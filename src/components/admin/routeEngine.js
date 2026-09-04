@@ -21,7 +21,7 @@
    ============================================================ */
 
 import { useMemo } from 'react'
-import { haversineMeters } from './routingHelpers.jsx'
+import { haversineMeters } from './geo.js'
 
 /* How hard to steer away from flood risk. The cost of a segment is its
    length multiplied by (1 + ALPHA · risk), with risk in [0, 1]; a fully
@@ -57,6 +57,32 @@ const TRAFFIC_RANK = { light: 1, moderate: 2, heavy: 3, gridlock: 4 }
    comes before time lost to traffic, so a gridlocked-but-dry road (cost ×5)
    still beats a flooded one (cost ×9). */
 export const DEFAULT_BETA = 4
+
+/**
+ * Routing options implied by a route's type. One place, because the same
+ * decision was being re-made at nine call sites and the second half of it
+ * (one-way) would otherwise have been forgotten at some of them.
+ *
+ *   evacuation      residents leaving on foot
+ *   relief/response a vehicle — supply truck, responder
+ *
+ * Two things follow from being on foot, and they pull in opposite directions
+ * from what you might expect:
+ *
+ *   beta = 0    a walker does not sit in traffic, so congestion must not
+ *               push them onto a longer route.
+ *   onFoot      one-way restrictions do NOT apply — a pedestrian may walk
+ *               either way along a one-way street, and enforcing the sign
+ *               would add distance in rising water for no legal reason.
+ *               See the ONE-WAY STREETS block below.
+ *
+ * Callers can still override either explicitly; this is the default, not a
+ * ceiling.
+ */
+export function profileFor(routeType) {
+  const onFoot = routeType === 'evacuation'
+  return { onFoot, beta: onFoot ? 0 : DEFAULT_BETA }
+}
 
 // Coordinates are merged into shared graph nodes at ~0.1 m precision.
 // Overpass returns the endpoints of connecting ways with identical
@@ -148,13 +174,16 @@ const keyOf = (lat, lng) => `${lat.toFixed(COORD_PRECISION)},${lng.toFixed(COORD
  *
  * Returns flat, index-aligned arrays for cache-friendly traversal:
  *   lat[i], lng[i]      → coordinates of node i
- *   adj[i]              → array of edges { to, d, wayId, mlat, mlng, kmh }
+ *   adj[i]              → array of edges { to, d, wayId, mlat, mlng, kmh, fwd }
  *   comp[i] / mainComp  → connected-component label per node + the label of
  *                         the city-wide network (largest component)
- *   wayInfo             → Map(wayId → { name, named, highway }) for readouts
- * Edges are undirected (each segment is pushed both ways): evacuation and
- * relief convoys may run against one-way tags in an emergency, so the demo
- * deliberately ignores `oneway`.
+ *   wayInfo             → Map(wayId → { name, named, highway, oneway,
+ *                         onewayFoot }) for readouts and the one-way rule
+ *
+ * Both directions of every segment are present in `adj`, including on one-way
+ * streets; `fwd` says which traversal follows the stored geometry. Whether a
+ * traversal is ALLOWED is decided per profile in edgeAllowed() — see the
+ * ONE-WAY STREETS block below for why the edge is not simply omitted.
  */
 export function buildGraph(roads) {
   const idByKey = new Map()
@@ -181,10 +210,13 @@ export function buildGraph(roads) {
     if (!Array.isArray(coords) || coords.length < 2) continue
     const wayId = f.properties?.id
     const kmh = CLASS_KMH[f.properties?.highway] || DEFAULT_KMH
+    const oneway = f.properties?.oneway || 0
     wayInfo.set(wayId, {
       name: f.properties?.name,
       named: Boolean(f.properties?.named),
       highway: f.properties?.highway,
+      oneway,
+      onewayFoot: Boolean(f.properties?.onewayFoot),
     })
     let prev = nodeAt(coords[0][1], coords[0][0])
     for (let i = 1; i < coords.length; i++) {
@@ -193,8 +225,21 @@ export function buildGraph(roads) {
       const d = haversineMeters([lat[prev], lng[prev]], [lat[cur], lng[cur]])
       const mlat = (lat[prev] + lat[cur]) / 2
       const mlng = (lng[prev] + lng[cur]) / 2
-      adj[prev].push({ to: cur, d, wayId, mlat, mlng, kmh })
-      adj[cur].push({ to: prev, d, wayId, mlat, mlng, kmh })
+      /* BOTH directions are always added to the graph, even on a one-way
+         street. Legality is decided per traversal in edgeAllowed(), not by
+         leaving the edge out, for two reasons:
+
+           1. a pedestrian may walk either way along a one-way street, and
+              this same graph serves both profiles;
+           2. the component labelling below, and nearestNode's snapping, ask
+              "is this road physically connected?" — which does not change
+              because traffic runs one way along it. Dropping the edge would
+              strand every address on a one-way street in its own island.
+
+         `fwd` records whether this traversal runs along the geometry as
+         stored, which is the direction OSM's oneway tag is relative to. */
+      adj[prev].push({ to: cur, d, wayId, mlat, mlng, kmh, fwd: true })
+      adj[cur].push({ to: prev, d, wayId, mlat, mlng, kmh, fwd: false })
       prev = cur
     }
   }
@@ -332,9 +377,27 @@ function aStar(graph, start, goal, edgeCost, riskOf) {
   return { nodes, distanceM, exposure }
 }
 
-function findEdge(edges, to) {
-  for (let i = 0; i < edges.length; i++) if (edges[i].to === to) return edges[i]
-  return null
+/**
+ * The edge from a node to `to`.
+ *
+ * Two distinct ways can join the same pair of nodes — the short links between
+ * the carriageways of a dual carriageway do exactly this. Returning whichever
+ * happened to be pushed first was harmless when every edge was two-way; now it
+ * decides whether a leg is reported as running the wrong way up a one-way
+ * street, so the caller passes `prefer` to pick the traversal the search would
+ * actually have used. Falls back to the first match, because a mislabelled
+ * direction is still better than losing the segment entirely.
+ */
+function findEdge(edges, to, prefer) {
+  let first = null
+  for (let i = 0; i < edges.length; i++) {
+    const e = edges[i]
+    if (e.to !== to) continue
+    if (!prefer) return e
+    if (prefer(e)) return e
+    if (!first) first = e
+  }
+  return first
 }
 
 /* ── Risk + cost model ───────────────────────────────────────────────────── */
@@ -362,8 +425,53 @@ export function edgeTraffic(edge, { trafficMap } = {}) {
   return TRAFFIC_LEVELS[level] || CLEAR_TRAFFIC
 }
 
+/* ── ONE-WAY STREETS ──────────────────────────────────────────────────────
+ *
+ * 290 of the 4,853 ways in Cabuyao are one-way (6%), including both SLEX
+ * carriageways, every SLEX ramp, stretches of the National Highway, and 21
+ * roundabouts where OSM marks the direction with `junction=roundabout` and no
+ * oneway tag at all.
+ *
+ * A ONE-WAY STREET IS ONE-WAY FOR VEHICLES.
+ * This is the single most important thing in this file to get right, and the
+ * naive reading gets it backwards. A person on foot may walk in either
+ * direction along a one-way street — that is true in the Philippines and
+ * essentially everywhere, and it is not a technicality:
+ *
+ *   The evacuation profile is someone WALKING out of a flood. Making them
+ *   respect a one-way sign could add hundreds of metres to a route, in rising
+ *   water, to obey a rule that does not apply to them. That is not a routing
+ *   inaccuracy; it is a longer time in the water.
+ *
+ * So the constraint binds vehicles (relief and response) and not pedestrians,
+ * unless OSM explicitly tags `oneway:foot=yes` (`onewayFoot`), which no way in
+ * Cabuyao currently does.
+ *
+ * A walker still gets TOLD. The direction is carried through to the
+ * turn-by-turn segments either way, so the navigator can warn that traffic on
+ * this street is coming towards them — which is real safety information for
+ * somebody walking against traffic in bad visibility, and is not the same
+ * thing as refusing to route them.
+ */
+
+/**
+ * May this edge be traversed in this direction?
+ *
+ * @param edge   an adjacency entry; `fwd` says whether it follows the stored geometry
+ * @param info   wayInfo for the edge's way ({ oneway, onewayFoot })
+ * @param onFoot true for pedestrian profiles (evacuation)
+ */
+export function edgeAllowed(edge, info, onFoot) {
+  const dir = info?.oneway || 0
+  if (!dir) return true
+  if (onFoot && !info.onewayFoot) return true
+  return edge.fwd ? dir === 1 : dir === -1
+}
+
 function makeCost(opts, alpha, beta) {
+  const { wayInfo, onFoot, ignoreOneway } = opts
   return (edge) => {
+    if (!ignoreOneway && !edgeAllowed(edge, wayInfo?.get(edge.wayId), onFoot)) return Infinity
     const risk = edgeRisk(edge, opts)
     if (!isFinite(risk)) return Infinity // blocked road — impassable
     const traffic = edgeTraffic(edge, opts)
@@ -397,9 +505,18 @@ function decorate(graph, result, opts) {
   let worstTraffic = null // worst level encountered along the path
   let worstTrafficM = 0 // metres spent at that worst level
   let worstTrafficRoad = null // name of the worst-congested road
+  let onewayM = 0 // metres spent on one-way streets (either direction)
+  const onewayWays = new Set()
+  let wrongWayM = 0 // metres spent AGAINST a one-way
+  const wrongWay_ = new Set()
+  const wrongWayNames = new Set()
   const via = []
+  /* Prefer the traversal the search itself would have taken, so a link
+     between the two halves of a dual carriageway is reported as the leg
+     actually driven rather than its opposite twin. */
+  const legal = (e) => opts.ignoreOneway || edgeAllowed(e, wayInfo?.get(e.wayId), opts.onFoot)
   for (let i = 1; i < result.nodes.length; i++) {
-    const edge = findEdge(adj[result.nodes[i - 1]], result.nodes[i])
+    const edge = findEdge(adj[result.nodes[i - 1]], result.nodes[i], legal)
     if (!edge) continue
     const st = opts.statusMap?.[edge.wayId]
     if (st === 'flooded' || st === 'blocked') {
@@ -407,6 +524,17 @@ function decorate(graph, result, opts) {
       flooded.add(edge.wayId)
     }
     const info = wayInfo?.get(edge.wayId)
+    const oneway = info?.oneway || 0
+    /* Against the flow? For a pedestrian this is legal and worth SAYING —
+       traffic is coming towards you. For a vehicle it only happens when
+       planRoute had to relax the rule to find any route at all, and then it
+       is the single most important thing on the screen. */
+    const wrongWay = Boolean(oneway) && (edge.fwd ? oneway !== 1 : oneway !== -1)
+    if (wrongWay) {
+      wrongWayM += edge.d
+      wrongWay_.add(edge.wayId)
+      if (info?.named && info.name) wrongWayNames.add(info.name)
+    }
     segments.push({
       wayId: edge.wayId,
       name: info?.named ? info.name : null,
@@ -416,7 +544,16 @@ function decorate(graph, result, opts) {
       // Degree of the node this segment STARTS at — 3+ means a real junction.
       degree: adj[result.nodes[i - 1]]?.length ?? 2,
       flooded: st === 'flooded' || st === 'blocked',
+      /* Carried for the turn-by-turn navigator and the voice guidance:
+         oneway   0 | +1 | -1 relative to the stored geometry
+         wrongWay this leg runs against that direction */
+      oneway,
+      wrongWay,
     })
+    if (oneway) {
+      onewayM += edge.d
+      onewayWays.add(edge.wayId)
+    }
     // Free-flow minutes for this segment, then stretched by the traffic factor
     // so the headline ETA reflects the jam, not the empty-road ideal.
     const ffMins = (edge.d / 1000 / (edge.kmh || 25)) * 60
@@ -471,6 +608,11 @@ function decorate(graph, result, opts) {
     worstTrafficRoad, // friendly name of the worst-congested road, if any
     viaRoads, // ordered named roads the path follows: [{ name, m, wayIds }, …]
     segments, // per-leg metadata aligned with coords — drives turn-by-turn
+    onewayM, // metres of this route that run along one-way streets
+    onewayWays: [...onewayWays],
+    wrongWayM, // metres running AGAINST a one-way (see planRoute.onewayRelaxed)
+    wrongWayWays: [...wrongWay_],
+    wrongWayRoads: [...wrongWayNames],
   }
 }
 
@@ -499,13 +641,33 @@ export function planRoute(graph, start, goal, opts = {}) {
     const r = edgeRisk(edge, opts)
     return isFinite(r) ? r : 1
   }
+  // The one-way rule needs each edge's way tags, which live on the graph.
+  opts = { ...opts, wayInfo: graph.wayInfo }
 
   const sNode = nearestNode(graph, start)
   const gNode = nearestNode(graph, goal)
   if (sNode < 0 || gNode < 0) return { ok: false, reason: 'no-network' }
   if (sNode === gNode) return { ok: false, reason: 'too-close' }
 
-  const safeRaw = aStar(graph, sNode, gNode, makeCost(opts, alpha, beta), riskOf)
+  let safeRaw = aStar(graph, sNode, gNode, makeCost(opts, alpha, beta), riskOf)
+
+  /* WORST CASE: no legal route exists.
+     One-way turns the network directed, and a directed graph can strand a
+     destination that is physically metres away — a depot at the closed end of
+     a one-way street, or a site whose only approach became a ramp when the
+     road it branches from flooded.
+     Refusing to answer is the wrong response during an emergency. Re-plan
+     without the restriction and SAY SO: `onewayRelaxed` is carried all the way
+     to the result panel, which shows a warning naming the streets involved, so
+     the dispatcher sends the vehicle knowing it has to counterflow rather than
+     finding out at the junction. The alternative — "no route found" — tells
+     them nothing and helps nobody. */
+  let onewayRelaxed = false
+  if (!safeRaw && !opts.ignoreOneway && !opts.onFoot) {
+    opts = { ...opts, ignoreOneway: true }
+    safeRaw = aStar(graph, sNode, gNode, makeCost(opts, alpha, beta), riskOf)
+    onewayRelaxed = Boolean(safeRaw)
+  }
   if (!safeRaw) return { ok: false, reason: 'no-path' }
 
   /* Pure-distance path for comparison (alpha = 0 ⇒ cost = length), still
@@ -519,6 +681,9 @@ export function planRoute(graph, start, goal, opts = {}) {
   const fastRaw = opts.compare === false
     ? null
     : aStar(graph, sNode, gNode, (edge) => {
+      // The shortest option has to be drivable too: same one-way rule, or it
+      // would offer a "300 m shorter" route straight up a one-way street.
+      if (!opts.ignoreOneway && !edgeAllowed(edge, graph.wayInfo?.get(edge.wayId), opts.onFoot)) return Infinity
       const r = edgeRisk(edge, opts)
       return isFinite(r) ? edge.d : Infinity
     }, riskOf)
@@ -534,6 +699,12 @@ export function planRoute(graph, start, goal, opts = {}) {
     goal: [graph.lat[gNode], graph.lng[gNode]],
     detourM: Math.max(0, safe.distanceM - fast.distanceM),
     identical: safe.coords.length === fast.coords.length && safe.distanceM === fast.distanceM,
+    /* True when the ONLY way through was against a one-way street. The panel
+       must surface this — a route the driver cannot legally take, presented
+       without comment, is worse than no route at all. */
+    onewayRelaxed,
+    wrongWayWays: onewayRelaxed ? safe.wrongWayWays : [],
+    wrongWayRoads: onewayRelaxed ? safe.wrongWayRoads : [],
   }
 }
 

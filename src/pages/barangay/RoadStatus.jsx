@@ -24,6 +24,7 @@ import { buildLocalIndex } from '../../components/map/searchTools.js'
 import { useEvacCenters, useRoadRequests } from '../../context/AdminDataContext.jsx'
 import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/RoadStatus.css'
+import OneWayArrowsLayer from '../../components/map/OneWayArrowsLayer.jsx'
 
 /**
  * CDRRMO Barangay — Road Status (Routing).
@@ -174,6 +175,7 @@ export default function RoadStatus() {
               <ZoomControl position="bottomright" />
               {locked ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
               {roads && <RoadNetworkLayer roads={roads} statusMap={mapStatus} onPick={stage} />}
+              {roads && <OneWayArrowsLayer roads={roads} />}
               <SearchResultLayer result={searchResult} navigateTo="/barangay/evacuation-routing" />
               <CoordReadout onChange={setCoords} />
             </MapContainer>

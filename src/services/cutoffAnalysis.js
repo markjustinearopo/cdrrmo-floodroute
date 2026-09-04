@@ -172,7 +172,10 @@ export function analyzeCutoffs({ roads, centres = [], statusMap = {} }) {
 
     let best = null
     for (const c of open) {
-      const plan = planRoute(graph, b.coords, c.coords, { statusMap: sweepStatus, alpha: 0, beta: 0 })
+      /* 'Can residents still get out of this barangay on foot?' — so this
+         sweep is a pedestrian question and must not be answered by a one-way
+         sign, which would report a barangay as cut off when it is not. */
+      const plan = planRoute(graph, b.coords, c.coords, { statusMap: sweepStatus, alpha: 0, beta: 0, onFoot: true })
       if (!plan.ok) continue
       if (!best || plan.safe.distanceM < best.plan.safe.distanceM) best = { centre: c, plan }
     }
