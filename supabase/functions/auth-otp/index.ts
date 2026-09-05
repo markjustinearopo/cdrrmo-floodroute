@@ -42,6 +42,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { create as createJwt, getNumericDate } from 'https://deno.land/x/djwt@v3.0.2/mod.ts'
+import { verifyGoogleIdToken } from './google.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -412,6 +413,130 @@ serve(async (req) => {
       const payload = `${exp}.${nonce}`
       const sig = await hmacHex(SECRET, payload)
       return json({ challenge: `${payload}.${sig}`, bits: POW_BITS })
+    }
+
+    /* ── Sign in with Google ──────────────────────────────────────────────
+       Two steps, because Google can tell us who someone is but never where
+       they live, and this system is built entirely on barangay scope — RLS,
+       alert targeting and the resident's own map all key off
+       accounts.barangay. So an unknown Google account does NOT become an
+       account here; it becomes a signed, short-lived invitation to finish
+       signing up by choosing one.
+
+       Why this path skips the emailed verification code: Google has already
+       proven the address (email_verified, checked in google.ts). Mailing a
+       code to an address Google just vouched for would add nothing — and it
+       is the step this office currently cannot perform at all, having no
+       verified sending domain. That is the point of the feature.
+
+       Inert until GOOGLE_CLIENT_ID is set, the same way the email providers
+       are: no key, no button, nothing to misconfigure. */
+    if (action === 'google' || action === 'google-complete') {
+      const CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID')
+      if (!CLIENT_ID) {
+        return json({ error: 'Google sign-in is not configured on this deployment.' }, 503)
+      }
+
+      /* STEP 2 — a returning half-registration: the pending ticket from step 1,
+         plus the barangay they picked. Handled first because it must NOT
+         re-read anything the browser claims about identity: the email comes
+         out of the HMAC-signed ticket, never out of the request body. A
+         client that could name its own email could register as anyone. */
+      if (action === 'google-complete') {
+        const ticket = String(body.ticket ?? '')
+        const barangay = String(body.barangay ?? '').trim()
+        if (!barangay) return json({ error: 'Please select your barangay.' }, 400)
+
+        const seg = ticket.split('.')
+        if (seg.length !== 4) return json({ error: 'That sign-in has expired. Please start again.' }, 400)
+        const [expStr, emailB64, nameB64, sig] = seg
+        if (!timingSafeEqual(sig, await hmacHex(SECRET, `${expStr}.${emailB64}.${nameB64}`))) {
+          return json({ error: 'That sign-in could not be verified. Please start again.' }, 400)
+        }
+        if (Number(expStr) < Date.now()) {
+          return json({ error: 'That sign-in has expired. Please start again.' }, 400)
+        }
+        const addr = new TextDecoder().decode(
+          Uint8Array.from(atob(emailB64.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)),
+        )
+        const fullName = new TextDecoder().decode(
+          Uint8Array.from(atob(nameB64.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)),
+        )
+
+        const { data: cfgRow } = await db.from('app_settings').select('value').eq('key', 'system_config').maybeSingle()
+        if (cfgRow?.value && cfgRow.value.allowRegistration === false) {
+          return json({ error: 'New account registration is currently closed by the CDRRMO administrator.' }, 403)
+        }
+
+        // Someone may have registered normally between step 1 and step 2.
+        const { data: race } = await db.from('accounts').select('*').ilike('email', addr).maybeSingle()
+        if (race) {
+          return json({ user: sessionOf(race), token: await mintToken(race) })
+        }
+
+        /* No password_plain: this account has no password by design, and
+           app_login will therefore never authenticate it. Google is the only
+           door in, which is the correct posture — a password nobody set is a
+           password nobody can leak. status 'active', because the address is
+           already proven; mfa_enabled false for the reason the register
+           branch below explains at length. */
+        const { data: created, error } = await db.from('accounts').insert({
+          username: addr, email: addr, role: 'resident', barangay,
+          full_name: fullName || addr.split('@')[0],
+          status: 'active', mfa_enabled: false,
+          email_verified_at: new Date().toISOString(),
+          auth_provider: 'google',
+        }).select('*').single()
+        if (error) return json({ error: error.message }, 500)
+
+        return json({ user: sessionOf(created), token: await mintToken(created), created: true })
+      }
+
+      /* STEP 1 — verify the Google credential and see whether we know them. */
+      let profile
+      try {
+        profile = await verifyGoogleIdToken(String(body.credential ?? ''), CLIENT_ID)
+      } catch (e) {
+        return json({ error: (e as Error).message }, 401)
+      }
+
+      const { data: acc } = await db.from('accounts').select('*').ilike('email', profile.email).maybeSingle()
+
+      if (acc) {
+        if (acc.status === 'suspended' || acc.status === 'inactive') {
+          return json({ error: 'That account is not active. Contact CDRRMO.' }, 403)
+        }
+        /* Google just proved an address this account may have registered with
+           and never confirmed. Honour that — it is strictly better evidence
+           than the code we would otherwise have mailed. */
+        if (!acc.email_verified_at) {
+          await db.from('accounts')
+            .update({ email_verified_at: new Date().toISOString(), status: acc.status === 'pending' ? 'active' : acc.status })
+            .eq('id', acc.id)
+          acc.email_verified_at = new Date().toISOString()
+          if (acc.status === 'pending') acc.status = 'active'
+        }
+        return json({ user: sessionOf(acc), token: await mintToken(acc) })
+      }
+
+      /* Unknown address. Hand back a ticket that says "Google vouched for
+         this email", valid for ten minutes, and ask for a barangay. */
+      const b64url = (s: string) =>
+        btoa(String.fromCharCode(...new TextEncoder().encode(s)))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+      const exp = Date.now() + CODE_TTL_MIN * 60_000
+      const emailB64 = b64url(profile.email)
+      const nameB64 = b64url(profile.name)
+      const sig = await hmacHex(SECRET, `${exp}.${emailB64}.${nameB64}`)
+
+      return json({
+        needsBarangay: true,
+        ticket: `${exp}.${emailB64}.${nameB64}.${sig}`,
+        email: profile.email,
+        fullName: profile.name,
+        picture: profile.picture,
+        expiresInMinutes: CODE_TTL_MIN,
+      })
     }
 
     /* ── Register ────────────────────────────────────────────────────── */

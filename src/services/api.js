@@ -85,6 +85,31 @@ export const authApi = {
   },
 
   /**
+   * Sign in with a Google credential.
+   *
+   * Resolves to { user } when the address is already an account, or to
+   * { needsBarangay: true, ticket, email, fullName } when it is not — Google
+   * cannot tell us which barangay someone lives in, and this system cannot
+   * serve an account without one.
+   *
+   * The session is only started in the first case; the second is not yet an
+   * account.
+   */
+  async googleSignIn(credential) {
+    const res = await otp.googleSignIn(credential)
+    if (res?.needsBarangay) return res
+    startSession(res.user, res.token)
+    return { user: res.user }
+  },
+
+  /** Finish a first-time Google sign-up with the barangay they chose. */
+  async completeGoogleSignUp(ticket, barangay) {
+    const res = await otp.completeGoogleSignUp(ticket, barangay)
+    startSession(res.user, res.token)
+    return { user: res.user, created: res.created }
+  },
+
+  /**
    * Create a resident account. Resolves to { pending: true, email } — the
    * account exists but cannot sign in until verifyEmail() succeeds.
    *

@@ -1,0 +1,141 @@
+/* ============================================================
+   The barangay step that finishes a Google sign-up.
+
+   Deliberately a light card on the dark auth screen: this is the one moment
+   in the flow where the person has to read a question and answer it, and
+   pulling it visually out of the login background is what makes it read as a
+   step rather than another field on the form behind it.
+   ============================================================ */
+
+.gbs-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(10, 12, 20, 0.62);
+  backdrop-filter: blur(3px);
+}
+
+.gbs-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 26px 24px 20px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.gbs-title {
+  margin: 0 0 6px;
+  font-size: 1.22rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.gbs-sub {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary, #5a5a5a);
+  /* A long Google address must wrap rather than widen the card. */
+  overflow-wrap: anywhere;
+}
+
+/* Says WHY the question is being asked. People abandon a sign-up that demands
+   their location without a reason, and this reason is a good one. */
+.gbs-why {
+  margin: 0 0 18px;
+  padding: 11px 13px;
+  border-radius: 9px;
+  border-left: 3px solid var(--cdrrmo-red, #c0181b);
+  background: #fef2f2;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #7f1d1d;
+}
+
+.gbs-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #5a5a5a);
+}
+
+.gbs-field select {
+  width: 100%;
+  box-sizing: border-box;
+  /* 16px: anything smaller and iOS Safari zooms the page on focus and never
+     zooms back. Same floor as every other field in the product. */
+  font-size: 1rem;
+  font-family: inherit;
+  padding: 11px 12px;
+  min-height: 44px;
+  color: var(--color-text-primary, #1a1a1a);
+  background: #fff;
+  border: 1.5px solid var(--color-border, #d8d8d8);
+  border-radius: 9px;
+}
+.gbs-field select:focus {
+  outline: none;
+  border-color: var(--cdrrmo-navy, #1a2a4a);
+  box-shadow: 0 0 0 3px rgba(26, 42, 74, 0.13);
+}
+
+.gbs-error {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.gbs-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.gbs-cancel,
+.gbs-go {
+  flex: 1;
+  min-height: 44px;
+  padding: 11px 14px;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.gbs-cancel {
+  border: 1.5px solid var(--color-border, #d8d8d8);
+  background: #fff;
+  color: var(--color-text-secondary, #5a5a5a);
+}
+.gbs-cancel:hover:not(:disabled) { background: #f5f5f5; }
+
+.gbs-go {
+  border: none;
+  background: var(--cdrrmo-red, #c0181b);
+  color: #fff;
+}
+.gbs-go:hover:not(:disabled) { background: #9d1417; }
+.gbs-go:disabled,
+.gbs-cancel:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.gbs-note {
+  margin: 14px 0 0;
+  font-size: 0.72rem;
+  text-align: center;
+  color: var(--color-text-secondary, #5a5a5a);
+}
+
+@media (max-width: 420px) {
+  .gbs-actions { flex-direction: column-reverse; }
+}

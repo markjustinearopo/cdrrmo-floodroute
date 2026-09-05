@@ -228,3 +228,37 @@ export async function forgetDevice() {
     try { await call('forget-device', { deviceToken: token }) } catch { /* local clear is what matters */ }
   }
 }
+
+/* ── Sign in with Google ──────────────────────────────────────────────────
+   The browser's half is deliberately thin: it hands the credential Google
+   produced straight to the Edge Function and believes nothing about it. All
+   the checking that matters — signature, issuer, audience, expiry,
+   email_verified — happens server-side in functions/auth-otp/google.ts,
+   because anything verified here could simply be skipped by a caller who
+   opened the console.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Step 1 — exchange a Google credential for a session.
+ *
+ * Resolves to either:
+ *   { user, token }                        known account, signed in
+ *   { needsBarangay: true, ticket, email, fullName, picture }
+ *                                          first time here; the ticket is an
+ *                                          HMAC-signed, ten-minute assertion
+ *                                          that Google vouched for `email`.
+ *                                          Pass it to completeGoogleSignUp.
+ */
+export async function googleSignIn(credential) {
+  return call('google', { credential })
+}
+
+/**
+ * Step 2 — finish a first-time Google sign-up by naming a barangay.
+ *
+ * The email is NOT sent again: it is read out of the signed ticket server-side.
+ * A client that could name its own address here could register as anybody.
+ */
+export async function completeGoogleSignUp(ticket, barangay) {
+  return call('google-complete', { ticket, barangay })
+}

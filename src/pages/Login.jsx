@@ -13,6 +13,8 @@ import CodeVerification from '../components/auth/CodeVerification.jsx'
 import LanguageToggle from '../components/LanguageToggle.jsx'
 import PasswordReset from '../components/auth/PasswordReset.jsx'
 import api, { authApi, getRoleForRedirect } from '../services/api.js'
+import GoogleSignInButton from '../components/GoogleSignInButton.jsx'
+import GoogleBarangayStep from '../components/GoogleBarangayStep.jsx'
 import { OFFICIAL_BRGY_KEY } from '../data/barangay.js'
 import './auth.css'
 import './Login.css'
@@ -61,6 +63,11 @@ export default function Login() {
   const [role, setRole] = useState('admin')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  /* Google sign-in. `googleSignup` holds the signed ten-minute ticket for a
+     first-time resident who still has to name a barangay; null the rest of
+     the time. */
+  const [googleBusy, setGoogleBusy] = useState(false)
+  const [googleSignup, setGoogleSignup] = useState(null)
 
   // form fields
   const [adminId, setAdminId] = useState('')
@@ -183,6 +190,48 @@ export default function Login() {
       localStorage.setItem(OFFICIAL_BRGY_KEY, user.barangay)
     }
     navigate(getRoleForRedirect(user.role))
+  }
+
+  /**
+   * Google handed back a credential.
+   *
+   * Two outcomes. A known address signs straight in — no code, no password,
+   * because Google has already proven the address and that is stronger
+   * evidence than anything this office can currently mail. An unknown one
+   * comes back needing a barangay, because Google can say who someone is but
+   * never where they live, and every scope in this system — RLS, alert
+   * targeting, their own map — is keyed to a barangay.
+   */
+  async function handleGoogle(credential) {
+    setError('')
+    setGoogleBusy(true)
+    try {
+      const res = await authApi.googleSignIn(credential)
+      if (res?.needsBarangay) {
+        setGoogleSignup({ ticket: res.ticket, email: res.email, fullName: res.fullName })
+        return
+      }
+      if (res?.user) finishLogin(res.user, 'resident')
+    } catch (err) {
+      setError(err.message || 'That Google sign-in did not work. Try your email and password.')
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
+
+  /** First-time Google resident: they picked a barangay, create the account. */
+  async function handleGoogleBarangay(barangay) {
+    setError('')
+    setGoogleBusy(true)
+    try {
+      const res = await authApi.completeGoogleSignUp(googleSignup.ticket, barangay)
+      setGoogleSignup(null)
+      if (res?.user) finishLogin(res.user, 'resident')
+    } catch (err) {
+      setError(err.message || 'Could not finish creating your account.')
+    } finally {
+      setGoogleBusy(false)
+    }
   }
 
   /** Second factor: the emailed code, plus the optional trusted-device tick. */
@@ -388,6 +437,18 @@ export default function Login() {
                   </span>
                 </label>
                 <LoginButton submitting={submitting} />
+
+                {/* Residents only. Staff and barangay officials are issued
+                    accounts by CDRRMO against a Staff ID, so letting a Google
+                    address into those panels would be a second, unmanaged way
+                    into a privileged account. Renders nothing at all unless
+                    VITE_GOOGLE_CLIENT_ID is set. */}
+                <GoogleSignInButton
+                  disabled={submitting || googleBusy}
+                  onCredential={handleGoogle}
+                  onError={setError}
+                />
+
                 <div className="card-footer mt-4">
                   <p className="footer-link">
                     Don't have an account? <Link to="/register">Sign up</Link>
@@ -434,6 +495,19 @@ export default function Login() {
           )}
         </div>
       </div>
+
+      {/* First-time Google resident: the one thing Google cannot tell us. */}
+      {googleSignup && (
+        <GoogleBarangayStep
+          email={googleSignup.email}
+          fullName={googleSignup.fullName}
+          barangays={BARANGAYS}
+          busy={googleBusy}
+          error={error}
+          onSubmit={handleGoogleBarangay}
+          onCancel={() => { setGoogleSignup(null); setError('') }}
+        />
+      )}
 
       {/* ── Popups ── */}
       {modal === 'legal' && (

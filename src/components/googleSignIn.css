@@ -1,0 +1,90 @@
+/* ============================================================
+   Sign in with Google — layout only.
+
+   The button itself is drawn by Google inside an iframe and cannot be
+   restyled; these rules position it and give it a divider that matches the
+   auth screens. Anything trying to recolour the button would be both futile
+   and against Google's brand terms.
+   ============================================================ */
+
+.gsi-wrap {
+  position: relative;
+  margin-top: 18px;
+}
+
+/* "or" with a rule through it, separating the password form from the Google
+   button so neither reads as a caption for the other. */
+.gsi-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.gsi-divider::before,
+.gsi-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.gsi-host {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px; /* holds the row open while Google's script loads */
+}
+
+/* Google's button tops out at 40px (`size: 'large'`), which is its own
+   accessible size and fine with a mouse — but this project committed to a
+   measured 44px minimum on phones, and a government warning app is exactly
+   where a wet thumb needs the larger target.
+   Google renders into markup we may not restyle, so the button is scaled
+   rather than re-sized: 40 × 1.1 = 44. Applied only below the mobile
+   breakpoint, so the desktop button stays pixel-crisp at its native size. */
+@media (max-width: 760px) {
+  .gsi-host > div {
+    transform: scale(1.1);
+    transform-origin: center;
+  }
+  .gsi-host {
+    min-height: 48px; /* room for the scaled button plus its shadow */
+  }
+}
+
+/* Blocks a second click while the first credential is still being exchanged.
+   Google's iframe ignores pointer-events on its container, so this sits over
+   the top rather than trying to disable it. */
+.gsi-block {
+  position: absolute;
+  inset: 0;
+  cursor: progress;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 22px;
+}
+
+.gsi-error {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #fca5a5;
+  text-align: center;
+}
+
+/* On the light-background registration card the divider needs dark ink.
+   Scoped to a parent the auth screens set, rather than guessed from context. */
+.reg-card .gsi-divider,
+.light-auth .gsi-divider {
+  color: var(--color-text-secondary, #5a5a5a);
+}
+.reg-card .gsi-divider::before,
+.reg-card .gsi-divider::after,
+.light-auth .gsi-divider::before,
+.light-auth .gsi-divider::after {
+  background: var(--color-border, #d8d8d8);
+}
