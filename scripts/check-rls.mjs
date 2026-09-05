@@ -22,7 +22,7 @@
            node scripts/check-rls.mjs accounts    (just one table)
    ============================================================================ */
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -39,10 +39,32 @@ const RED = '\x1b[31m', GREEN = '\x1b[32m', YELLOW = '\x1b[33m', DIM = '\x1b[2m'
 const BOLD = '\x1b[1m', RESET = '\x1b[0m'
 
 /* ── Get a real signed session for each role (Phase 1's actual login path) ── */
+/* Taken from credentials/roster.json, not spelled out here.
+
+   Two reasons. The obvious one: a tracked file in a public repository must not
+   list working passwords — that is the mistake this project already made once.
+   The one that actually bit: these used to be literals (testadmin / Test@1234),
+   and when the account roster was replaced on 2026-09-05 those accounts stopped
+   existing. This harness then failed at the first login, so the safety net for
+   the entire access-control model was down and said so only if you ran it.
+   Reading the roster means renaming the test accounts can never silently
+   disarm the check again. */
+const ROSTER_PATH = join(ROOT, 'credentials', 'roster.json')
+if (!existsSync(ROSTER_PATH)) {
+  console.error('\ncredentials/roster.json is missing — run scripts/make-official-accounts.mjs first.')
+  console.error('This harness signs in as a real account per role; it cannot run without them.\n')
+  process.exit(1)
+}
+const roster = JSON.parse(readFileSync(ROSTER_PATH, 'utf8')).accounts
+const pick = (id) => {
+  const a = roster.find((x) => x.id === id)
+  if (!a) throw new Error(`roster.json has no account "${id}" — check-rls needs one test login per role`)
+  return [a.id, a.password]
+}
 const TEST_ACCOUNTS = {
-  admin: ['testadmin', 'Test@1234'],
-  barangay: ['testbarangay', 'Test@1234'],
-  resident: ['testresident@cdrrmo.test', 'Test@1234'],
+  admin: pick('TEST-ADMIN-1'),
+  barangay: pick('TEST-BRGY-1'),
+  resident: pick('testres1@cdrrmo.test'),
 }
 
 async function login(identifier, password) {
@@ -55,13 +77,17 @@ async function login(identifier, password) {
   if (!res.ok || !data?.token) {
     throw new Error(`login failed for ${identifier}: ${res.status} ${JSON.stringify(data)}`)
   }
-  return data.token
+  return { token: data.token, accountId: data.user?.id ?? null }
 }
 
 async function buildSessions() {
   const sessions = { anon: ANON }
   for (const [role, [id, pw]] of Object.entries(TEST_ACCOUNTS)) {
-    sessions[role] = await login(id, pw)
+    const { token, accountId } = await login(id, pw)
+    sessions[role] = token
+    // Filled in from the sign-in itself, so "the caller's own row" is always
+    // the row that caller actually signed in as. See KNOWN_ID below.
+    KNOWN_ID[role] = accountId
   }
   return sessions
 }
@@ -119,7 +145,16 @@ function readAllowed(res, expectRows) {
    actually deletes or takes over testadmin/testbarangay/testresident, which
    this whole session's verification depends on. Do not "strengthen" these
    by pointing them at real other accounts. ─────────────────────────────── */
-const KNOWN_ID = { admin: 182, barangay: 183, resident: 184 }
+/* Populated by buildSessions() from each role's own sign-in response, NOT
+   hardcoded. It used to read { admin: 182, barangay: 183, resident: 184 },
+   the row ids of test accounts that ceased to exist on 2026-09-05. Every
+   assertion aimed at "the caller's own row" would then have targeted a row id
+   matching nothing — and PostgREST answers a filter that matches no row with
+   200 and an empty array, which this harness correctly scores as "not
+   allowed". Every deny-assertion would have PASSED for the wrong reason, and
+   the suite would have reported a clean access-control model while testing
+   nothing at all. Read the ids from the sessions and that cannot recur. */
+const KNOWN_ID = { admin: null, barangay: null, resident: null }
 const NO_SUCH_ID = -999999
 const KNOWN_CENTER = { own: 25, other: 17 } // Baclaran (testbarangay's own) / Poblacion Tres
 
@@ -137,22 +172,60 @@ const KNOWN_CENTER = { own: 25, other: 17 } // Baclaran (testbarangay's own) / P
    people learn to ignore, which is worse than not having one. Resolved live
    below; if nothing suitable exists the affected assertions are skipped and
    say so, rather than failing. */
-const FIXTURES = { alertId: null, ownBrgyAlertId: null, otherBrgyAlertId: null }
+const FIXTURES = {
+  alertId: null, ownBrgyAlertId: null, otherBrgyAlertId: null,
+  ownPrefsKey: null, otherPrefsKey: null,
+  currentName: { admin: null, barangay: null, resident: null },
+}
 
 async function resolveFixtures(token) {
   const rows = await call(token, 'GET', 'alerts?select=id,barangays&order=id.desc&limit=60')
   const list = Array.isArray(rows.json) ? rows.json : []
-  if (!list.length) return
+  if (list.length) {
+    const inBrgy = (a, name) => Array.isArray(a.barangays) && a.barangays.includes(name)
 
-  const inBrgy = (a, name) => Array.isArray(a.barangays) && a.barangays.includes(name)
+    FIXTURES.alertId = list[0].id
+    FIXTURES.ownBrgyAlertId = list.find((a) => inBrgy(a, 'Baclaran'))?.id ?? null
+    FIXTURES.otherBrgyAlertId =
+      list.find((a) => Array.isArray(a.barangays)
+        && a.barangays.length
+        && !a.barangays.includes('Baclaran')
+        && !a.barangays.includes('All Barangays'))?.id ?? null
+  }
 
-  FIXTURES.alertId = list[0].id
-  FIXTURES.ownBrgyAlertId = list.find((a) => inBrgy(a, 'Baclaran'))?.id ?? null
-  FIXTURES.otherBrgyAlertId =
-    list.find((a) => Array.isArray(a.barangays)
-      && a.barangays.length
-      && !a.barangays.includes('Baclaran')
-      && !a.barangays.includes('All Barangays'))?.id ?? null
+  /* user_prefs keys, resolved the same way and for the same reason.
+
+     These two assertions used to point at `user_prefs:<admin id>` on the
+     assumption that the test admin had one. A user_prefs row is only written
+     when somebody opens the Preferences modal and saves, so a freshly created
+     test admin has none — and then BOTH assertions read a key that matches no
+     row. The allow-assertion failed (correctly reported), and the
+     deny-assertion PASSED while proving nothing, because "no such row" and
+     "policy refused you" are the same empty 200 from PostgREST.
+
+     So: use keys that demonstrably exist. Skip if there are none. */
+  const prefs = await call(token, 'GET', 'app_settings?select=key&key=like.user_prefs:*&limit=50')
+  const keys = (Array.isArray(prefs.json) ? prefs.json : []).map((r) => r.key)
+  FIXTURES.ownPrefsKey = keys.find((k) => k === `user_prefs:${KNOWN_ID.admin}`) ?? null
+  FIXTURES.otherPrefsKey = keys.find((k) => k !== `user_prefs:${KNOWN_ID.resident}`) ?? null
+
+  /* The current names of the three test accounts, so the "no-op value"
+     assertions can write a row's OWN value back.
+
+     They used to write the literal 'Test Admin' / 'Test Barangay Official' /
+     'Test Resident', which was a no-op only because those happened to be the
+     names of the accounts at the time. When the roster was replaced the admin
+     became 'Test Admin 1' and the assertion silently RENAMED it on every run —
+     a security check quietly corrupting the data it tests against, which then
+     showed up as a spurious failure in verify-official-accounts.mjs. Writing
+     the value already in the row makes "no-op" true by construction. */
+  const names = await call(token, 'GET',
+    `accounts?select=id,full_name&id=in.(${[KNOWN_ID.admin, KNOWN_ID.barangay, KNOWN_ID.resident].join(',')})`)
+  for (const row of (Array.isArray(names.json) ? names.json : [])) {
+    for (const role of ['admin', 'barangay', 'resident']) {
+      if (row.id === KNOWN_ID[role]) FIXTURES.currentName[role] = row.full_name
+    }
+  }
 }
 
 const ASSERTIONS = {
@@ -175,15 +248,15 @@ const ASSERTIONS = {
 
     // UPDATE — the finding this migration exists to close
     { op: 'UPDATE (own row, name only)', role: 'resident', expect: false,
-      run: (t) => call(t, 'PATCH', `accounts?id=eq.${KNOWN_ID.resident}&select=id`, { full_name: 'Test Resident' }) },
+      run: (t) => call(t, 'PATCH', `accounts?id=eq.${KNOWN_ID.resident}&select=id`, { full_name: FIXTURES.currentName.resident }) },
     { op: 'UPDATE (self-promote to admin)', role: 'resident', expect: false,
       run: (t) => call(t, 'PATCH', `accounts?id=eq.${KNOWN_ID.resident}&select=id`, { role: 'admin' }) },
     { op: 'UPDATE (nonexistent row — policy shape only)', role: 'resident', expect: false,
       run: (t) => call(t, 'PATCH', `accounts?id=eq.${NO_SUCH_ID}&select=id`, { role: 'admin' }) },
     { op: 'UPDATE (own row)', role: 'barangay', expect: false,
-      run: (t) => call(t, 'PATCH', `accounts?id=eq.${KNOWN_ID.barangay}&select=id`, { full_name: 'Test Barangay Official' }) },
+      run: (t) => call(t, 'PATCH', `accounts?id=eq.${KNOWN_ID.barangay}&select=id`, { full_name: FIXTURES.currentName.barangay }) },
     { op: 'UPDATE (own row, no-op value)', role: 'admin', expect: true,
-      run: (t) => call(t, 'PATCH', `accounts?id=eq.${KNOWN_ID.admin}&select=id`, { full_name: 'Test Admin' }) },
+      run: (t) => call(t, 'PATCH', `accounts?id=eq.${KNOWN_ID.admin}&select=id`, { full_name: FIXTURES.currentName.admin }) },
 
     // INSERT / DELETE
     { op: 'INSERT', role: 'resident', expect: false,
@@ -369,9 +442,11 @@ const ASSERTIONS = {
     { op: 'SELECT alert_settings', role: 'anon', expect: false,
       run: (t) => call(t, 'GET', 'app_settings?select=key&key=eq.alert_settings') },
     { op: 'SELECT own user_prefs', role: 'admin', expect: true,
-      run: (t) => call(t, 'GET', `app_settings?select=key&key=eq.user_prefs:${KNOWN_ID.admin}`) },
+      skipIf: () => !FIXTURES.ownPrefsKey,
+      run: (t) => call(t, 'GET', `app_settings?select=key&key=eq.${FIXTURES.ownPrefsKey}`) },
     { op: 'SELECT someone else\'s user_prefs', role: 'resident', expect: false,
-      run: (t) => call(t, 'GET', `app_settings?select=key&key=eq.user_prefs:${KNOWN_ID.admin}`) },
+      skipIf: () => !FIXTURES.otherPrefsKey,
+      run: (t) => call(t, 'GET', `app_settings?select=key&key=eq.${FIXTURES.otherPrefsKey}`) },
     { op: 'UPDATE alert_settings', role: 'resident', expect: false,
       run: (t) => call(t, 'PATCH', 'app_settings?key=eq.alert_settings&select=key', { updated_at: new Date().toISOString() }) },
   ],
@@ -430,13 +505,15 @@ async function runTable(table, sessions) {
 }
 
 console.log(`${BOLD}RLS verification matrix${RESET} — ${URL_}`)
-console.log(`${DIM}Logging in as testadmin / testbarangay / testresident for real session tokens...${RESET}`)
+console.log(`${DIM}Logging in as ${Object.values(TEST_ACCOUNTS).map(([id]) => id).join(' / ')} for real session tokens...${RESET}`)
 
 const sessions = await buildSessions()
 console.log(`${GREEN}Got tokens for: ${Object.keys(sessions).join(', ')}${RESET}`)
+console.log(`${DIM}Account ids: admin #${KNOWN_ID.admin}, barangay #${KNOWN_ID.barangay}, resident #${KNOWN_ID.resident}${RESET}`)
 
 await resolveFixtures(sessions.admin)
 console.log(`${DIM}Fixtures from live data — alert #${FIXTURES.alertId ?? 'none'}, own-barangay #${FIXTURES.ownBrgyAlertId ?? 'none'}, other-barangay #${FIXTURES.otherBrgyAlertId ?? 'none'}${RESET}`)
+console.log(`${DIM}Prefs keys — own ${FIXTURES.ownPrefsKey ?? 'none'}, other ${FIXTURES.otherPrefsKey ?? 'none'}${RESET}`)
 
 const requested = process.argv[2] ? [process.argv[2]] : Object.keys(ASSERTIONS)
 let totalPass = 0, totalFail = 0, anyUnknown = false

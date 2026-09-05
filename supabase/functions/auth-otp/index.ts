@@ -404,6 +404,22 @@ function sessionOf(acc: any) {
     fullName: acc.full_name,
     avatar: acc.avatar,
     status: acc.status,
+    /* Carries the first-login state to the browser.
+
+       components/FirstLoginPasswordPrompt.jsx renders only when
+       `user.mustChangePassword` is true, and it reads that off the session
+       this function builds. It was missing here, so the prompt could not fire
+       for anyone: sign-in moved from the app_login RPC — which did return the
+       flag — to this Edge Function, and the payload was rebuilt field by field
+       without it. Every official handed a temporary password went straight to
+       the dashboard and was never asked to replace it, while the database
+       correctly said must_change_password = true. The flag was set, read by
+       nobody.
+
+       snake_case in the row, camelCase in the session, like fullName above.
+       `?? false` because accounts created by Google sign-in have never had the
+       column written and come back null, which must not read as "prompt me". */
+    mustChangePassword: acc.must_change_password ?? false,
   }
 }
 
