@@ -31,3 +31,8 @@ CDRRMO_Data_Entry_Form.xlsx
 CDRRMO_Data_Gathering_Checklist.xlsx
 CDRRMO_Evaluation_Questionnaire.docx
 CDRRMO_Test_Cases.docx
+
+# The [identifier, password] pairs that were published in the public repo,
+# read by scripts/check-leaked-credentials.mjs. They used to be a literal array
+# inside that script, which made it the very thing it was written to detect.
+credentials/published-credentials.json
