@@ -18,3 +18,8 @@ backups/
 # Scratch backup written by scripts/enrich-road-names.mjs before it rewrites
 # the road network. Regenerable, ~840 KB, and never the source of truth.
 src/data/.roads.bak.json
+
+# Generated login sheets (scripts/make-official-accounts.mjs). These carry
+# officials' temporary passwords and this repository is PUBLIC — committing
+# one repeats the 2026-08-31 leak. Never remove this line.
+credentials/
