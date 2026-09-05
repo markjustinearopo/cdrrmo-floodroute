@@ -97,7 +97,7 @@ export default function AlertsTab({ onToast, onGoToTab }) {
         {/* Delivery channels */}
         <Panel icon={<SendIcon />} title="Delivery Channels" sub="Where alerts are broadcast">
           <div className="set-toggles">
-            <Toggle label="Email" sub="Send alert emails to staff and registered contacts via Supabase + Resend." checked={cfg.email} onChange={(v) => set('email', v)} />
+            <Toggle label="Email" sub="Emails the alert to CDRRMO, the barangay official, and that barangay’s registered residents. Free — no per-message cost, unlike SMS." checked={cfg.email} onChange={(v) => set('email', v)} />
             <Toggle
               label="Emergency SMS to residents"
               sub="Text every resident who has confirmed a mobile number for the affected barangay. Emergencies only."

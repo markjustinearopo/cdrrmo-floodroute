@@ -3,7 +3,10 @@
 
    WHY THIS EXISTS
    Raising an alert is not one action, it is several: write the record, email
-   the staff, text the residents. Those were spread across the four screens that
+   everyone the alert concerns, text the residents who opted in. (Email was
+   staff-only until SMS turned out to cost money this office does not have;
+   it now reaches CDRRMO, the barangay official and the barangay's registered
+   residents — see send-alert-email.) Those were spread across the four screens that
    can raise one — the admin Alerts page, the admin Dashboard, the barangay
    Alerts page and the automatic threshold watcher — and they had already
    drifted apart. Issuing a HIGH alert from the Dashboard emailed nobody,
@@ -97,7 +100,26 @@ export function describeDispatch(result) {
   }
   const email = result.email
   if (email && !email.skipped) {
-    if (typeof email.sent === 'number') parts.push(`${email.sent} email${email.sent === 1 ? '' : 's'} sent`)
+    if (typeof email.sent === 'number') {
+      /* Same rule the SMS branch follows: never let a count read as "people
+         were warned" when no provider is configured. The function returns
+         simulated:true in that case and this is where it has to show. */
+      if (email.simulated) {
+        parts.push(`${email.sent} email${email.sent === 1 ? '' : 's'} simulated (no provider key)`)
+      } else {
+        /* Broken down because the three audiences fail differently: a resident
+           count of 0 on a barangay alert means nobody there registered an
+           address, which is a recruitment problem, not an outage. */
+        const who = []
+        if (email.staff) who.push(`${email.staff} CDRRMO`)
+        if (email.officials) who.push(`${email.officials} barangay`)
+        if (email.residents) who.push(`${email.residents} resident${email.residents === 1 ? '' : 's'}`)
+        parts.push(`${email.sent} email${email.sent === 1 ? '' : 's'} sent${who.length ? ` (${who.join(', ')})` : ''}`)
+      }
+    }
+  } else if (email?.reason === 'no-audience') {
+    // Distinct from 'email channel off' — a different switch fixes it.
+    parts.push('email sent to NOBODY — both audiences are off in Alert Settings')
   } else if (email?.skipped && !email.blockedByDrill) {
     parts.push('email channel off')
   }
