@@ -168,7 +168,14 @@ async function sendCodeEmail(to: string, name: string, purpose: string, code: st
              owner. Until then it rejects, and issueCode falls through to SMS.
      brevo   needs no domain: for a free sender address it substitutes a
              compliant one of its own, so codes reach strangers today. */
-  if (BREVO_KEY && !RESEND_KEY) {
+  /* EMAIL_PROVIDER is honoured here exactly as it is in send-alert-email, so
+     the two never disagree about who is sending. It matters more than it
+     looks: both keys can be set at once, and then "which one is actually
+     used?" is not answerable by looking at the secrets list. Setting
+     EMAIL_PROVIDER=brevo switches BOTH functions in one move. */
+  const forced = (Deno.env.get('EMAIL_PROVIDER') || '').toLowerCase()
+  const useBrevo = BREVO_KEY && (forced === 'brevo' || !RESEND_KEY)
+  if (useBrevo) {
     const m = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/)
     const sender = m
       ? { name: m[1] || 'CDRRMO FloodRoute', email: m[2] }

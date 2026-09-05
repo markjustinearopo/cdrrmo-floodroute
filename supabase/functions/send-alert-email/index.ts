@@ -243,10 +243,20 @@ serve(async (req) => {
 
   // Which provider is live — answered without ever revealing a key.
   if (action === 'config') {
+    /* Both keys set is the trap: adding the second one looks like it should
+       help and changes nothing, because only one can win. Say so out loud —
+       "I set the Brevo key and email still doesn't work" is otherwise an
+       invisible failure with no error anywhere to read. */
+    const both = Boolean(Deno.env.get('RESEND_API_KEY') && Deno.env.get('BREVO_API_KEY'))
+    const forced = (Deno.env.get('EMAIL_PROVIDER') || '').toLowerCase()
     return json({
       provider,
       configured: provider !== 'simulation',
       from,
+      chosenBy: forced ? `EMAIL_PROVIDER=${forced}` : 'auto-detected',
+      warning: both && !forced
+        ? `RESEND_API_KEY and BREVO_API_KEY are BOTH set; "${provider}" won by auto-detection and the other key is doing nothing. Set EMAIL_PROVIDER to say which you mean.`
+        : undefined,
       note: provider === 'simulation'
         ? 'No RESEND_API_KEY or BREVO_API_KEY set. Alerts are counted but not delivered.'
         : provider === 'resend'
