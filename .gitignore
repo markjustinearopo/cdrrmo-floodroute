@@ -23,3 +23,11 @@ src/data/.roads.bak.json
 # officials' temporary passwords and this repository is PUBLIC — committing
 # one repeats the 2026-08-31 leak. Never remove this line.
 credentials/
+
+# Thesis paperwork (data-gathering forms, evaluation questionnaire, test cases).
+# They live in this folder because that is where the work happens, but they are
+# not part of the system and this repository is public. Kept on disk, untracked.
+CDRRMO_Data_Entry_Form.xlsx
+CDRRMO_Data_Gathering_Checklist.xlsx
+CDRRMO_Evaluation_Questionnaire.docx
+CDRRMO_Test_Cases.docx
