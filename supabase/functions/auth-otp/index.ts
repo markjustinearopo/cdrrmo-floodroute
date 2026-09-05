@@ -24,13 +24,21 @@
    the hard way: the Resend account has no verified sending domain, so it can
    physically only mail the developer's own address, and every resident who
    registered was left at status='pending' with a correct password and no way
-   in. So a code now goes out over whichever channel can actually carry it —
-   SMS first when the resident gave a mobile number, email otherwise — and when
+   in. So a code goes out over whichever channel can actually carry it —
+   EMAIL first, SMS as the backup when a mobile number was given — and when
    NEITHER can deliver, the account is activated rather than stranded, plainly
    labelled as unverified for the operator to see. See issueCode().
 
+   Email is first because that is what someone registering with an email
+   address expects, and because the fallback is real: Resend REJECTS a send to
+   a non-owner address while the domain is unverified, sendCodeEmail throws on
+   that, and issueCode moves straight on to SMS. Nothing is locked out by the
+   preference; at worst the code arrives by the other route.
+
    Deploy:  npx supabase functions deploy auth-otp
-   Secrets: RESEND_API_KEY (already set for send-alert-email)
+   Secrets: RESEND_API_KEY or BREVO_API_KEY — whichever is set carries the
+            codes. Same pair and precedence as send-alert-email, so one key
+            fixes alert emails AND verification codes rather than only one.
             AUTH_OTP_SECRET (optional; falls back to the service-role key)
             SESSION_JWT_SECRET (required for sign-in — see mintToken() below;
             this is the project's own Legacy JWT Secret from Settings > API,
@@ -124,7 +132,10 @@ const PURPOSE_COPY: Record<string, { subject: string; heading: string; blurb: st
 
 async function sendCodeEmail(to: string, name: string, purpose: string, code: string) {
   const RESEND_KEY = Deno.env.get('RESEND_API_KEY')
-  if (!RESEND_KEY) throw new Error('Email is not configured on the server (RESEND_API_KEY missing).')
+  const BREVO_KEY = Deno.env.get('BREVO_API_KEY')
+  if (!RESEND_KEY && !BREVO_KEY) {
+    throw new Error('Email is not configured on the server (set RESEND_API_KEY or BREVO_API_KEY).')
+  }
   const copy = PURPOSE_COPY[purpose] ?? PURPOSE_COPY.verify_email
   const from = Deno.env.get('AUTH_OTP_FROM') || 'CDRRMO FloodRoute <onboarding@resend.dev>'
 
@@ -147,6 +158,34 @@ async function sendCodeEmail(to: string, name: string, purpose: string, code: st
         </p>
       </div>
     </div>`
+
+  /* Two providers, auto-detected — the same pair and the same precedence
+     send-alert-email uses, so ONE key fixes both the alert emails and the
+     verification codes. They were separate before, which meant fixing alert
+     delivery would have silently left every signup code still undeliverable.
+
+     resend  needs a verified DOMAIN before it will mail anyone but the account
+             owner. Until then it rejects, and issueCode falls through to SMS.
+     brevo   needs no domain: for a free sender address it substitutes a
+             compliant one of its own, so codes reach strangers today. */
+  if (BREVO_KEY && !RESEND_KEY) {
+    const m = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/)
+    const sender = m
+      ? { name: m[1] || 'CDRRMO FloodRoute', email: m[2] }
+      : { name: 'CDRRMO FloodRoute', email: from.trim() }
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': BREVO_KEY,
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({ sender, to: [{ email: to }], subject: copy.subject, htmlContent: html }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.message ?? `Brevo refused the code email (HTTP ${res.status}).`)
+    return data.messageId
+  }
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -268,13 +307,28 @@ async function issueCode(db: any, opts: {
   }).select('id').single()
   if (error) throw new Error(error.message)
 
-  /* SMS first when we have a number. In Cabuyao a text arrives on the phone
-     already in the reader's hand; an email arrives on an account they may only
-     check from a shared computer. It is also the channel that currently works.
-     Email is the fallback, not the default. */
+  /* EMAIL FIRST, SMS as the backup.
+
+     This used to be the other way round, and the reasoning then was sound: a
+     text lands on the phone already in the reader's hand, and SMS was the only
+     channel that actually worked. But it made signing up feel like it demanded
+     a mobile number, which is not the deal — the number is optional, and a
+     resident registering with an email address expects the code to arrive
+     there.
+
+     The order is safe to flip because the fallback is real, not theoretical.
+     Resend REJECTS a send to any address other than the account owner's while
+     the sending domain is unverified, and sendCodeEmail throws on that
+     rejection — so a real resident's registration falls through to SMS
+     automatically, and if neither channel can carry it the caller activates
+     the account rather than stranding them. Nobody is locked out by this
+     preference; at worst the code arrives by the other route.
+
+     When a verified sending domain (or BREVO_API_KEY) is in place, email
+     simply starts succeeding and SMS stops being reached at all. */
   const phone = opts.phone ? normalisePH(opts.phone) : null
   const failures: string[] = []
-  for (const channel of phone ? ['sms', 'email'] : ['email']) {
+  for (const channel of phone ? ['email', 'sms'] : ['email']) {
     try {
       if (channel === 'sms') await sendCodeSms(phone!, opts.purpose, code)
       else await sendCodeEmail(opts.email, opts.name, opts.purpose, code)
