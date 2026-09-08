@@ -43,7 +43,6 @@ const BarangayEvacuation = lazy(() => import('./pages/barangay/Evacuation.jsx'))
 const BarangayOperations = lazy(() => import('./pages/barangay/Operations.jsx'))
 const ResidentDashboard = lazy(() => import('./pages/resident/Dashboard.jsx'))
 const ResidentFloodMap = lazy(() => import('./pages/resident/FloodMap.jsx'))
-const ResidentHazardLayer = lazy(() => import('./pages/resident/HazardLayer.jsx'))
 const ResidentRoadStatus = lazy(() => import('./pages/resident/RoadStatus.jsx'))
 const ResidentEvacuationRouting = lazy(() => import('./pages/resident/EvacuationRouting.jsx'))
 const ResidentAlerts = lazy(() => import('./pages/resident/Alerts.jsx'))
@@ -144,7 +143,9 @@ export default function App() {
       <Route element={<RequireAuth group="resident" />}>
         <Route path="/resident/dashboard" element={<ResidentDashboard />} />
         <Route path="/resident/flood-map" element={<ResidentFloodMap />} />
-        <Route path="/resident/hazard-layer" element={<ResidentHazardLayer />} />
+        {/* Hazard Layer was this map with three of its overlays; what was
+            unique to it is the Flood Map's Hazard tab now. */}
+        <Route path="/resident/hazard-layer" element={<Navigate to="/resident/flood-map" replace />} />
         <Route path="/resident/road-status" element={<ResidentRoadStatus />} />
         <Route path="/resident/flood-reports" element={<ResidentFloodReports />} />
         <Route path="/resident/evacuation-routing" element={<ResidentEvacuationRouting />} />

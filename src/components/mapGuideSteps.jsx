@@ -9,7 +9,6 @@
      barangayHazardSteps       Barangay · Flood Hazard Layers
      barangayRoutingSteps      Barangay · Evacuation Routing
      residentFloodMapSteps     Resident · Flood Map
-     residentHazardSteps       Resident · Flood Hazard Layers
      residentRoadStatusSteps   Resident · Road Status
 
    (Resident · Evacuation Routing keeps its own steps in
@@ -982,6 +981,21 @@ export const residentFloodMapSteps = [
     tip: 'Your report is one of the fastest ways CDRRMO learns a street has gone under. Send it even if you think someone else already did.',
   },
   {
+    key: 'hazard',
+    art: ArtStats,
+    title: 'The Hazard tab — your barangay in numbers',
+    tagalog: 'Ang tantiyang lalim ng tubig sa inyong barangay.',
+    body: (
+      <>
+        The panel beside the map has a <b>Hazard</b> tab. It shows your
+        barangay&apos;s level and the estimated water depth, what each colour
+        means in metres, how much of the city is at risk, and the river
+        discharge the estimate is built on.
+      </>
+    ),
+    tip: 'These are computer estimates, not measurements from a gauge. What you can see outside your door is always the better guide.',
+  },
+  {
     key: 'leave',
     art: ArtSolve,
     title: 'When it is time to leave',
@@ -995,54 +1009,6 @@ export const residentFloodMapSteps = [
       </>
     ),
     tip: 'That screen has its own step-by-step guide too, on the same "How to use" button.',
-  },
-]
-
-/* ── Resident · Flood Hazard Layers ─────────────────────────────────────── */
-
-export const residentHazardSteps = [
-  {
-    key: 'bands',
-    art: ArtHazardBands,
-    title: 'Which places flood the worst',
-    tagalog: 'Ipinapakita nito kung saang lugar pinakamalala kung bumaha.',
-    body: (
-      <>
-        This map shades the areas most likely to flood badly, in three levels —
-        low, medium and high. It is based on the shape of the land and on past
-        floods, so it stays about the same every day. It is not a picture of
-        today&apos;s weather.
-      </>
-    ),
-    tip: 'If your house sits in the dark band, plan where you will go before the rain starts — not during it.',
-  },
-  {
-    key: 'mine',
-    art: ArtStats,
-    title: 'Your barangay in numbers',
-    tagalog: 'Ang tantiyang lalim ng tubig sa inyong barangay.',
-    body: (
-      <>
-        The panel beside the map shows your barangay&apos;s level and the
-        estimated water depth, plus the citywide summary. The time of the last
-        update is written there so you can tell how fresh the reading is.
-      </>
-    ),
-    tip: 'These are computer estimates, not measurements from a gauge. What you can see outside your door is always the better guide.',
-  },
-  {
-    key: 'layers',
-    art: ArtLayerPanel,
-    title: 'Layers and how strong the colours are',
-    tagalog: 'Mga layer at kung gaano katingkad ang kulay.',
-    body: (
-      <>
-        <b>Map Layers</b> switches the shading and the barangay outlines on and
-        off. <b>Overlay Opacity</b> fades the colour so you can see the street
-        names underneath and recognise your own area.
-      </>
-    ),
-    tip: 'Fade the colour down first if you are trying to find a specific street.',
   },
 ]
 

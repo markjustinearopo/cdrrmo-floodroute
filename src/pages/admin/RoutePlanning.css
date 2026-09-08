@@ -14,6 +14,11 @@
 }
 
 /* ── Toolbar ── */
+/* ONE row, always. Wrapping only ever moved whole children down, so the moment
+   the buttons stopped fitting the toolbar doubled in height and the title sat
+   alone on a line of its own. Instead the caption — the only part that repeats
+   what the title already says — gives up its width first and ellipsises, and
+   the strip scrolls sideways in the rare case that still isn't enough. */
 .route-plan .rp-toolbar {
   min-height: 48px;
   flex-shrink: 0;
@@ -21,9 +26,33 @@
   border-bottom: 1px solid #e5e2dd;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   padding: 6px 16px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.route-plan .rp-toolbar::-webkit-scrollbar { display: none; }
+/* The title and the buttons keep their intrinsic width; only the caption flexes. */
+.route-plan .rp-title,
+.route-plan .rp-tools { flex: 0 0 auto; }
+.route-plan .rp-type-seg--note {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.route-plan .rp-type-seg--note .rp-type-note {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.route-plan .rp-type-seg--note .rp-type-dot {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 7px;
 }
 .route-plan .rp-title {
   display: flex;
@@ -737,6 +766,22 @@
 }
 
 /* ── Responsive: stack panel under map ── */
+/* Below this the caption can only render a dot and an ellipsis — it restates
+   the title anyway, so drop it and give the width to the buttons instead. Kept
+   in the accessibility tree, same as the phone rule below. */
+@media (max-width: 1120px) {
+  .route-plan .rp-type-seg--note {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 760px) {
   .route-plan .rp-body {
     flex-direction: column;

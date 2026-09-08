@@ -292,11 +292,28 @@
 .msr-card-nav svg { width: 13px; height: 13px; }
 
 /* ── Flood status card ──────────────────────────────────────────────────── */
-.fsc {
+/* Right-edge rail: flood status on top, weather under it. Both cards collapse
+   to chips independently, so they are STACKED rather than each anchored to its
+   own hard-coded `top` — the gap below the status card stays 10px whether it is
+   a full card or a one-line chip. */
+.map-rail {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 1150;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  /* The rail is only a layout track — let map drags through the empty column
+     and re-arm pointer events on the cards themselves. */
+  pointer-events: none;
+}
+.map-rail > * {
+  pointer-events: auto;
+}
+
+.fsc {
   /* Shrink-to-fit so the collapsed chip stops reserving the card's full width
      — and stops intercepting taps — over the map. */
   width: auto;
@@ -442,10 +459,8 @@
 
 /* ── Weather card ───────────────────────────────────────────────────────── */
 .wxc {
-  position: absolute;
-  top: 190px;
-  right: 12px;
-  z-index: 1140;
+  /* In the rail (see .map-rail) — relative only so .wxc-min can anchor to it. */
+  position: relative;
   width: 236px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.86);
@@ -893,67 +908,6 @@
   border: 1px solid #bbf7d0;
 }
 
-/* ── Dark mode ──────────────────────────────────────────────────────────── */
-.floodmap--dark .map-area { background: #121417; }
-.floodmap--dark .msb-bar,
-.floodmap--dark .msb-drop,
-.floodmap--dark .fsc-card,
-.floodmap--dark .wxc,
-.floodmap--dark .emg-body {
-  background: rgba(26, 29, 36, 0.88);
-  border-color: rgba(255, 255, 255, 0.09);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
-}
-.floodmap--dark .msb-bar input { color: #eceae6; }
-.floodmap--dark .msb-bar input::placeholder { color: #8b8f98; }
-.floodmap--dark .msb-row.hi { background: rgba(255, 255, 255, 0.06); }
-.floodmap--dark .msb-row-label,
-.floodmap--dark .wxc-temp,
-.floodmap--dark .wxc-cell b,
-.floodmap--dark .emg-row-txt b { color: #eceae6; }
-.floodmap--dark .wxc-clock { color: #d5d3cf; }
-.floodmap--dark .fsc-meta b { color: #d5d3cf; }
-.floodmap--dark .wxc-cell { background: rgba(255, 255, 255, 0.05); }
-.floodmap--dark .emg-row:hover { background: rgba(255, 255, 255, 0.06); }
-.floodmap--dark .fsc-meta { border-top-color: rgba(255, 255, 255, 0.08); }
-.floodmap--dark .emg-sec + .emg-sec { border-top-color: rgba(255, 255, 255, 0.08); }
-.floodmap--dark .fab {
-  background: rgba(26, 29, 36, 0.92);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #d5d3cf;
-}
-.floodmap--dark .fab--blue { color: #60a5fa; }
-.floodmap--dark .fab--green { color: #4ade80; }
-.floodmap--dark .fab--red { color: #f87171; }
-.floodmap--dark .fab--active { background: #2c5cc5; color: #fff; }
-.floodmap--dark .map-toggles,
-.floodmap--dark .map-legend,
-.floodmap--dark .map-coords {
-  background: rgba(26, 29, 36, 0.9);
-  border-color: rgba(255, 255, 255, 0.09);
-  color: #d5d3cf;
-}
-.floodmap--dark .mt-label { color: #d5d3cf; }
-.floodmap--dark .map-toggle:hover { background: rgba(255, 255, 255, 0.05); }
-.floodmap--dark .map-toggles-title { color: #8b8f98; }
-.floodmap--dark .brgy-name-label {
-  color: #eceae6;
-  text-shadow:
-    -1px -1px 0 #121417, 1px -1px 0 #121417, -1px 1px 0 #121417, 1px 1px 0 #121417,
-    0 0 6px rgba(0, 0, 0, 0.9);
-}
-.floodmap--dark .map-skeleton {
-  background: linear-gradient(110deg, #1a1d24 8%, #232732 18%, #1a1d24 33%);
-  background-size: 200% 100%;
-}
-.floodmap--dark .subtab-bar { background: #171a20; border-bottom-color: #262a33; }
-.floodmap--dark .subtab { color: #8b8f98; }
-.floodmap--dark .subtab.active { background: rgba(192, 24, 27, 0.16); color: #f87171; }
-.floodmap--dark .msr-popup .leaflet-popup-content-wrapper,
-.floodmap--dark .msr-popup .leaflet-popup-tip { background: #1e222a; color: #eceae6; }
-.floodmap--dark .msr-card-title { color: #eceae6; }
-.floodmap--dark .msr-card-row b { color: #eceae6; }
-
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .msb { width: min(380px, calc(100% - 200px)); }
@@ -961,7 +915,6 @@
      size the card, not the wrapper. */
   .wxc { width: 210px; }
   .fsc-card, .fsc-toast { width: 210px; }
-  .wxc { top: 178px; }
 }
 @media (max-width: 760px) {
   .msb {
@@ -974,12 +927,14 @@
      collapsed chip included, or it lands under the search bar. */
   .floodmap .map-toggles,
   .floodmap .map-toggles-chip { top: 70px; }
-  .fsc {
+  /* The search bar spans the top edge on phones, so the whole rail drops below
+     it — both cards move together and keep their 10px gap. */
+  .map-rail {
     top: 70px;
     right: 12px;
   }
   .fsc-card, .fsc-toast { width: min(210px, calc(100vw - 24px)); }
-  .wxc { top: auto; bottom: 168px; right: 64px; width: auto; max-width: 220px; }
+  .wxc { width: auto; max-width: min(220px, calc(100vw - 24px)); }
   /* Seven 42px buttons stacked in one column need ~330px of height. A phone
      map canvas is ~490px tall and already spends 70px on the top chrome and
      ~110px on the bottom, so the rail ran up UNDER the flood-status chip

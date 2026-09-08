@@ -7,12 +7,12 @@ import './residentTabBar.css'
  *
  * WHY THIS EXISTS: a resident opening this during a flood is on a phone, one
  * handed, in a hurry. Behind the burger, every destination cost two taps and a
- * read of an eight-item drawer. The five things a citizen actually needs —
+ * read of the whole drawer. The five things a citizen actually needs —
  * where am I at risk, show me the map, route me out, what has CDRRMO said, and
  * report what I can see — now sit permanently under the thumb.
  *
- * The drawer stays: it still holds the full eight-item nav (Hazard Layer, Road
- * Status, Evacuation centres) for anyone who wants it. This is a fast path over
+ * The drawer stays: it still holds the full nav (Road Status, Evacuation
+ * centres, Evacuation Routing) for anyone who wants it. This is a fast path over
  * the top of it, not a replacement, so nothing becomes unreachable.
  */
 

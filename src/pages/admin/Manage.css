@@ -360,7 +360,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  z-index: 500;
+  z-index: 2000; /* modal layer — see AdminLayout.css .account-overlay */
 }
 .mng-modal {
   width: min(560px, 100%);

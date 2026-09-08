@@ -5,7 +5,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  z-index: 2000; /* modal layer — must clear map chrome (1300) and nav backdrop (1410) */
   display: flex;
   align-items: center;
   justify-content: center;

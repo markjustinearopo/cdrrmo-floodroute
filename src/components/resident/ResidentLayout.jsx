@@ -36,8 +36,10 @@ const NAV = [
     section: 'Monitor',
     items: [
       { label: 'Dashboard', to: '/resident/dashboard', icon: DashboardIcon },
+      /* Hazard Layer used to sit here. It drew this same map with three of the
+         Flood Map's own overlays; its legend, citywide summary and discharge
+         readout are the Flood Map's "Hazard" tab now. */
       { label: 'Flood Map', to: '/resident/flood-map', icon: MapIcon },
-      { label: 'Hazard Layer', to: '/resident/hazard-layer', icon: LayersIcon },
     ],
   },
   {
@@ -325,15 +327,6 @@ function MapIcon() {
       <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
       <line x1="8" y1="2" x2="8" y2="18" />
       <line x1="16" y1="6" x2="16" y2="22" />
-    </svg>
-  )
-}
-function LayersIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" />
-      <polyline points="2 12 12 17 22 12" />
     </svg>
   )
 }
