@@ -1,0 +1,110 @@
+/* ============================================================
+   Emergency rescue marker + its popup.
+
+   The pulsing ring is the only animated marker on the CDRRMO map, and it is
+   reserved for a request that is still open. When somebody has been rescued
+   it stops — a map that keeps flashing at resolved events teaches the room
+   to stop looking at the flashing.
+   ============================================================ */
+
+.rsq-pin-wrap { background: none; border: 0; }
+
+.rsq-pin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+}
+
+.rsq-head {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--rsq, #dc2626);
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.rsq-head svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Open request: an expanding ring, once a second. */
+.rsq-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--rsq, #dc2626);
+  opacity: 0.55;
+  animation: rsq-pulse 1.6s ease-out infinite;
+}
+@keyframes rsq-pulse {
+  0% { transform: scale(0.6); opacity: 0.55; }
+  70% { transform: scale(1.55); opacity: 0; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+
+/* Resolved / rescued: present, findable, and visibly finished. */
+.rsq-pin.done .rsq-head { opacity: 0.72; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rsq-ring { animation: none; opacity: 0.3; transform: scale(1.3); }
+}
+
+/* ── Popup ── */
+.rsq-pop { min-width: 210px; font-size: 0.75rem; line-height: 1.5; }
+
+.rsq-pop-kicker {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #b91c1c;
+  margin-bottom: 3px;
+}
+
+.rsq-pop-meta { color: #7a7a7a; }
+
+.rsq-pop-coords {
+  margin-top: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+  color: #374151;
+  user-select: all;
+}
+
+.rsq-pop-reason { margin-top: 5px; font-weight: 600; color: #111827; }
+.rsq-pop-hazard { margin-top: 3px; color: #92400e; }
+
+.rsq-pop-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+
+.rsq-pop-status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rsq-pop-open {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #b91c1c;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rsq-pop-open:hover { text-decoration: underline; }

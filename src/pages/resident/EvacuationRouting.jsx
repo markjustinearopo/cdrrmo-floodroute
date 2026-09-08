@@ -17,7 +17,8 @@ import {
   formatWalkEta,
   activeRouteGeometry,
 } from '../../components/admin/routingHelpers.jsx'
-import { useRouteGraph, planRoute, planToNearestSafe, profileFor, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
+import { useRouteGraph, profileFor, DEFAULT_ALPHA } from '../../components/admin/routeEngine.js'
+import { findSafeRoute, checkRouteSafety } from '../../components/admin/routeSafety.js'
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import '../../components/map/mapUpgrade.css'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
@@ -33,6 +34,8 @@ import { getResidentBarangay, residentBarangayLabel } from '../../data/resident.
 import { usableShelters } from '../../data/shelters.js'
 import LiveNavigation from '../../components/resident/LiveNavigation.jsx'
 import RoutingGuide, { hasSeenRoutingGuide } from '../../components/resident/RoutingGuide.jsx'
+import NoSafeRouteAlert from '../../components/resident/NoSafeRouteAlert.jsx'
+import { useRescueTrigger } from '../../hooks/useRescueTrigger.js'
 import * as speech from '../../services/speech.js'
 import '../admin/RoutePlanning.css'
 import './Resident.css'
@@ -104,6 +107,11 @@ export default function EvacuationRouting() {
      from a pin the resident set twenty minutes and two streets ago. */
   const [navSession, setNavSession] = useState(null)
   const [starting, setStarting] = useState(false)
+
+  /* The "no safe route" path: files the rescue request with CDRRMO and drives
+     the takeover below. Owns the GPS refresh, the de-duplication and the
+     send-failure state — see hooks/useRescueTrigger.js. */
+  const rescue = useRescueTrigger()
   // The walkthrough opens by itself the first time, and stays one tap away.
   const [guideOpen, setGuideOpen] = useState(() => !hasSeenRoutingGuide())
   const routerLoc = useLocation()
@@ -152,14 +160,25 @@ export default function EvacuationRouting() {
     setStarting(false)
     if (!start) return setGenMsg('Pin your location first, then start guided navigation.')
 
-    const plan = planRoute(graph, start, dest.coords, {
-      riskAt: field?.riskAt, statusMap, alpha: DEFAULT_ALPHA, compare: false,
-      ...profileFor('evacuation'), // walking: one-way streets do not bind
-    })
-    if (!plan?.ok || plan.safe.coords.length < 2) {
+    /* Same verdict as the preview, re-run from the live fix. Someone about to
+       start WALKING is the last moment to catch that the way out closed while
+       they were reading the panel — and the point at which recommending an
+       unsafe path stops being a display choice and becomes a person in the
+       water. */
+    const verdict = checkRouteSafety(graph, start, dest, { ...routeOpts, compare: false })
+
+    if (verdict.verdict === 'no-safe-route') {
+      setNavSession(null)
+      setGen(null)
+      rescue.trigger(verdict, { origin: start, locate })
+      return undefined
+    }
+    if (verdict.verdict !== 'safe' || verdict.plan.safe.coords.length < 2) {
       return setGenMsg('No route from your location to that shelter right now. Try another centre or call CDRRMO.')
     }
+    const plan = verdict.plan
     setNavSession({ coords: plan.safe.coords, segments: plan.safe.segments, destination: dest })
+    return undefined
   }
 
   function findMyLocation() {
@@ -204,6 +223,17 @@ export default function EvacuationRouting() {
   // origin = pinned location when set, else the barangay centroid.
   const origin = pin ? [pin.lat, pin.lng] : barangayCoords(myBrgy)
 
+  /* Options every search on this screen shares: the live hazard field, the
+     operator's road flags, and the road network itself (routeSafety needs the
+     GeoJSON to decide which roads the model puts under water). */
+  const routeOpts = {
+    riskAt: field?.riskAt,
+    statusMap,
+    alpha: DEFAULT_ALPHA,
+    roads,
+    ...profileFor('evacuation'), // walking: one-way streets do not bind
+  }
+
   function generateRoute(targetId) {
     setGenMsg('')
     if (!origin) return setGenMsg('Pin your location (or set your barangay) to generate a route.')
@@ -222,14 +252,35 @@ export default function EvacuationRouting() {
     if (candidates.length === 0) {
       return setGenMsg('No evacuation centre has space right now. Call your barangay hall or 911.')
     }
-    const best = planToNearestSafe(graph, origin, candidates, {
-      riskAt: field?.riskAt,
-      statusMap,
-      alpha: DEFAULT_ALPHA,
-      ...profileFor('evacuation'),
-    })
-    if (!best) return setGenMsg('No reachable open evacuation centre right now.')
+
+    /* THE VERDICT, not just a route. findSafeRoute searches every candidate
+       shelter with impassable roads removed from the graph outright; only if
+       ALL of them are unreachable that way — and the same network can reach
+       one when hazards are ignored, proving it is the water and not the map —
+       does it report 'no-safe-route'. See components/admin/routeSafety.js. */
+    const verdict = findSafeRoute(graph, origin, candidates, routeOpts)
+
+    if (verdict.verdict === 'unreachable') {
+      // Not a flood problem: nothing connects here to a shelter at all. Same
+      // message this screen always showed, and no rescue request — inventing
+      // an emergency out of a mapping gap would be worse than saying nothing.
+      return setGenMsg('No reachable open evacuation centre right now.')
+    }
+
+    if (verdict.verdict === 'no-safe-route') {
+      /* Every way out is flooded or closed. Do NOT draw a route — the one
+         thing the old code did here was recommend the least-bad path across
+         water it had already flagged. Clear the map, file the rescue request,
+         and tell them to stay where they are. */
+      setGen(null)
       setSelectedId(null)
+      setGenMsg('')
+      rescue.trigger(verdict, { origin, locate })
+      return undefined
+    }
+
+    const best = verdict
+    setSelectedId(null)
     setGen({
       coords: best.plan.safe.coords,
       segments: best.plan.safe.segments,
@@ -242,6 +293,7 @@ export default function EvacuationRouting() {
       floodedSegments: best.plan.safe.floodedSegments,
       detourM: best.plan.detourM,
     })
+    return undefined
   }
 
   // Arriving from the Evacuation finder's "Directions" button: auto-route from
@@ -360,7 +412,6 @@ export default function EvacuationRouting() {
               {/* Live road conditions as context so residents see what to avoid. */}
               {roads && <RoadNetworkLayer roads={roads} statusMap={statusMap} interactive={false} />}
               {roads && <OneWayArrowsLayer roads={roads} />}
-
               {/* Click-to-pin while in pinning mode; the pin itself is draggable. */}
               <ClickToAddWaypoint enabled={pinning} onAdd={([lat, lng]) => { setPin({ lat, lng }); setPinning(false) }} />
               {pin && (
@@ -440,6 +491,7 @@ export default function EvacuationRouting() {
                 <div className="rp-type-note" style={{ color: '#9a3412' }}>{genMsg}</div>
               </section>
             )}
+
 
             {showGen ? (
               <section className="rp-section">
@@ -579,6 +631,20 @@ export default function EvacuationRouting() {
       {/* First-run walkthrough — opens by itself once, reopenable from the
           toolbar. */}
       <RoutingGuide open={guideOpen} onClose={() => setGuideOpen(false)} />
+
+      {/* NO SAFE ROUTE AVAILABLE — every way out is flooded or closed, and a
+          rescue request has already gone to CDRRMO. Above everything else on
+          this screen, including guided navigation. */}
+      <NoSafeRouteAlert
+        open={Boolean(rescue.alert)}
+        location={rescue.alert?.location}
+        evidence={rescue.alert?.evidence}
+        summary={rescue.alert?.summary}
+        request={rescue.request}
+        sendError={rescue.sendError}
+        onClose={rescue.dismiss}
+        onRetry={rescue.retry}
+      />
 
       {/* Guided navigation takes over the whole screen while it runs. */}
       {navSession && (

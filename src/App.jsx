@@ -29,6 +29,7 @@ const AdminRouting = lazy(() => import('./pages/admin/Routing.jsx'))
 const AdminRoadStatus = lazy(() => import('./pages/admin/RoadStatus.jsx'))
 const AdminAlerts = lazy(() => import('./pages/admin/Alerts.jsx'))
 const AdminIncidents = lazy(() => import('./pages/admin/Incidents.jsx'))
+const AdminRescue = lazy(() => import('./pages/admin/Rescue.jsx'))
 const AdminEvacuation = lazy(() => import('./pages/admin/Evacuation.jsx'))
 const AdminSettings = lazy(() => import('./pages/admin/Settings.jsx'))
 const AdminNotifications = lazy(() => import('./pages/admin/Notifications.jsx'))
@@ -101,6 +102,8 @@ export default function App() {
         <Route path="/admin/road-status" element={<AdminRoadStatus />} />
         <Route path="/admin/alerts" element={<AdminAlerts />} />
         <Route path="/admin/incidents" element={<AdminIncidents />} />
+        {/* Automatic rescue requests — residents the router could not get out. */}
+        <Route path="/admin/rescue" element={<AdminRescue />} />
         <Route path="/admin/evacuation" element={<AdminEvacuation />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/notifications" element={<AdminNotifications />} />

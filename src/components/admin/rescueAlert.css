@@ -1,0 +1,128 @@
+/* ============================================================
+   Emergency rescue request — the live push onto the CDRRMO screen.
+
+   Sticky, loud, and out of the way of the map. It sits over the top-right
+   of the workspace rather than the centre because the operator's next act
+   is almost always to look at where the person is.
+   ============================================================ */
+
+.rsa {
+  position: fixed;
+  top: 76px;
+  right: 18px;
+  z-index: 9000; /* above panels and map controls, below the EMERGENCY takeover */
+  width: min(360px, calc(100vw - 36px));
+  animation: rsa-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes rsa-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.rsa-card {
+  display: flex;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #fecaca;
+  box-shadow: 0 18px 44px rgba(127, 29, 29, 0.28);
+}
+
+/* The pulsing rail — the same signal as the emergency takeover's, at the
+   scale of a card. */
+.rsa-rail {
+  flex: none;
+  width: 6px;
+  background: linear-gradient(180deg, #dc2626, #f97316, #dc2626);
+  background-size: 100% 200%;
+  animation: rsa-sweep 1.3s linear infinite;
+}
+@keyframes rsa-sweep { to { background-position: 0 -200%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rsa { animation: none; }
+  .rsa-rail { animation: none; background: #dc2626; }
+}
+
+.rsa-body { padding: 13px 15px 12px; min-width: 0; }
+
+.rsa-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #b91c1c;
+}
+
+.rsa-more {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.rsa-who {
+  margin-top: 6px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.25;
+}
+
+.rsa-reason { margin-top: 4px; font-size: 0.75rem; color: #4b5563; }
+.rsa-reason b { color: #b91c1c; }
+
+.rsa-hazard {
+  margin-top: 5px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #92400e;
+}
+
+.rsa-coords {
+  margin-top: 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.6875rem;
+  color: #374151;
+  user-select: all;
+}
+.rsa-time { font-family: inherit; color: #9ca3af; }
+
+.rsa-actions { display: flex; gap: 8px; margin-top: 11px; }
+
+.rsa-open {
+  flex: 1;
+  min-height: 38px;
+  border: 0;
+  border-radius: 9px;
+  background: #b91c1c;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rsa-open:hover { background: #991b1b; }
+
+.rsa-ack {
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rsa-ack:hover { background: #f9fafb; }
+
+.rsa-foot { margin-top: 8px; font-size: 0.625rem; color: #9ca3af; }
+
+@media (max-width: 640px) {
+  .rsa { top: 64px; right: 10px; left: 10px; width: auto; }
+}

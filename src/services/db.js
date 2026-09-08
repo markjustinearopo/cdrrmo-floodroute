@@ -445,6 +445,130 @@ export const usersDb = {
 }
 
 /* ============================================================
+   Rescue requests (+ rescue_request_updates timeline)
+
+   Raised automatically when the flood-aware router can find NO safe route
+   out for a resident — see components/admin/routeSafety.js for the verdict
+   and components/resident/NoSafeRouteAlert.jsx for what the resident sees.
+   Shaped deliberately like incidentsDb: same from/to row mapping, same
+   timeline-append update signature, so AdminDataContext wires it with the
+   same optimistic/persist/refetch machinery as everything else.
+   ============================================================ */
+export const RESCUE_STATUS_LABEL = {
+  pending: 'Pending',
+  responding: 'Responding',
+  rescued: 'Rescued',
+  resolved: 'Resolved',
+}
+
+/** Statuses a request is still WAITING on — the ones the dashboard counts. */
+export const RESCUE_OPEN_STATUSES = ['pending', 'responding']
+
+function rescueFromDb(r, updates = []) {
+  return {
+    id: r.id,
+    accountId: r.account_id ?? null,
+    reporter: r.reporter || '',
+    contact: r.contact || '',
+    barangay: r.barangay || '',
+    coords: r.lat != null && r.lng != null ? [Number(r.lat), Number(r.lng)] : null,
+    accuracyM: r.accuracy_m != null ? Number(r.accuracy_m) : null,
+    location: r.location || '',
+    reason: r.reason || 'no-safe-route',
+    /* Always an object for the UI, even on a legacy/blank row: every reader
+       below does `hazard.something` and a null here would be a crash on the
+       one screen that must not crash. */
+    hazard: (r.hazard && typeof r.hazard === 'object') ? r.hazard : {},
+    blockedRoads: Array.isArray(r.blocked_roads) ? r.blocked_roads : [],
+    status: r.status || 'pending',
+    team: r.assigned_team || '',
+    requestedAt: epochOf(r.requested_at),
+    requested: label(r.requested_at),
+    respondedAt: epochOf(r.responded_at),
+    rescuedAt: epochOf(r.rescued_at),
+    resolvedAt: epochOf(r.resolved_at),
+    updatedAt: epochOf(r.updated_at),
+    history: updates
+      .filter((u) => String(u.request_id) === String(r.id))
+      .map((u) => ({ time: label(u.created_at), label: u.label, note: u.note || '' })),
+  }
+}
+
+function rescueToDb(x) {
+  const out = {}
+  if ('accountId' in x) out.account_id = x.accountId ?? null
+  if ('reporter' in x) out.reporter = x.reporter || null
+  if ('contact' in x) out.contact = x.contact || null
+  if ('barangay' in x) out.barangay = x.barangay || null
+  if ('coords' in x) {
+    out.lat = x.coords?.[0] ?? null
+    out.lng = x.coords?.[1] ?? null
+  }
+  if ('accuracyM' in x) out.accuracy_m = x.accuracyM ?? null
+  if ('location' in x) out.location = x.location || null
+  if ('reason' in x) out.reason = x.reason
+  if ('hazard' in x) out.hazard = x.hazard || {}
+  if ('blockedRoads' in x) out.blocked_roads = Array.isArray(x.blockedRoads) ? x.blockedRoads : null
+  if ('status' in x) out.status = x.status
+  if ('team' in x) out.assigned_team = x.team || null
+  if ('requestedAt' in x) out.requested_at = isoOf(x.requestedAt)
+  /* The three lifecycle stamps are set by whoever moves the status, not by
+     the caller passing them individually — see `update` below. */
+  if ('respondedAt' in x) out.responded_at = isoOf(x.respondedAt)
+  if ('rescuedAt' in x) out.rescued_at = isoOf(x.rescuedAt)
+  if ('resolvedAt' in x) out.resolved_at = isoOf(x.resolvedAt)
+  return out
+}
+
+export const rescueDb = {
+  fromDb: rescueFromDb,
+  async list() {
+    const [rows, updates] = await Promise.all([
+      supabase.from('rescue_requests').select('*').order('id', { ascending: false }).then(unwrap),
+      supabase.from('rescue_request_updates').select('*').order('id', { ascending: true }).then(unwrap),
+    ])
+    return rows.map((r) => rescueFromDb(r, updates))
+  },
+  async create(request) {
+    const row = rescueToDb({ status: 'pending', requestedAt: Date.now(), ...request })
+    const saved = unwrap(await supabase.from('rescue_requests').insert(row).select().single())
+    unwrap(await supabase.from('rescue_request_updates').insert({
+      request_id: saved.id,
+      label: 'Rescue request created automatically — no safe route available',
+      note: request.hazard?.summary || null,
+      created_by: request.reporter || null,
+    }))
+    return rescueFromDb(saved)
+  },
+  /**
+   * Patch columns and append the timeline entries the caller computed.
+   *
+   * Moving the status also stamps the matching lifecycle time here rather
+   * than in the UI, so a request worked from any screen carries the same
+   * "responded at / rescued at" record. Only ever sets a stamp, never clears
+   * one: reopening a request must not erase the fact that a team went out.
+   */
+  async update(id, updates, historyEntries = []) {
+    const patch = { ...updates }
+    const now = Date.now()
+    if (updates.status === 'responding' && !('respondedAt' in updates)) patch.respondedAt = now
+    if (updates.status === 'rescued' && !('rescuedAt' in updates)) patch.rescuedAt = now
+    if (updates.status === 'resolved' && !('resolvedAt' in updates)) patch.resolvedAt = now
+    const row = rescueToDb(patch)
+    if (Object.keys(row).length) {
+      unwrap(await supabase.from('rescue_requests').update(row).eq('id', id))
+    }
+    if (historyEntries.length) {
+      unwrap(await supabase.from('rescue_request_updates')
+        .insert(historyEntries.map((l) => ({ request_id: id, label: l }))))
+    }
+  },
+  async remove(id) {
+    unwrap(await supabase.from('rescue_requests').delete().eq('id', id))
+  },
+}
+
+/* ============================================================
    Notifications
    ============================================================ */
 function notifFromDb(r) {
@@ -793,6 +917,7 @@ export const savedRoutesDb = {
 export default {
   alerts: alertsDb,
   incidents: incidentsDb,
+  rescue: rescueDb,
   floodReports: floodReportsDb,
   evac: evacDb,
   users: usersDb,

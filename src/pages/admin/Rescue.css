@@ -1,0 +1,127 @@
+/* ============================================================
+   Emergency Rescue Requests screen.
+
+   Layered on Manage.css (the shared record-list chrome) — this file only
+   adds what is specific to rescues: the live map card, the four-state
+   status badge, and the hazard/blocked-road detail blocks.
+   ============================================================ */
+
+/* The head icon is red here, not the neutral grey of the other Manage
+   screens: this queue is people, not records. */
+.rsc-head-icon { background: #fef2f2 !important; color: #dc2626 !important; }
+.rsc-head-icon svg { stroke: #dc2626; }
+
+.rsc-open-pill {
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+/* ── Live map card ── */
+.rsc-map-card {
+  margin-bottom: 16px;
+  border: 1px solid #ececec;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.rsc-map-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f3f3;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+.rsc-map-sub { font-weight: 400; font-size: 0.75rem; color: #9ca3af; }
+
+.rsc-map { height: 340px; width: 100%; }
+.rsc-map--sm { height: 220px; border-radius: 10px; }
+
+.rsc-detail-map { margin-top: 10px; border-radius: 10px; overflow: hidden; border: 1px solid #eee; }
+
+/* ── Table cells ── */
+.rsc-coords {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  color: #374151;
+  user-select: all;
+}
+.rsc-coords em { font-style: normal; color: #9ca3af; }
+
+.rsc-reason { font-weight: 600; color: #b91c1c; font-size: 0.8125rem; }
+.rsc-roads { font-size: 0.75rem; color: #92400e; }
+
+/* Four states, four colours — the same ones the marker and the resident's
+   own receipt use, so a status means one thing everywhere. */
+.rsc-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rsc-badge.pending { background: #fee2e2; color: #b91c1c; }
+.rsc-badge.responding { background: #dbeafe; color: #1d4ed8; }
+.rsc-badge.rescued { background: #dcfce7; color: #15803d; }
+.rsc-badge.resolved { background: #e5e7eb; color: #4b5563; }
+
+/* ── Detail modal ── */
+.rsc-modal { width: min(680px, 100%); }
+
+.rsc-sect { padding-top: 12px; border-top: 1px solid #f1f1f1; }
+
+.rsc-big-coords {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #111827;
+  user-select: all;
+}
+
+.rsc-reason-line { font-size: 0.8125rem; color: #4b5563; }
+.rsc-reason-line b { color: #b91c1c; }
+
+.rsc-hazard { margin: 6px 0 0; font-size: 0.8125rem; line-height: 1.5; color: #92400e; }
+
+.rsc-hazard-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+.rsc-hazard-facts b { font-weight: 600; color: #6b7280; }
+
+.rsc-roadlist { list-style: none; margin: 6px 0 0; padding: 0; }
+.rsc-roadlist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.8125rem;
+  color: #374151;
+  border-top: 1px dashed #f3f4f6;
+}
+.rsc-roadlist li:first-child { border-top: 0; }
+
+.rsc-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.rsc-dot.flooded { background: #f97316; }
+.rsc-dot.closed { background: #dc2626; }
+
+.rsc-road-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rsc-road-meta { flex: none; font-size: 0.6875rem; color: #9ca3af; text-transform: capitalize; }
+
+@media (max-width: 720px) {
+  .rsc-map { height: 260px; }
+}

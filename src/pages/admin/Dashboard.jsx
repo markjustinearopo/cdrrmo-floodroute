@@ -18,7 +18,11 @@ import {
   ROAD_STATUS,
 } from '../../components/admin/routingHelpers.jsx'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock } from '../../components/admin/mapHelpers.jsx'
-import { useAlerts, useIncidents, useRoadReports, useEvacCenters } from '../../context/AdminDataContext.jsx'
+import {
+  useAlerts, useIncidents, useRoadReports, useEvacCenters, useRescueRequests,
+} from '../../context/AdminDataContext.jsx'
+import RescueRequestsLayer from '../../components/admin/RescueRequestsLayer.jsx'
+import '../../components/admin/rescueMarker.css'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
@@ -109,8 +113,12 @@ export default function Dashboard() {
   // ── Shared store ──
   const { alerts, addAlert, resolveAlert } = useAlerts()
   const { incidents } = useIncidents()
+  /* Residents the router could not get out. No banner on this screen — the
+     queue lives on Rescue Requests and the live alert card handles the push.
+     Here they are map markers only, over the road conditions that stranded
+     them. */
+  const { rescueRequests } = useRescueRequests()
   const { roadReports, reportRoad, removeRoadReport } = useRoadReports()
-
   /* How high the water actually is, for the cutoff panel's headroom column.
 
      Deliberately built from MEASURED depths only — the ones an operator
@@ -642,6 +650,12 @@ export default function Dashboard() {
                   <OneWayArrowsLayer roads={roadNetwork} />
                 </>
               )}
+              {/* Residents awaiting rescue, over the same road conditions that
+                  stranded them — the closures and the person are one picture. */}
+              <RescueRequestsLayer
+                requests={rescueRequests}
+                onOpen={(r) => navigate(`/admin/rescue?id=${r.id}`)}
+              />
               <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=draw" />
             </MapContainer>
             <MapSearchBar collapsible localIndex={localIndex} onSelect={setSearchResult} />

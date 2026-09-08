@@ -24,7 +24,7 @@ import { INTEGRATION_CATALOG } from '../data/integrations.js'
 import { BARANGAY_CENTROIDS } from '../data/cabuyaoBarangays.js'
 import { SEED_FLOOD_AREAS } from '../data/floodAreas.js'
 import { FLOOD_LEVEL_LABEL } from '../data/floodReports.js'
-import db from '../services/db.js'
+import db, { RESCUE_STATUS_LABEL } from '../services/db.js'
 import supabase from '../services/supabase.js'
 import { getSystemConfig } from '../services/systemConfig.js'
 import SaveErrorToast from '../components/SaveErrorToast.jsx'
@@ -127,6 +127,12 @@ function saveLocalReports(list) {
 const REMOTE_LOADERS = {
   alerts: () => db.alerts.list(),
   incidents: () => db.incidents.list(),
+  /* Automatic rescue requests (no safe route out). Loads like every other
+     collection, so a request raised on a resident's phone is on the CDRRMO
+     dashboard within one realtime frame — and within 6 s even if the socket
+     is down. Fails soft to [] (Promise.allSettled below) on a database where
+     20260908120000_rescue_requests has not been applied yet. */
+  rescueRequests: () => db.rescue.list(),
   floodReports: () => db.floodReports.list(),
   evacuationCenters: () => db.evac.list(),
   users: () => db.users.list(),
@@ -155,7 +161,7 @@ const REMOTE_LOADERS = {
 const AdminDataContext = createContext(null)
 
 const EMPTY = {
-  alerts: [], incidents: [], floodReports: [], evacuationCenters: [], users: [],
+  alerts: [], incidents: [], rescueRequests: [], floodReports: [], evacuationCenters: [], users: [],
   notifications: [], integrations: [], roadReports: [], savedRoutes: [], barangayAssignments: {},
   roadChangeRequests: [],
   // Seeded so the historical flood-prone areas paint on every map from first render.
@@ -259,6 +265,9 @@ export function AdminDataProvider({ children }) {
       alerts: 'alerts',
       incidents: 'incidents',
       incident_updates: 'incidents',
+      // The "real time" in "pushed to the CDRRMO Admin screen in real time".
+      rescue_requests: 'rescueRequests',
+      rescue_request_updates: 'rescueRequests',
       flood_reports: 'floodReports',
       flood_report_logs: 'floodReports',
       evacuation_centers: 'evacuationCenters',
@@ -266,6 +275,7 @@ export function AdminDataProvider({ children }) {
       notifications: 'notifications',
       integrations: 'integrations',
       road_status: 'roadReports',
+      // A closure has to reach the map of somebody already walking towards it.
       saved_routes: 'savedRoutes',
     }
     let channel
@@ -391,6 +401,76 @@ export function AdminDataProvider({ children }) {
   const removeIncident = useCallback((id) => {
     optimistic('incidents', stateRef.current.incidents.filter((i) => i.id !== id))
     persist('incidents', () => db.incidents.remove(id))
+  }, [optimistic, persist])
+
+  /* ── Rescue requests (automatic — "no safe route available") ──────────────
+     Raised by the resident routing screen when routeSafety.findSafeRoute
+     returns 'no-safe-route': every route out of where that person is standing
+     is flooded or closed. Nobody fills anything in; the system files it.
+
+     Optimistic like every other create, but with one difference that matters:
+     the RETURN VALUE is what the resident's popup shows as their reference,
+     and the popup must appear whether or not the write reaches the database.
+     A resident who is cut off does not get told "could not save" and left to
+     work it out — they get the instruction to stay put, and CDRRMO gets the
+     request as soon as the network allows (the failed persist surfaces on the
+     SaveErrorToast, and the 6 s poll reconciles the real id). */
+  const createRescueRequest = useCallback((request) => {
+    const now = Date.now()
+    const saved = {
+      id: `tmp-${now}`,
+      status: 'pending',
+      reason: 'no-safe-route',
+      requested: nowLabel(now),
+      requestedAt: now,
+      hazard: {},
+      blockedRoads: [],
+      history: [{
+        time: nowLabel(now),
+        label: 'Rescue request created automatically — no safe route available',
+        note: request.hazard?.summary || '',
+      }],
+      ...request,
+    }
+    optimistic('rescueRequests', [saved, ...stateRef.current.rescueRequests])
+    /* 'high' puts it at the top of the notification feed and lights the
+       topbar bell on every open CDRRMO screen — the same path an EMERGENCY
+       alert takes, because this is the same class of event. */
+    notify(
+      'high',
+      '🚨 Emergency rescue request',
+      `${saved.reporter || 'A resident'} is cut off in ${saved.barangay || 'Cabuyao City'}`
+        + ' — no safe route available. Automatic request.',
+    )
+    persist('rescueRequests', () => db.rescue.create(request))
+    return saved
+  }, [optimistic, persist, notify])
+
+  /* Working a request: Pending → Responding → Rescued → Resolved, with the
+     same timeline-entry computation as incidents so the two read alike. */
+  const updateRescueRequest = useCallback((id, updates, note) => {
+    const current = stateRef.current.rescueRequests.find((r) => r.id === id)
+    const entries = []
+    if (note) entries.push(note)
+    if (updates.status && current && updates.status !== current.status) {
+      entries.push(`Status → ${RESCUE_STATUS_LABEL[updates.status] || updates.status}`)
+    }
+    if ('team' in updates && current && updates.team !== current.team) {
+      entries.push(updates.team ? `Assigned to ${updates.team}` : 'Team unassigned')
+    }
+    optimistic('rescueRequests', stateRef.current.rescueRequests.map((r) => {
+      if (r.id !== id) return r
+      const history = entries.length
+        ? [...(r.history || []), ...entries.map((label) => ({ time: nowLabel(), label, note: '' }))]
+        : r.history
+      return { ...r, ...updates, history }
+    }))
+    persist('rescueRequests', () => db.rescue.update(id, updates, entries))
+  }, [optimistic, persist])
+
+  const removeRescueRequest = useCallback((id) => {
+    optimistic('rescueRequests', stateRef.current.rescueRequests.filter((r) => r.id !== id))
+    persist('rescueRequests', () => db.rescue.remove(id))
   }, [optimistic, persist])
 
   /* ── Flood reports (resident submissions → CDRRMO verification) ───────────
@@ -622,6 +702,7 @@ export function AdminDataProvider({ children }) {
     persist('roadReports', () => (report?.wayId != null ? db.roadStatus.removeWay(report.wayId) : Promise.resolve()))
   }, [optimistic, persist])
 
+
   /* ── Saved routes (Supabase-backed) ── */
   const addSavedRoute = useCallback((route) => {
     const saved = { id: `tmp-${Date.now()}`, createdAt: Date.now(), ...route }
@@ -764,6 +845,7 @@ export function AdminDataProvider({ children }) {
     refresh,
     addAlert, updateAlert, resolveAlert, removeAlert,
     addIncident, updateIncident, removeIncident,
+    createRescueRequest, updateRescueRequest, removeRescueRequest,
     submitFloodReport, verifyFloodReport, updateFloodReport, removeFloodReport,
     addEvacCenter, updateEvacCenter, removeEvacCenter,
     addUser, addUsers, updateUser, removeUser,
@@ -778,6 +860,7 @@ export function AdminDataProvider({ children }) {
     state, isLoading, saveError, dismissSaveError, refresh,
     addAlert, updateAlert, resolveAlert, removeAlert,
     addIncident, updateIncident, removeIncident,
+    createRescueRequest, updateRescueRequest, removeRescueRequest,
     submitFloodReport, verifyFloodReport, updateFloodReport, removeFloodReport,
     addEvacCenter, updateEvacCenter, removeEvacCenter,
     addUser, addUsers, updateUser, removeUser,
@@ -820,6 +903,21 @@ export function useIncidents() {
  * submitFloodReport (pending); officials call verifyFloodReport to approve /
  * reject / re-open. Only approved reports are shown on the public maps.
  */
+/**
+ * Automatic rescue requests — the "no safe route available" queue.
+ *
+ * Read by the CDRRMO admin shell (the live alert watcher, the Rescue screen,
+ * the dashboard banner and every map that draws an emergency marker) and
+ * written by the resident routing screen. Same shape as useIncidents so the
+ * two are interchangeable to a reader.
+ */
+export function useRescueRequests() {
+  const {
+    rescueRequests, createRescueRequest, updateRescueRequest, removeRescueRequest,
+  } = useAdminData()
+  return { rescueRequests, createRescueRequest, updateRescueRequest, removeRescueRequest }
+}
+
 export function useFloodReports() {
   const {
     floodReports, submitFloodReport, verifyFloodReport, updateFloodReport, removeFloodReport,
@@ -846,6 +944,7 @@ export function useRoadReports() {
   const { roadReports, reportRoad, removeRoadReport } = useAdminData()
   return { roadReports, reportRoad, removeRoadReport }
 }
+
 
 /**
  * Road change requests (barangay → CDRRMO approval queue). Officials submit;

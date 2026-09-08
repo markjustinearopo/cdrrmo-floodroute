@@ -540,7 +540,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  z-index: 520;
+  z-index: 2000; /* modal layer — see .account-overlay */
 }
 .notif-detail {
   width: min(440px, 100%);
@@ -624,6 +624,13 @@
 .notif-detail-btn.ghost:hover { border-color: #c0181b; color: #c0181b; background: #fef2f2; }
 
 /* ── Account modal (Profile / Settings) ── */
+/* MODAL LAYER = 2000.
+   A modal covers the whole app, so it has to outrank every floating thing the
+   page underneath can put on screen. At 1100 this one lost to the map chrome
+   (the search bar is 1200, the card rail 1150 — see mapUpgrade.css) and to the
+   mobile nav backdrop at 1400, so opening Settings over the barangay dashboard
+   or the resident map left the search bar floating on top of the dialog.
+   Anything that is a full-screen dialog belongs at 2000 or above. */
 .account-overlay {
   position: fixed;
   inset: 0;
@@ -632,7 +639,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  z-index: 1100;
+  z-index: 2000;
 }
 .account-modal {
   width: min(600px, 100%);
@@ -984,6 +991,29 @@
   background: #fef2f2;
   color: #c0181b;
   font-weight: 600;
+}
+/* Count of residents awaiting rescue. Pushed to the far edge of the rail and
+   pulsing while it is non-zero — it is only ever rendered when somebody is
+   actually stranded, so there is no idle state for it to be noisy in. */
+.nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  animation: nav-badge-pulse 1.8s ease-in-out infinite;
+}
+@keyframes nav-badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(220, 38, 38, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-badge { animation: none; }
 }
 .nav-item svg {
   width: 15px;

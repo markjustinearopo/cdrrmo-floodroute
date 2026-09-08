@@ -1,0 +1,268 @@
+/* ============================================================
+   NO SAFE ROUTE AVAILABLE — resident takeover.
+
+   Shares the emergency takeover's visual language on purpose (dark red
+   ground, pulsing rail, one action) so a resident who has seen an
+   EMERGENCY alert reads this at the same level of seriousness. It is a
+   separate stylesheet rather than shared classes because the two say
+   different things — that one is "move now", this one is "do not move" —
+   and one file changing must never quietly restyle the other.
+   ============================================================ */
+
+.nsr {
+  position: fixed;
+  inset: 0;
+  z-index: 100000; /* above every modal, banner and map control */
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(60, 3, 3, 0.86);
+  backdrop-filter: blur(6px);
+  animation: nsr-in 0.18s ease-out;
+}
+@keyframes nsr-in { from { opacity: 0 } to { opacity: 1 } }
+
+.nsr-card {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 94vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 18px;
+  padding: 0 24px 22px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  animation: nsr-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+@keyframes nsr-pop { from { transform: scale(0.94) } to { transform: scale(1) } }
+
+.nsr-bar {
+  height: 7px;
+  margin: 0 -24px 20px;
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(90deg, #dc2626, #f97316, #dc2626);
+  background-size: 200% 100%;
+  animation: nsr-sweep 1.1s linear infinite;
+}
+@keyframes nsr-sweep { to { background-position: -200% 0 } }
+
+/* ── Header ── */
+.nsr-head { display: flex; align-items: flex-start; gap: 13px; }
+
+.nsr-icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #fef2f2;
+  color: #dc2626;
+}
+.nsr-icon svg { width: 24px; height: 24px; }
+
+.nsr-kicker {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #b91c1c;
+}
+
+.nsr-title {
+  margin: 2px 0 0;
+  font-size: 1.375rem;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #7f1d1d;
+}
+
+/* The sentence the whole screen exists to deliver. */
+.nsr-instruction {
+  margin: 16px 0 4px;
+  padding: 14px 15px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: #7f1d1d;
+}
+.nsr-instruction b { color: #991b1b; }
+
+/* ── Detail blocks ── */
+.nsr-block {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f1f1;
+}
+
+.nsr-block-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+.nsr-block-title svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Big, monospaced, selectable — these numbers get read aloud on a phone
+   call, and tabular figures stop 0/8 and 1/7 blurring together. */
+.nsr-coords {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #111827;
+  user-select: all;
+}
+
+.nsr-sub { font-size: 0.8125rem; line-height: 1.5; color: #4b5563; }
+.nsr-note { margin-top: 6px; font-size: 0.75rem; line-height: 1.5; color: #9ca3af; }
+
+.nsr-depth {
+  margin: 8px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #b45309;
+}
+
+/* ── Blocked road list ── */
+.nsr-roads { list-style: none; margin: 10px 0 0; padding: 0; }
+.nsr-roads li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.8125rem;
+  color: #374151;
+  border-top: 1px dashed #f3f4f6;
+}
+.nsr-roads li:first-child { border-top: 0; }
+
+.nsr-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.nsr-dot.flooded { background: #f97316; }
+.nsr-dot.closed { background: #dc2626; }
+
+.nsr-road-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nsr-road-status { flex: none; font-size: 0.6875rem; color: #9ca3af; text-transform: capitalize; }
+.nsr-more { color: #9ca3af; font-size: 0.75rem; }
+
+/* ── The receipt ── */
+.nsr-receipt {
+  margin-top: 16px;
+  padding: 13px 14px;
+  border: 1px solid #bbf7d0;
+  border-top: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: #f0fdf4;
+}
+.nsr-receipt .nsr-block-title { color: #15803d; }
+/* Failure inverts it: an unsent request is the most important thing on the
+   screen after "stay put", and must never read as reassurance. */
+.nsr-receipt.err { border-color: #fecaca; background: #fef2f2; }
+.nsr-receipt.err .nsr-block-title { color: #b91c1c; }
+
+.nsr-receipt-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+
+.nsr-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #14532d;
+}
+
+.nsr-status {
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.nsr-status.pending { background: #fef3c7; color: #92400e; }
+.nsr-status.responding { background: #dbeafe; color: #1d4ed8; }
+.nsr-status.rescued { background: #dcfce7; color: #15803d; }
+.nsr-status.resolved { background: #e5e7eb; color: #4b5563; }
+
+.nsr-retry {
+  margin-top: 10px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #dc2626;
+  border-radius: 9px;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nsr-retry:hover { background: #fef2f2; }
+
+/* ── Hotlines ── */
+.nsr-hotlines { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 16px; }
+@media (max-width: 420px) { .nsr-hotlines { grid-template-columns: 1fr; } }
+
+.nsr-call {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 11px;
+  background: #fff;
+  text-decoration: none;
+  color: #111827;
+}
+.nsr-call:hover { border-color: #dc2626; background: #fef2f2; }
+.nsr-call svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #dc2626;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.nsr-call span { display: flex; flex-direction: column; min-width: 0; }
+.nsr-call b { font-size: 0.8125rem; font-weight: 600; }
+.nsr-call em { font-style: normal; font-size: 0.75rem; color: #6b7280; }
+
+/* ── Action ── */
+.nsr-ack {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 12px;
+  background: #b91c1c;
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+.nsr-ack:hover { background: #991b1b; }
+
+.nsr-foot {
+  margin: 12px 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.55;
+  color: #9ca3af;
+  text-align: center;
+}

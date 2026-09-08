@@ -8,13 +8,14 @@ import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import { useFloodRisk } from './floodRisk.js'
 import { floodStatus, floodBannerText } from '../../services/floodBanner.js'
-import { useAlerts } from '../../context/AdminDataContext.jsx'
+import { useAlerts, useRescueRequests } from '../../context/AdminDataContext.jsx'
 import { useRealTimeSync } from '../../hooks/useRealTimeSync.js'
 import { useSystemConfig, loadSystemConfigRemote } from '../../services/systemConfig.js'
 import { useT } from '../../services/i18n.js'
 import AutoAlertWatcher from './AutoAlertWatcher.jsx'
 import DrillMode from './DrillMode.jsx'
 import EmergencyAlert from '../EmergencyAlert.jsx'
+import RescueAlertWatcher from './RescueAlertWatcher.jsx'
 import './AdminLayout.css'
 
 /**
@@ -45,6 +46,11 @@ const NAV = [
   {
     section: 'Respond',
     items: [
+      /* First in Respond, and badged: these are people who cannot move. Every
+         other entry in this section is a record about the city; this one is a
+         queue of residents waiting, and it should be the first thing an
+         officer's eye lands on when something is in it. */
+      { label: 'Rescue Requests', to: '/admin/rescue', icon: LifebuoyIcon, badge: 'rescue' },
       { label: 'Alerts', to: '/admin/alerts', icon: BellIcon },
       { label: 'Flood Reports', to: '/admin/flood-reports', icon: FloodReportIcon },
       { label: 'Incidents', to: '/admin/incidents', icon: TriangleIcon },
@@ -107,6 +113,15 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   // "no active flood issue" even though the lowland barangays stay coloured.
   const { alerts } = useAlerts()
   const status = useMemo(() => floodStatus(alerts, field, null), [alerts, field])
+
+  /* People currently waiting on a rescue. Drives the sidebar badge, so the
+     count is visible from every admin screen — the point of a badge here is
+     that nobody has to be on the rescue page to know somebody is stranded. */
+  const { rescueRequests } = useRescueRequests()
+  const openRescues = useMemo(
+    () => rescueRequests.filter((r) => r.status === 'pending' || r.status === 'responding').length,
+    [rescueRequests],
+  )
 
   const hasAlert = status.active
   const lvlClass = `lvl-${status.tone}`
@@ -178,6 +193,10 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           as a real one. */}
       <DrillMode />
       <EmergencyAlert />
+
+      {/* Pushes a new rescue request onto whatever admin screen is open, the
+          moment it arrives over the realtime channel. */}
+      <RescueAlertWatcher />
 
       {/* ── Maintenance banner (System Configuration → Maintenance mode) ── */}
       {config.maintenance && (
@@ -325,7 +344,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           {NAV.map((group) => (
             <div key={group.section}>
               <div className="sidebar-section">{t(group.section)}</div>
-              {group.items.map(({ label, to, icon: Icon }) => (
+              {group.items.map(({ label, to, icon: Icon, badge }) => (
                 <NavLink
                   key={label}
                   to={to}
@@ -334,6 +353,13 @@ export default function AdminLayout({ children, mainClassName = '' }) {
                 >
                   <Icon />
                   {t(label)}
+                  {/* Only rendered when somebody is actually waiting — a badge
+                      showing "0" is noise that teaches the eye to skip it. */}
+                  {badge === 'rescue' && openRescues > 0 && (
+                    <span className="nav-badge" aria-label={`${openRescues} awaiting rescue`}>
+                      {openRescues}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </div>
@@ -448,6 +474,21 @@ function TriangleIcon() {
   return (
     <svg viewBox="0 0 24 24">
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    </svg>
+  )
+}
+/* Rescue Requests. A life ring rather than another warning triangle — three
+   entries in this section already use the triangle, and the one that means
+   "somebody is in the water" should not be the fourth. */
+function LifebuoyIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="4" />
+      <line x1="4.9" y1="4.9" x2="9.2" y2="9.2" />
+      <line x1="14.8" y1="14.8" x2="19.1" y2="19.1" />
+      <line x1="14.8" y1="9.2" x2="19.1" y2="4.9" />
+      <line x1="4.9" y1="19.1" x2="9.2" y2="14.8" />
     </svg>
   )
 }
