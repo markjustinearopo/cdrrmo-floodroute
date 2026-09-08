@@ -1,0 +1,167 @@
+/* ============================================================
+   Partial road block picker — the control panel over the map.
+
+   Sits at the top-left of the map area, above Leaflet's own panes, and stays
+   narrow enough that the road being closed is still visible beside it: the
+   operator has to watch the red section grow as they pick, so the panel must
+   never be the thing they are looking at.
+   ============================================================ */
+
+.rbp-panel {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 900; /* above Leaflet panes + controls */
+  width: 320px;
+  max-height: calc(100% - 28px);
+  overflow-y: auto;
+  padding: 14px 15px 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+}
+
+.rbp-hdr { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
+.rbp-title { font-size: 0.875rem; font-weight: 800; color: #b91c1c; }
+.rbp-road { font-size: 0.75rem; color: #6b7280; }
+
+/* ── The two steps ── */
+.rbp-steps { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 7px; }
+
+.rbp-steps button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.rbp-steps button:disabled { opacity: 0.5; cursor: not-allowed; }
+.rbp-steps button:hover:not(:disabled) { border-color: #d1d5db; background: #fafafa; }
+
+.rbp-step-n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.rbp-step-l { display: flex; flex-direction: column; min-width: 0; font-size: 0.8125rem; font-weight: 600; color: #111827; }
+.rbp-step-l em {
+  font-style: normal;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: #9ca3af;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Armed: this is the click the map is waiting for. */
+.rbp-steps li.on button { border-color: #dc2626; background: #fef2f2; }
+.rbp-steps li.on .rbp-step-n { background: #dc2626; color: #fff; }
+.rbp-steps li.done .rbp-step-n { background: #dcfce7; color: #15803d; }
+
+.rbp-msg {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  font-size: 0.75rem;
+  color: #92400e;
+}
+
+/* ── Preview: the road as a bar, blocked portion in red ── */
+.rbp-preview { margin-bottom: 12px; }
+
+.rbp-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e5e7eb;
+}
+.rbp-bar-open { background: #22c55e; }
+.rbp-bar-blocked { background: #dc2626; }
+
+.rbp-figures { display: flex; gap: 14px; margin-top: 6px; font-size: 0.6875rem; }
+.rbp-fig.blocked { color: #b91c1c; }
+.rbp-fig.open { color: #15803d; }
+.rbp-fig b { font-weight: 700; }
+
+/* ── Fields ── */
+.rbp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 11px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+.rbp-field input,
+.rbp-field textarea {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+  color: #111827;
+  resize: vertical;
+}
+.rbp-field input:focus,
+.rbp-field textarea:focus { outline: 2px solid #fecaca; border-color: #dc2626; }
+
+.rbp-hint { font-size: 0.6875rem; font-weight: 400; color: #9ca3af; }
+
+.rbp-effect { display: flex; gap: 7px; }
+.rbp-effect-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+}
+.rbp-effect-btn.on { border-color: var(--c); color: var(--c); background: #fff7f7; }
+.rbp-effect-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+
+/* ── Actions ── */
+.rbp-actions { display: flex; gap: 7px; margin-top: 13px; }
+
+.rbp-btn {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rbp-btn.ghost { border: 1px solid #e5e7eb; background: #fff; color: #6b7280; }
+.rbp-btn.ghost:hover:not(:disabled) { background: #f9fafb; }
+.rbp-btn.primary { flex: 1; border: 0; background: #b91c1c; color: #fff; font-weight: 700; }
+.rbp-btn.primary:hover:not(:disabled) { background: #991b1b; }
+.rbp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 720px) {
+  .rbp-panel { width: calc(100% - 28px); max-height: 60%; }
+}

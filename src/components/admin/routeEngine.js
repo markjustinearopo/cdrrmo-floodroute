@@ -407,11 +407,23 @@ function findEdge(edges, to, prefer) {
  * is impassable, a "flooded" road is treated as near-certain risk regardless
  * of what the model says.
  */
-export function edgeRisk(edge, { riskAt, statusMap }) {
+export function edgeRisk(edge, { riskAt, statusMap, blockedEdges, floodedEdges }) {
   const status = statusMap?.[edge.wayId]
   if (status === 'blocked') return Infinity
+  /* PARTIAL CLOSURES. `statusMap` is keyed by WAY, so it can only ever say
+     "all of this road" — which closed kilometres of highway because of one
+     flooded underpass. A selective closure is finer than a way, so it arrives
+     as a Set of the actual edge objects from this graph's adjacency (see
+     roadBlocks.buildBlockIndex, and its header for why identity and not a
+     key). An edge inside a closed section is impassable; every other edge of
+     the same road is untouched and still routes, which is the entire point.
+
+     Both Sets are checked by SIZE first: with no partial closures this adds
+     one integer comparison per edge to the search's inner loop, nothing more. */
+  if (blockedEdges?.size && blockedEdges.has(edge)) return Infinity
   let risk = riskAt ? riskAt(edge.mlat, edge.mlng) : 0
   if (status === 'flooded') risk = Math.max(risk, 0.9)
+  if (floodedEdges?.size && floodedEdges.has(edge)) risk = Math.max(risk, 0.9)
   return risk
 }
 
@@ -519,7 +531,13 @@ function decorate(graph, result, opts) {
     const edge = findEdge(adj[result.nodes[i - 1]], result.nodes[i], legal)
     if (!edge) continue
     const st = opts.statusMap?.[edge.wayId]
-    if (st === 'flooded' || st === 'blocked') {
+    /* A selective closure flagged 'flooded' makes this SEGMENT wet without the
+       rest of its road being wet, so the count has to see it too — otherwise a
+       route wading through a partially flooded stretch reports zero flooded
+       segments and the warning banner stays silent. (A 'blocked' section never
+       reaches here: the search cannot traverse it.) */
+    const partialWet = opts.floodedEdges?.size ? opts.floodedEdges.has(edge) : false
+    if (st === 'flooded' || st === 'blocked' || partialWet) {
       floodedSegments++
       flooded.add(edge.wayId)
     }
@@ -543,7 +561,7 @@ function decorate(graph, result, opts) {
       kmh: edge.kmh,
       // Degree of the node this segment STARTS at — 3+ means a real junction.
       degree: adj[result.nodes[i - 1]]?.length ?? 2,
-      flooded: st === 'flooded' || st === 'blocked',
+      flooded: st === 'flooded' || st === 'blocked' || partialWet,
       /* Carried for the turn-by-turn navigator and the voice guidance:
          oneway   0 | +1 | -1 relative to the stored geometry
          wrongWay this leg runs against that direction */

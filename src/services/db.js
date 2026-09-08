@@ -749,6 +749,105 @@ export const roadStatusDb = {
 }
 
 /* ============================================================
+   Road blocks — selective (partial) road closures.
+
+   `road_status` holds one status per OSM way and always will; this table
+   holds closures of a SECTION of a way, several per way if the ground calls
+   for it. The two live side by side on purpose — see the header of
+   20260908130000_road_blocks.sql for why the way-keyed table was not simply
+   extended.
+
+   The blocked section's geometry is the record. It is written twice in the
+   same statement: as `geometry` jsonb ([[lat,lng], …], which is what the app
+   and the router read) and as a PostGIS `geom` LineString, so spatial queries
+   work without the database having to parse the jsonb. Same belt-and-braces
+   the saved_routes table uses, and the same axis-order trap — see
+   toLineStringWKT below, which is defined further down this file for the
+   route geometry and reused here.
+   ============================================================ */
+function roadBlockFromRow(r) {
+  return {
+    id: r.id,
+    wayId: r.osm_way_id != null ? Number(r.osm_way_id) : null,
+    roadName: r.road_name || '',
+    barangay: r.barangay || '',
+    scope: r.scope || 'partial',
+    start: r.start_lat != null && r.start_lng != null ? [Number(r.start_lat), Number(r.start_lng)] : null,
+    end: r.end_lat != null && r.end_lng != null ? [Number(r.end_lat), Number(r.end_lng)] : null,
+    /* Always an array for the router and the map layer: a null here would be
+       a crash in the one loop that decides which roads are passable. */
+    geometry: Array.isArray(r.geometry) ? r.geometry : [],
+    lengthM: r.length_m != null ? Number(r.length_m) : null,
+    reason: r.reason || '',
+    hazardLevel: r.hazard_level || null,
+    depthM: r.depth_m != null ? Number(r.depth_m) : null,
+    effect: r.effect || 'blocked',
+    status: r.status || 'active',
+    accountId: r.account_id ?? null,
+    createdBy: r.created_by || '',
+    reportedAt: epochOf(r.reported_at),
+    reported: label(r.reported_at),
+    resolvedAt: epochOf(r.resolved_at),
+    updatedAt: epochOf(r.updated_at),
+  }
+}
+
+function roadBlockToRow(b) {
+  const out = {}
+  if ('wayId' in b) out.osm_way_id = b.wayId
+  if ('roadName' in b) out.road_name = b.roadName || null
+  if ('barangay' in b) out.barangay = b.barangay || null
+  if ('scope' in b) out.scope = b.scope === 'full' ? 'full' : 'partial'
+  if ('start' in b) {
+    out.start_lat = b.start?.[0] ?? null
+    out.start_lng = b.start?.[1] ?? null
+  }
+  if ('end' in b) {
+    out.end_lat = b.end?.[0] ?? null
+    out.end_lng = b.end?.[1] ?? null
+  }
+  if ('geometry' in b) {
+    const line = Array.isArray(b.geometry) ? b.geometry : []
+    out.geometry = line
+    out.geom = toLineStringWKT(line) // the PostGIS projection, never drifting
+  }
+  if ('lengthM' in b) out.length_m = b.lengthM ?? null
+  if ('reason' in b) out.reason = b.reason || null
+  if ('hazardLevel' in b) out.hazard_level = b.hazardLevel || null
+  if ('depthM' in b) out.depth_m = b.depthM ?? null
+  if ('effect' in b) out.effect = b.effect === 'flooded' ? 'flooded' : 'blocked'
+  if ('status' in b) out.status = b.status
+  if ('accountId' in b) out.account_id = b.accountId ?? null
+  if ('createdBy' in b) out.created_by = b.createdBy || null
+  if ('reportedAt' in b) out.reported_at = isoOf(b.reportedAt)
+  if ('resolvedAt' in b) out.resolved_at = isoOf(b.resolvedAt)
+  return out
+}
+
+export const roadBlocksDb = {
+  fromRow: roadBlockFromRow,
+  async list() {
+    const rows = unwrap(await supabase.from('road_blocks').select('*').order('reported_at', { ascending: false }))
+    return rows.map(roadBlockFromRow)
+  },
+  async create(block) {
+    const row = roadBlockToRow({ status: 'active', reportedAt: Date.now(), ...block })
+    return roadBlockFromRow(unwrap(await supabase.from('road_blocks').insert(row).select().single()))
+  },
+  async update(id, patch) {
+    /* Resolving stamps the time here rather than in the UI, so a closure
+       reopened from any screen carries the same record of when it ended. */
+    const next = { ...patch }
+    if (patch.status === 'resolved' && !('resolvedAt' in patch)) next.resolvedAt = Date.now()
+    if (patch.status === 'active' && !('resolvedAt' in patch)) next.resolvedAt = null
+    unwrap(await supabase.from('road_blocks').update(roadBlockToRow(next)).eq('id', id))
+  },
+  async remove(id) {
+    unwrap(await supabase.from('road_blocks').delete().eq('id', id))
+  },
+}
+
+/* ============================================================
    App settings (shared key/value config — system config, alert settings)
    `app_settings` is (key text PK, value jsonb, updated_at). One row per
    config blob; the Settings pages keep a localStorage cache for instant
@@ -924,6 +1023,7 @@ export default {
   notifications: notificationsDb,
   integrations: integrationsDb,
   roadStatus: roadStatusDb,
+  roadBlocks: roadBlocksDb,
   savedRoutes: savedRoutesDb,
   appSettings: appSettingsDb,
   auth: authDb,

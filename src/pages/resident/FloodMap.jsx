@@ -23,7 +23,10 @@ import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
 import { FloodAreaMarkers } from '../../components/admin/FloodAreasLayer.jsx'
 import { FloodReportMarkers } from '../../components/admin/FloodReportsLayer.jsx'
 import FloodReportModal from '../../components/resident/FloodReportModal.jsx'
-import { useEvacCenters, useFloodAreas, useFloodReports, useRoadReports } from '../../context/AdminDataContext.jsx'
+import {
+  useEvacCenters, useFloodAreas, useFloodReports, useRoadReports, useRoadBlocks,
+} from '../../context/AdminDataContext.jsx'
+import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import { BARANGAY_CENTROIDS, CABUYAO_LAND_BOUNDS } from '../../data/cabuyaoBarangays.js'
 import { useGeolocation } from '../../hooks/useGeolocation.js'
@@ -147,6 +150,10 @@ export default function FloodMap() {
   const navigate = useNavigate()
   const mapRef = useRef(null)
   const { roadReports } = useRoadReports()
+  /* Closed SECTIONS of roads. A resident has to see where a road stops being
+     usable and where it starts again — showing the whole road as shut is the
+     mistake this replaces. */
+  const { roadBlocks } = useRoadBlocks()
   const { coords: myPos, loading: locating, locate } = useGeolocation()
   const [dark, setDark] = usePersistedState('cdrrmo-map-dark-v1', false)
   // Layers panel: visible by default on desktop, tucked away on phones (the
@@ -380,6 +387,8 @@ export default function FloodMap() {
               {layers.roads && <FlaggedRoadsLayer />}
 
               {/* Searched location: smooth flyTo + pin + glow highlight + popup */}
+              {/* The exact closed stretch — never the whole road. */}
+              <RoadBlocksLayer blocks={roadBlocks} audience="resident" />
               <SearchResultLayer result={searchResult} barangays={barangays} />
 
               {/* Live "you are here" from the My Location FAB */}

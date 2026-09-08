@@ -21,12 +21,15 @@ import { useRouteGraph, profileFor, DEFAULT_ALPHA } from '../../components/admin
 import { findSafeRoute, checkRouteSafety } from '../../components/admin/routeSafety.js'
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import '../../components/map/mapUpgrade.css'
+import '../../components/map/roadBlocks.css'
 import { MapViewToggle, use3DPreference } from '../../components/admin/Map3D.jsx'
 import RouteSketch3DView from '../../components/admin/RouteSketch3DView.jsx'
 import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
 import { useGeolocation } from '../../hooks/useGeolocation.js'
 import { usePersistedState } from '../../utils/usePersistedState.js'
-import { useEvacCenters, barangayCoords } from '../../context/AdminDataContext.jsx'
+import { useEvacCenters, useRoadBlocks, barangayCoords } from '../../context/AdminDataContext.jsx'
+import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
+import { useRoadBlockIndex, blocksOnRoute } from '../../components/admin/roadBlocks.js'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
@@ -71,6 +74,13 @@ export default function EvacuationRouting() {
   )
   const [statusMap] = useRoadStatus()
   const [routes] = useRoutes()
+
+  /* Selective closures. `statusMap` can only close a WHOLE road, so a closure
+     of 200 m of the highway arrives here instead, as the set of graph edges
+     inside it — the rest of that road stays in the search exactly as it is.
+     See components/admin/roadBlocks.js. */
+  const { roadBlocks } = useRoadBlocks()
+  const blockIndex = useRoadBlockIndex(graph, roadBlocks)
   const [selectedId, setSelectedId] = useState(null)
   const [coords, setCoords] = useState(null)
   const [use3D, setUse3D] = use3DPreference()
@@ -220,6 +230,16 @@ export default function EvacuationRouting() {
   const color = showGen ? '#16A34A' : publishedColor
   const distance = pathLengthMeters(points)
 
+  /* Closures the resident is about to walk past. The route is planned AROUND a
+     blocked section, so this is not "your route is blocked" — it is "the road
+     beside you is", which is exactly what somebody needs before they take what
+     looks like an obvious shortcut. 60 m: near enough to be visible from the
+     path, far enough not to list every closure in the barangay. */
+  const nearbyBlocks = useMemo(
+    () => (points.length > 1 ? blocksOnRoute(points, roadBlocks, 60) : []),
+    [points, roadBlocks],
+  )
+
   // origin = pinned location when set, else the barangay centroid.
   const origin = pin ? [pin.lat, pin.lng] : barangayCoords(myBrgy)
 
@@ -229,6 +249,9 @@ export default function EvacuationRouting() {
   const routeOpts = {
     riskAt: field?.riskAt,
     statusMap,
+    // Only the closed SECTIONS are excluded — never the whole road.
+    blockedEdges: blockIndex.blockedEdges,
+    floodedEdges: blockIndex.floodedEdges,
     alpha: DEFAULT_ALPHA,
     roads,
     ...profileFor('evacuation'), // walking: one-way streets do not bind
@@ -412,6 +435,10 @@ export default function EvacuationRouting() {
               {/* Live road conditions as context so residents see what to avoid. */}
               {roads && <RoadNetworkLayer roads={roads} statusMap={statusMap} interactive={false} />}
               {roads && <OneWayArrowsLayer roads={roads} />}
+              {/* The exact closed stretch — not the whole road. Drawn over the
+                  network so a resident sees where the road stops being usable
+                  and where it starts again. */}
+              <RoadBlocksLayer blocks={roadBlocks} audience="resident" />
               {/* Click-to-pin while in pinning mode; the pin itself is draggable. */}
               <ClickToAddWaypoint enabled={pinning} onAdd={([lat, lng]) => { setPin({ lat, lng }); setPinning(false) }} />
               {pin && (
@@ -489,6 +516,37 @@ export default function EvacuationRouting() {
             {genMsg && (
               <section className="rp-section">
                 <div className="rp-type-note" style={{ color: '#9a3412' }}>{genMsg}</div>
+              </section>
+            )}
+
+            {/* ROAD BLOCK AHEAD. Says "this section", never "this road" — the
+                route on screen already goes around it, and telling somebody a
+                road they can see people using is closed is how a warning gets
+                ignored. */}
+            {nearbyBlocks.length > 0 && (
+              <section className="rp-section">
+                <div className="rb-warn" role="alert">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <span>
+                    <b>Road Block Ahead</b>
+                    This section of the road is currently inaccessible. Your route
+                    goes around it — stay on the highlighted path and do not enter
+                    the red section.
+                    <ul>
+                      {nearbyBlocks.slice(0, 4).map((b) => (
+                        <li key={b.id}>
+                          {b.roadName || `Road #${b.wayId}`}
+                          {b.scope === 'partial' && b.lengthM ? ` — ${Math.round(b.lengthM)} m closed` : ' — closed'}
+                          {b.reason ? ` · ${b.reason}` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </span>
+                </div>
               </section>
             )}
 

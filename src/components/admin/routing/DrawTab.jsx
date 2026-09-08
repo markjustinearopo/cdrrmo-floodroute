@@ -12,7 +12,9 @@ import {
   useTrafficStatus,
 } from '../routingHelpers.jsx'
 import { planRoute, profileFor, DEFAULT_ALPHA } from '../routeEngine.js'
-import { useEvacCenters, useSavedRoutes } from '../../../context/AdminDataContext.jsx'
+import { useEvacCenters, useSavedRoutes, useRoadBlocks } from '../../../context/AdminDataContext.jsx'
+import { useRoadBlockIndex } from '../roadBlocks.js'
+import RoadBlocksLayer from '../../map/RoadBlocksLayer.jsx'
 import MapSearchBar from '../../map/MapSearchBar.jsx'
 import SearchResultLayer from '../../map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../map/searchTools.js'
@@ -34,6 +36,10 @@ export default function DrawTab({ shared, onToast, onGoToTab }) {
   const { roads, graph, live, type, setType } = shared
   const [routes, { addRoute, removeRoute }] = useSavedRoutes()
   const [statusMap] = useRoadStatus()
+  const { roadBlocks } = useRoadBlocks()
+  /* Closed SECTIONS of roads — excluded from the search per-edge, so drawing a
+     leg through a partly-closed road still follows the open part of it. */
+  const blockIndex = useRoadBlockIndex(graph, roadBlocks)
   const [trafficMap] = useTrafficStatus()
 
   // ── Draft route being drawn on the map ──
@@ -94,7 +100,17 @@ export default function DrawTab({ shared, onToast, onGoToTab }) {
     /* Vehicle routes (relief/response) steer around congestion and obey
        one-way streets; an on-foot evacuation does neither. */
     const { beta, onFoot } = profileFor(type)
-    const opts = { riskAt: live?.riskAt, statusMap, trafficMap, alpha: DEFAULT_ALPHA, beta, onFoot }
+    const opts = {
+      riskAt: live?.riskAt,
+      statusMap,
+      // Only the closed sections, never the whole road.
+      blockedEdges: blockIndex.blockedEdges,
+      floodedEdges: blockIndex.floodedEdges,
+      trafficMap,
+      alpha: DEFAULT_ALPHA,
+      beta,
+      onFoot,
+    }
     let line = []
     let gaps = 0
     for (let i = 1; i < points.length; i++) {
@@ -181,6 +197,7 @@ export default function DrawTab({ shared, onToast, onGoToTab }) {
             />
           ))}
 
+          <RoadBlocksLayer blocks={roadBlocks} audience="admin" />
           <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=draw" />
           <CoordReadout onChange={setCoords} />
         </MapContainer>

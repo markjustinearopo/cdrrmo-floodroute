@@ -17,7 +17,14 @@ import RoadConditionModal from '../../components/admin/RoadConditionModal.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
-import { useEvacCenters, useRoadRequests, useRoadReports } from '../../context/AdminDataContext.jsx'
+import {
+  useEvacCenters, useRoadRequests, useRoadReports, useRoadBlocks,
+} from '../../context/AdminDataContext.jsx'
+import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
+import {
+  PartialBlockPickMap, PartialBlockPanel, buildBlockRecord,
+} from '../../components/admin/PartialBlockPicker.jsx'
+import api from '../../services/api.js'
 import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
 import { ftToM, formatMeters } from '../../services/depth.js'
@@ -77,6 +84,30 @@ export default function RoadStatus() {
   const [confirmClear, setConfirmClear] = useState(null) // 'conditions' | 'traffic'
   const [approving, setApproving] = useState(null) // barangay request under review
 
+  /* ── Partial road blocks ────────────────────────────────────────────────
+     `picking` is the whole state of the selective-closure flow:
+       { road, start, end, stage, details, message }
+     It is null whenever the operator is not choosing a section, and while it
+     is non-null the map's ordinary click-to-paint is suspended — a click is
+     placing a point, not flagging a different road. */
+  const {
+    roadBlocks, addRoadBlock, updateRoadBlock, resolveRoadBlock, removeRoadBlock,
+  } = useRoadBlocks()
+  const [picking, setPicking] = useState(null)
+  const [confirmDeleteBlock, setConfirmDeleteBlock] = useState(null)
+  const [selectedBlockId, setSelectedBlockId] = useState(null)
+
+  const openBlocks = useMemo(() => roadBlocks.filter((b) => b.status !== 'resolved'), [roadBlocks])
+
+  const blocksByWay = useMemo(() => {
+    const m = new Map()
+    roadBlocks.forEach((b) => {
+      if (b.status === 'resolved' || b.wayId == null) return
+      m.set(String(b.wayId), [...(m.get(String(b.wayId)) || []), b])
+    })
+    return m
+  }, [roadBlocks])
+
   const isTraffic = mode === 'traffic'
 
   /* The paint hint sits on the map, and the map runs short of room TWICE: on a
@@ -99,8 +130,64 @@ export default function RoadStatus() {
     setTraffic(id, trafficMap[id] === trafficBrush ? 'clear' : trafficBrush)
   }
 
-  // The map's pick handler depends on the active mode.
-  const handlePick = isTraffic ? paintTraffic : openEditor
+  /* While a section is being picked, clicking a road must NOT open the
+     condition editor for it — the operator is choosing where along the
+     current road the closure starts, and PartialBlockPickMap has the map
+     click. Passing undefined also drops the hover-highlight, so the network
+     visibly stops being clickable. */
+  const handlePick = picking ? undefined : (isTraffic ? paintTraffic : openEditor)
+
+  /* ── The partial-closure flow ── */
+  function startPartial(road) {
+    const feature = roadById.get(String(road.wayId ?? road.id))
+    if (!feature) return
+    setEditing(null)
+    setApproving(null)
+    /* Picking two points along a road needs the 2D Leaflet map — the 3D view
+       has no click-to-project. Drop out of it rather than opening a picker
+       whose panel and preview would have nowhere to draw. */
+    setUse3D(false)
+    if (isTraffic) setMode('condition')
+    setPicking({
+      road: feature,
+      start: null,
+      end: null,
+      stage: 'start',
+      message: '',
+      details: {
+        effect: 'blocked',
+        reason: road.reason || '',
+        depthM: road.depthFt ? String(+ftToM(road.depthFt).toFixed(2)) : '',
+      },
+    })
+  }
+
+  function handlePickPoint(hit) {
+    setPicking((p) => {
+      if (!p) return p
+      // Placing the start after both points exist restarts the selection from
+      // that end rather than silently doing nothing.
+      if (p.stage === 'start') return { ...p, start: hit, stage: p.end ? 'done' : 'end', message: '' }
+      if (p.stage === 'end') return { ...p, end: hit, stage: 'done', message: '' }
+      return p
+    })
+  }
+
+  function confirmPartial() {
+    if (!picking?.start || !picking?.end) return
+    const user = api.getUser?.() || null
+    const record = buildBlockRecord({
+      road: picking.road,
+      start: picking.start,
+      end: picking.end,
+      details: picking.details,
+      barangay: barangayForRoad(picking.road.properties.id),
+      createdBy: user?.fullName || user?.username || 'CDRRMO',
+      accountId: user?.id ?? null,
+    })
+    addRoadBlock(record)
+    setPicking(null)
+  }
 
   // Way-id → feature lookup (barangay attribution from the road midpoint).
   const roadById = useMemo(() => {
@@ -325,9 +412,50 @@ export default function RoadStatus() {
                 />
               )}
               {roads && <OneWayArrowsLayer roads={roads} />}
+
+              {/* Closed SECTIONS, over the roads that are otherwise open.
+                  Hidden while picking so the live preview is the only red on
+                  the map and cannot be confused with an existing closure. */}
+              {!picking && (
+                <RoadBlocksLayer
+                  blocks={roadBlocks}
+                  audience="admin"
+                  selectedId={selectedBlockId}
+                  onSelect={(b) => setSelectedBlockId(b.id)}
+                />
+              )}
+
+              {picking && (
+                <PartialBlockPickMap
+                  road={picking.road}
+                  start={picking.start}
+                  end={picking.end}
+                  stage={picking.stage}
+                  onPick={handlePickPoint}
+                  onReject={(msg) => setPicking((pk) => (pk ? { ...pk, message: msg } : pk))}
+                />
+              )}
+
               <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=draw" />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
+            )}
+
+            {/* The picker's controls, over the map it is drawing on. */}
+            {picking && !use3D && (
+              <PartialBlockPanel
+                road={picking.road}
+                start={picking.start}
+                end={picking.end}
+                stage={picking.stage}
+                details={picking.details}
+                message={picking.message}
+                onDetails={(patch) => setPicking((pk) => (pk ? { ...pk, details: { ...pk.details, ...patch } } : pk))}
+                onStage={(stage) => setPicking((pk) => (pk ? { ...pk, stage, message: '' } : pk))}
+                onReset={() => setPicking((pk) => (pk ? { ...pk, start: null, end: null, stage: 'start', message: '' } : pk))}
+                onConfirm={confirmPartial}
+                onCancel={() => setPicking(null)}
+              />
             )}
 
             {/* 2D only — the result layer draws through Leaflet. */}
@@ -436,6 +564,15 @@ export default function RoadStatus() {
                   </div>
                 </div>
                 <div className="rs-total">{counts.total.toLocaleString()} road segments mapped — every street in Cabuyao</div>
+                {/* Kept out of the Closed tile above: a road with a 200 m
+                    closure is not a closed road, and one figure cannot mean
+                    both. The sections themselves are listed further down. */}
+                {openBlocks.length > 0 && (
+                  <div className="rs-total rs-total--sections">
+                    Plus <b>{openBlocks.length}</b> blocked section
+                    {openBlocks.length > 1 ? 's' : ''} on otherwise-open roads.
+                  </div>
+                )}
               </section>
             )}
 
@@ -555,6 +692,84 @@ export default function RoadStatus() {
               </section>
             )}
 
+            {/* ── Partial closures ────────────────────────────────────────
+                Deliberately its OWN list, beside Flagged Roads rather than
+                inside it. A row here is not "this road is closed" — it is
+                "this 180 m of it is", and merging the two lists would put
+                the exact claim this feature exists to make back into the
+                vocabulary that could not make it. */}
+            {!isTraffic && (
+              <section className="rs-section">
+                <div className="rs-flagged-head">
+                  <h3 className="rs-section-title">
+                    Blocked Sections
+                    {openBlocks.length > 0 && <span className="rs-pill">{openBlocks.length}</span>}
+                  </h3>
+                </div>
+                {roadBlocks.length === 0 ? (
+                  <div className="rbs-empty">
+                    No partial closures. Click a road, then “Select a section on the map”
+                    to close only the affected stretch.
+                  </div>
+                ) : (
+                  <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                    {roadBlocks.map((b) => (
+                      <li
+                        className="rbs-row"
+                        key={b.id}
+                        style={b.id === selectedBlockId ? { background: '#fff7f7', borderRadius: 8 } : undefined}
+                      >
+                        <span className={`rbs-dot ${b.status === 'resolved' ? 'resolved' : b.effect}`} />
+                        <span className="rbs-main">
+                          <span className="rbs-name">{b.roadName || `Road #${b.wayId}`}</span>
+                          <span className="rbs-meta">
+                            {b.barangay ? `${b.barangay} · ` : ''}{b.reported}
+                            {b.createdBy ? ` · ${b.createdBy}` : ''}
+                          </span>
+                          {b.reason && <span className="rbs-reason">{b.reason}</span>}
+                        </span>
+                        {b.scope === 'partial' && b.lengthM != null && (
+                          <span className="rbs-len">{b.lengthM} m</span>
+                        )}
+                        <span className={`rbs-scope ${b.status === 'resolved' ? 'resolved' : b.scope}`}>
+                          {b.status === 'resolved' ? 'Reopened' : b.scope === 'full' ? 'Full' : 'Partial'}
+                        </span>
+                        <span className="rbs-acts">
+                          {b.status !== 'resolved' ? (
+                            <button
+                              type="button"
+                              className="rbs-act"
+                              title="Reopen this section — routes will use it again"
+                              onClick={() => resolveRoadBlock(b.id)}
+                            >
+                              Reopen
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="rbs-act"
+                              title="Close this section again"
+                              onClick={() => updateRoadBlock(b.id, { status: 'active' })}
+                            >
+                              Re-close
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="rbs-act danger"
+                            title="Delete this record"
+                            onClick={() => setConfirmDeleteBlock(b)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+
             <section className="rs-section rs-note">
               <SparkIcon />
               <span>
@@ -614,6 +829,25 @@ export default function RoadStatus() {
           road={editing}
           onClose={() => setEditing(null)}
           onSave={saveCondition}
+          onPartial={startPartial}
+          partialCount={(blocksByWay.get(String(editing.wayId)) || []).length}
+        />
+      )}
+
+      {confirmDeleteBlock && (
+        <ConfirmDialog
+          title="Delete this road block?"
+          message={
+            `Delete the closure on ${confirmDeleteBlock.roadName || `Road #${confirmDeleteBlock.wayId}`}? `
+            + 'It will disappear from every map and routes will use the section again immediately. '
+            + 'To keep the record of what was closed, reopen it instead. This cannot be undone.'
+          }
+          confirmLabel="Delete road block"
+          onConfirm={() => {
+            removeRoadBlock(confirmDeleteBlock.id)
+            setConfirmDeleteBlock(null)
+          }}
+          onCancel={() => setConfirmDeleteBlock(null)}
         />
       )}
 

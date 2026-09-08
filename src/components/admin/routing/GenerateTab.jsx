@@ -41,7 +41,9 @@ import {
   clickedEvacCentre3D,
   playRouteReveal3D,
 } from '../routing3d.js'
-import { useEvacCenters, useSavedRoutes } from '../../../context/AdminDataContext.jsx'
+import { useEvacCenters, useSavedRoutes, useRoadBlocks } from '../../../context/AdminDataContext.jsx'
+import { useRoadBlockIndex } from '../roadBlocks.js'
+import RoadBlocksLayer from '../../map/RoadBlocksLayer.jsx'
 import MapSearchBar from '../../map/MapSearchBar.jsx'
 import SearchResultLayer from '../../map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../map/searchTools.js'
@@ -62,6 +64,7 @@ import OneWayArrowsLayer from '../../map/OneWayArrowsLayer.jsx'
 export default function GenerateTab({ shared, onToast }) {
   const { roads, graph, live, baselineField, fieldLoading, refreshField, use3D, type, setType, isForecast, forecastHour } = shared
   const [statusMap] = useRoadStatus()
+  const { roadBlocks } = useRoadBlocks()
   const [trafficMap] = useTrafficStatus()
   const [, { addRoute }] = useSavedRoutes()
   const { evacuationCenters } = useEvacCenters()
@@ -191,9 +194,22 @@ export default function GenerateTab({ shared, onToast }) {
      detours nor slows it (β = 0), and one-way streets do not restrict a
      pedestrian. Relief and response drive, so both apply. */
   const { beta, onFoot } = profileFor(type)
+  /* Selective closures ride alongside the way-keyed statusMap: a closed
+     SECTION excludes only its own graph edges, so the rest of that road stays
+     available to the search. See components/admin/roadBlocks.js. */
+  const blockIndex = useRoadBlockIndex(graph, roadBlocks)
   const routeOpts = useMemo(
-    () => ({ riskAt: live.riskAt, statusMap: effectiveStatus, trafficMap, alpha, beta, onFoot }),
-    [live, effectiveStatus, trafficMap, alpha, beta, onFoot],
+    () => ({
+      riskAt: live.riskAt,
+      statusMap: effectiveStatus,
+      blockedEdges: blockIndex.blockedEdges,
+      floodedEdges: blockIndex.floodedEdges,
+      trafficMap,
+      alpha,
+      beta,
+      onFoot,
+    }),
+    [live, effectiveStatus, blockIndex, trafficMap, alpha, beta, onFoot],
   )
 
   // Which hazard field the route currently on screen was solved against.
@@ -486,6 +502,9 @@ export default function GenerateTab({ shared, onToast }) {
               <Marker position={chosenCentre.coords} icon={waypointIcon('B', 'end')} />
             )}
 
+            {/* Closed SECTIONS, so the operator can see why a generated
+                route swings around a road that looks open. */}
+            <RoadBlocksLayer blocks={roadBlocks} audience="admin" />
             <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=generate" />
             <CoordReadout onChange={setCoords} />
           </MapContainer>

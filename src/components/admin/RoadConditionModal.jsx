@@ -26,6 +26,17 @@ export default function RoadConditionModal({
   title = 'Road Condition',
   subtitle,
   saveLabel,
+  /* Partial closure. Passing `onPartial` adds the "only part of this road"
+     escape hatch: the modal closes and the caller puts its own map into
+     point-picking mode (see PartialBlockPicker). Screens without a map of
+     their own simply do not pass it, and the modal is exactly as it was.
+
+     This is offered as a CHOICE rather than replacing the whole-road control,
+     because closing an entire road is still the right answer often enough — a
+     bridge, a short barangay street — and making the finer tool mandatory
+     would slow down the case that is already correct. */
+  onPartial,
+  partialCount = 0,
 }) {
   const [status, setStatus] = useState(road.status === 'blocked' ? 'blocked' : road.status === 'flooded' ? 'flooded' : 'flooded')
   const [depthM, setDepthM] = useState(() => {
@@ -111,6 +122,30 @@ export default function RoadConditionModal({
             </div>
           )}
 
+          {/* The whole point of the feature, said where the mistake is made.
+              An operator reaches this modal to close a road; this is the
+              moment to offer closing only the part that is actually shut. */}
+          {onPartial && status !== 'open' && (
+            <div className="rcm-partial">
+              <div className="rcm-partial-head">
+                <span className="rcm-partial-title">Only part of this road affected?</span>
+                {partialCount > 0 && (
+                  <span className="rcm-partial-count">
+                    {partialCount} section{partialCount > 1 ? 's' : ''} already closed
+                  </span>
+                )}
+              </div>
+              <p className="rcm-partial-body">
+                Saving above closes <b>the entire road</b> to routing. If only a stretch of
+                it is impassable, mark that section instead — the rest stays open and
+                routes keep using it.
+              </p>
+              <button type="button" className="rcm-partial-btn" onClick={() => onPartial(road)}>
+                <ScissorsIcon /> Select a section on the map…
+              </button>
+            </div>
+          )}
+
           <div className="mng-form-actions">
             <button type="button" className="mng-btn mng-btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="mng-btn">
@@ -120,5 +155,17 @@ export default function RoadConditionModal({
         </form>
       </div>
     </DialogOverlay>
+  )
+}
+
+function ScissorsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <line x1="20" y1="4" x2="8.12" y2="15.88" />
+      <line x1="14.47" y1="14.48" x2="20" y2="20" />
+      <line x1="8.12" y1="8.12" x2="12" y2="12" />
+    </svg>
   )
 }

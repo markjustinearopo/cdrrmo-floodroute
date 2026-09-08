@@ -37,7 +37,11 @@ import {
   formatDistance,
   useRoutes,
 } from '../../components/admin/routingHelpers.jsx'
-import { useAlerts, useEvacCenters, useIncidents, useRoadReports, useFloodAreas } from '../../context/AdminDataContext.jsx'
+import {
+  useAlerts, useEvacCenters, useIncidents, useRoadReports, useFloodAreas, useRoadBlocks,
+} from '../../context/AdminDataContext.jsx'
+import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
+import '../../components/map/roadBlocks.css'
 import { useRoadStatus, getCabuyaoRoads } from '../../components/admin/routingHelpers.jsx'
 import Incidents from './Incidents.jsx'
 import FloodAreaEditor from '../../components/admin/FloodAreaEditor.jsx'
@@ -144,6 +148,10 @@ export default function FloodMap() {
   const { incidents, updateIncident } = useIncidents()
   const { evacuationCenters, updateEvacCenter } = useEvacCenters()
   const { roadReports } = useRoadReports()
+  /* Closed SECTIONS of roads. Managed on Road Status; shown here because this
+     is the map an operator watches the event on, and a closure that only
+     appears on another screen is a closure they will forget. */
+  const { roadBlocks } = useRoadBlocks()
   const { floodAreas } = useFloodAreas() // feeds the location search index
   const [roadStatus] = useRoadStatus()
   const roadNetwork = useMemo(() => getCabuyaoRoads(), [])
@@ -528,6 +536,12 @@ export default function FloodMap() {
                   </Marker>
                 )
               })}
+
+              {/* Closed SECTIONS, over the whole-road conditions. */}
+              <RoadBlocksLayer blocks={roadBlocks} audience="admin" />
+
+              {/* Closed SECTIONS, over the whole-road conditions. */}
+              <RoadBlocksLayer blocks={roadBlocks} audience="admin" />
 
               {/* Searched location: flyTo + pin + glowing road highlight */}
               <SearchResultLayer result={searchResult} barangays={barangays} navigateTo="/admin/routing?tab=draw" />

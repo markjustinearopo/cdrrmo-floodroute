@@ -15,8 +15,12 @@ import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
-import { useEvacCenters } from '../../context/AdminDataContext.jsx'
+import { useEvacCenters, useRoadBlocks } from '../../context/AdminDataContext.jsx'
+import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
+import { activeBlocks } from '../../components/admin/roadBlocks.js'
+import { describeDepth } from '../../services/depth.js'
 import '../admin/RoadStatus.css'
+import '../../components/map/roadBlocks.css'
 import OneWayArrowsLayer from '../../components/map/OneWayArrowsLayer.jsx'
 
 /**
@@ -33,6 +37,23 @@ export default function RoadStatus() {
   const [statusMap] = useRoadStatus() // read-only consumption of the shared conditions
   const [coords, setCoords] = useState(null)
   const [use3D, setUse3D] = use3DPreference()
+
+  /* Partial closures — a blocked SECTION of a road whose rest is open. These
+     cannot appear in `statusMap`, which holds one status per whole way, so a
+     screen reading only that map would tell a resident their road is fine
+     while 200 m of it is under water. This is the page they open to ask
+     exactly that question, so the sections get their own list below. */
+  const { roadBlocks } = useRoadBlocks()
+  const sections = useMemo(
+    () => activeBlocks(roadBlocks)
+      .filter((b) => b.scope === 'partial')
+      .sort((a, b) => (
+        // Impassable before merely flooded, then longest closure first.
+        (a.effect === b.effect ? 0 : a.effect === 'blocked' ? -1 : 1)
+        || (b.lengthM || 0) - (a.lengthM || 0)
+      )),
+    [roadBlocks],
+  )
 
   /* Finding a specific street is the whole point of this page — a resident
      checks it to answer "is MY road passable?", and hunting for it by dragging
@@ -141,6 +162,9 @@ export default function RoadStatus() {
               <CabuyaoLock />
               {roads && <RoadNetworkLayer roads={roads} statusMap={statusMap} interactive={false} />}
               {roads && <OneWayArrowsLayer roads={roads} />}
+              {/* The exact closed stretch, over a road drawn in its ordinary
+                  colour because the rest of it is genuinely open. */}
+              <RoadBlocksLayer blocks={roadBlocks} audience="resident" />
               <SearchResultLayer result={searchResult} />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
@@ -174,6 +198,15 @@ export default function RoadStatus() {
                 </div>
               </div>
               <div className="rs-total">{counts.total.toLocaleString()} road segments mapped — every street in Cabuyao</div>
+              {/* Counted separately, never folded into "Closed". A road with a
+                  200 m closure is not a closed road, and adding it to that
+                  figure would make the number mean two different things. */}
+              {sections.length > 0 && (
+                <div className="rs-total rs-total--sections">
+                  Plus <b>{sections.length}</b> partial closure{sections.length > 1 ? 's' : ''} —
+                  {' '}sections of roads that are otherwise open.
+                </div>
+              )}
             </section>
 
             <section className="rs-section">
@@ -187,6 +220,51 @@ export default function RoadStatus() {
                 ))}
               </div>
             </section>
+
+            {/* ── Blocked sections ──────────────────────────────────────────
+                Its own list, above "Roads to Avoid", because it makes a
+                different claim: not "avoid this road" but "this stretch of it
+                is shut and the rest is fine". Putting these rows in the list
+                below would say the first thing, which is the misinformation
+                this whole feature exists to remove. */}
+            {sections.length > 0 && (
+              <section className="rs-section">
+                <div className="rs-flagged-head">
+                  <h3 className="rs-section-title">
+                    Blocked Sections
+                    <span className="rs-pill">{sections.length}</span>
+                  </h3>
+                </div>
+                <ul className="rs-flagged">
+                  {sections.map((b) => (
+                    <li className="rbs-row" key={b.id}>
+                      <span className={`rbs-dot ${b.effect}`} />
+                      <span className="rbs-main">
+                        <span className="rbs-name">{b.roadName || `Road #${b.wayId}`}</span>
+                        <span className="rbs-meta">
+                          {b.barangay ? `${b.barangay} · ` : ''}
+                          {b.effect === 'blocked'
+                            ? 'This section is currently inaccessible'
+                            : 'This section is flooded — pass with caution'}
+                        </span>
+                        {(b.reason || b.depthM != null) && (
+                          <span className="rbs-reason">
+                            {b.reason}
+                            {b.reason && b.depthM != null ? ' · ' : ''}
+                            {b.depthM != null ? describeDepth(b.depthM) : ''}
+                          </span>
+                        )}
+                      </span>
+                      {b.lengthM != null && <span className="rbs-len">{b.lengthM} m</span>}
+                    </li>
+                  ))}
+                </ul>
+                <div className="rs-total">
+                  The rest of each road above stays open — routes go around the
+                  closed section.
+                </div>
+              </section>
+            )}
 
             <section className="rs-section rs-section--grow">
               <div className="rs-flagged-head">

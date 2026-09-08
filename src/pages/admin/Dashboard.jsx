@@ -19,9 +19,10 @@ import {
 } from '../../components/admin/routingHelpers.jsx'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock } from '../../components/admin/mapHelpers.jsx'
 import {
-  useAlerts, useIncidents, useRoadReports, useEvacCenters, useRescueRequests,
+  useAlerts, useIncidents, useRoadReports, useEvacCenters, useRescueRequests, useRoadBlocks,
 } from '../../context/AdminDataContext.jsx'
 import RescueRequestsLayer from '../../components/admin/RescueRequestsLayer.jsx'
+import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
 import '../../components/admin/rescueMarker.css'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
@@ -119,6 +120,11 @@ export default function Dashboard() {
      them. */
   const { rescueRequests } = useRescueRequests()
   const { roadReports, reportRoad, removeRoadReport } = useRoadReports()
+  /* Closed SECTIONS of roads. Shown here, but managed on Road Status — this
+     map is a quick-flag surface, and picking two points along a road is not a
+     quick flag. */
+  const { roadBlocks } = useRoadBlocks()
+
   /* How high the water actually is, for the cutoff panel's headroom column.
 
      Deliberately built from MEASURED depths only — the ones an operator
@@ -656,6 +662,8 @@ export default function Dashboard() {
                 requests={rescueRequests}
                 onOpen={(r) => navigate(`/admin/rescue?id=${r.id}`)}
               />
+              {/* Closed SECTIONS of roads, over the whole-road conditions. */}
+              <RoadBlocksLayer blocks={roadBlocks} audience="admin" />
               <SearchResultLayer result={searchResult} navigateTo="/admin/routing?tab=draw" />
             </MapContainer>
             <MapSearchBar collapsible localIndex={localIndex} onSelect={setSearchResult} />

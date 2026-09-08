@@ -21,7 +21,10 @@ import RoadNetwork3DView from '../../components/admin/RoadNetwork3DView.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
 import { buildLocalIndex } from '../../components/map/searchTools.js'
-import { useEvacCenters, useRoadRequests } from '../../context/AdminDataContext.jsx'
+import { useEvacCenters, useRoadRequests, useRoadBlocks } from '../../context/AdminDataContext.jsx'
+import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
+import { activeBlocks } from '../../components/admin/roadBlocks.js'
+import '../../components/map/roadBlocks.css'
 import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/RoadStatus.css'
 import OneWayArrowsLayer from '../../components/map/OneWayArrowsLayer.jsx'
@@ -48,6 +51,14 @@ export default function RoadStatus() {
   const myBrgy = getOfficialBarangay()
   const { roads } = useCabuyaoRoads()
   const [statusMap] = useRoadStatus() // live conditions, READ-ONLY here
+  /* Partial closures — sections of roads, which statusMap cannot express.
+     Read-only here like every other live condition: a barangay proposes
+     changes through the request queue, it does not close roads directly. */
+  const { roadBlocks } = useRoadBlocks()
+  const partialSections = useMemo(
+    () => activeBlocks(roadBlocks).filter((b) => b.scope === 'partial'),
+    [roadBlocks],
+  )
   const { roadChangeRequests, submitRoadRequest, removeRoadRequest } = useRoadRequests()
   const [brush, setBrush] = useState('flooded')
   const [drafts, setDrafts] = useState([]) // [{ wayId, name, status }]
@@ -176,6 +187,8 @@ export default function RoadStatus() {
               {locked ? <BarangayLock name={myBrgy} /> : <CabuyaoLock />}
               {roads && <RoadNetworkLayer roads={roads} statusMap={mapStatus} onPick={stage} />}
               {roads && <OneWayArrowsLayer roads={roads} />}
+              {/* Closed SECTIONS — the rest of each road stays open. */}
+              <RoadBlocksLayer blocks={roadBlocks} audience="resident" />
               <SearchResultLayer result={searchResult} navigateTo="/barangay/evacuation-routing" />
               <CoordReadout onChange={setCoords} />
             </MapContainer>
@@ -298,6 +311,15 @@ export default function RoadStatus() {
                 </div>
               </div>
               <div className="rs-total">Approved by CDRRMO — shared across all portals</div>
+              {/* Never folded into Closed: a road with a 200 m closure is not a
+                  closed road, and one figure cannot mean both. */}
+              {partialSections.length > 0 && (
+                <div className="rs-total rs-total--sections">
+                  Plus <b>{partialSections.length}</b> partial closure
+                  {partialSections.length > 1 ? 's' : ''} in the city —
+                  {' '}sections of roads that are otherwise open.
+                </div>
+              )}
             </section>
 
             {/* Legend */}

@@ -837,3 +837,119 @@
      chevron, so this one takes the row's height rather than the line's. */
   height: 16px;
 }
+
+/* ── "Only part of this road affected?" — the partial-closure escape hatch ──
+   Inside the road condition modal, below the whole-road controls. Styled as a
+   distinct block rather than another button in the row because it is not a
+   variant of "save" — it abandons this dialog and starts a different, spatial
+   task on the map behind it. */
+.rcm-partial {
+  margin-top: 4px;
+  padding: 11px 12px;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.rcm-partial-head { display: flex; align-items: baseline; gap: 8px; }
+.rcm-partial-title { font-size: 0.75rem; font-weight: 700; color: #374151; }
+.rcm-partial-count {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.rcm-partial-body {
+  margin: 5px 0 9px;
+  font-size: 0.6875rem;
+  line-height: 1.55;
+  color: #6b7280;
+}
+.rcm-partial-body b { color: #b91c1c; }
+
+.rcm-partial-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rcm-partial-btn:hover { background: #fef2f2; }
+
+/* Partial closures, counted apart from the whole-road figures above. Tinted so
+   it reads as a separate claim rather than a footnote to the "Closed" tile —
+   a road with a 200 m closure is not a closed road. */
+.road-status .rs-total--sections {
+  margin-top: 6px;
+  padding-top: 7px;
+  border-top: 1px dashed #f3f4f6;
+  color: #9a3412;
+}
+.road-status .rs-total--sections b { color: #b91c1c; }
+
+/* ── Road blocks list (partial closures) ── */
+.rbs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 4px;
+  border-top: 1px solid #f3f4f6;
+}
+.rbs-row:first-child { border-top: 0; }
+
+.rbs-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.rbs-dot.blocked { background: #dc2626; }
+.rbs-dot.flooded { background: #f97316; }
+.rbs-dot.resolved { background: #d1d5db; }
+
+.rbs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rbs-name { font-size: 0.8125rem; font-weight: 600; color: #111827; }
+.rbs-meta { font-size: 0.6875rem; color: #9ca3af; }
+.rbs-reason { font-size: 0.6875rem; color: #6b7280; }
+
+.rbs-len {
+  flex: none;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #b91c1c;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.rbs-scope {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.rbs-scope.full { background: #7f1d1d; color: #fff; }
+.rbs-scope.resolved { background: #e5e7eb; color: #6b7280; }
+
+.rbs-acts { flex: none; display: flex; gap: 6px; }
+.rbs-act {
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  background: #fff;
+  padding: 4px 9px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+}
+.rbs-act:hover { background: #f9fafb; color: #111827; }
+.rbs-act.danger { color: #b91c1c; border-color: #fecaca; }
+.rbs-act.danger:hover { background: #fef2f2; }
+
+.rbs-empty { padding: 14px 4px; font-size: 0.75rem; color: #9ca3af; }

@@ -145,6 +145,12 @@ const REMOTE_LOADERS = {
     // they survive the empty/refetched server result instead of disappearing.
     return [...loadLocalReports(), ...rows.map(db.roadStatus.toReport)]
   },
+  /* Selective (partial) road closures. Separate from `roadReports` because
+     they are a different shape — a section of a way, with geometry — and
+     several can exist on one road. Fails soft to [] on a database where
+     20260908130000_road_blocks has not been applied yet, which leaves the
+     whole-road closures in `road_status` working exactly as before. */
+  roadBlocks: () => db.roadBlocks.list(),
   savedRoutes: async () => {
     const routes = await db.savedRoutes.list()
     mirrorRoutesToLocal(routes) // keep the routing screens' list in sync for every client
@@ -162,7 +168,7 @@ const AdminDataContext = createContext(null)
 
 const EMPTY = {
   alerts: [], incidents: [], rescueRequests: [], floodReports: [], evacuationCenters: [], users: [],
-  notifications: [], integrations: [], roadReports: [], savedRoutes: [], barangayAssignments: {},
+  notifications: [], integrations: [], roadReports: [], roadBlocks: [], savedRoutes: [], barangayAssignments: {},
   roadChangeRequests: [],
   // Seeded so the historical flood-prone areas paint on every map from first render.
   floodAreas: SEED_FLOOD_AREAS,
@@ -276,6 +282,7 @@ export function AdminDataProvider({ children }) {
       integrations: 'integrations',
       road_status: 'roadReports',
       // A closure has to reach the map of somebody already walking towards it.
+      road_blocks: 'roadBlocks',
       saved_routes: 'savedRoutes',
     }
     let channel
@@ -702,6 +709,55 @@ export function AdminDataProvider({ children }) {
     persist('roadReports', () => (report?.wayId != null ? db.roadStatus.removeWay(report.wayId) : Promise.resolve()))
   }, [optimistic, persist])
 
+  /* ── Road blocks — selective (partial) closures ───────────────────────────
+     A closure of a SECTION of a road, with its own geometry. Several may exist
+     on one way. Kept separate from reportRoad above, which owns the way-keyed
+     `road_status` row and the painted-map mirror: a partial closure must NOT
+     paint the whole road, so it deliberately never touches that mirror. */
+  const addRoadBlock = useCallback((block) => {
+    const now = Date.now()
+    const saved = {
+      id: `rb-${now}`,
+      status: 'active',
+      scope: 'partial',
+      effect: 'blocked',
+      reported: nowLabel(now),
+      reportedAt: now,
+      geometry: [],
+      ...block,
+    }
+    optimistic('roadBlocks', [saved, ...stateRef.current.roadBlocks])
+    notify(
+      saved.effect === 'blocked' ? 'high' : 'moderate',
+      saved.scope === 'full' ? 'Road closed' : 'Partial road closure',
+      `${saved.roadName || `Road #${saved.wayId}`}${saved.barangay ? ` (${saved.barangay})` : ''}`
+        + (saved.scope === 'partial' && saved.lengthM ? ` — ${Math.round(saved.lengthM)} m section` : '')
+        + (saved.reason ? ` · ${saved.reason}` : ''),
+    )
+    persist('roadBlocks', () => db.roadBlocks.create(block))
+    return saved
+  }, [optimistic, persist, notify])
+
+  const updateRoadBlock = useCallback((id, updates) => {
+    optimistic('roadBlocks', stateRef.current.roadBlocks.map((b) => (
+      b.id === id ? { ...b, ...updates, updatedAt: Date.now() } : b
+    )))
+    persist('roadBlocks', () => db.roadBlocks.update(id, updates))
+  }, [optimistic, persist])
+
+  /* Reopening a road is the safety-critical direction of this pair: it is the
+     act that puts traffic back onto a stretch somebody closed. It stays an
+     explicit status change (not a delete) so the closure survives as a record
+     of what was shut and when. */
+  const resolveRoadBlock = useCallback(
+    (id) => updateRoadBlock(id, { status: 'resolved' }),
+    [updateRoadBlock],
+  )
+
+  const removeRoadBlock = useCallback((id) => {
+    optimistic('roadBlocks', stateRef.current.roadBlocks.filter((b) => b.id !== id))
+    persist('roadBlocks', () => db.roadBlocks.remove(id))
+  }, [optimistic, persist])
 
   /* ── Saved routes (Supabase-backed) ── */
   const addSavedRoute = useCallback((route) => {
@@ -851,6 +907,7 @@ export function AdminDataProvider({ children }) {
     addUser, addUsers, updateUser, removeUser,
     assignBarangay,
     reportRoad, removeRoadReport,
+    addRoadBlock, updateRoadBlock, resolveRoadBlock, removeRoadBlock,
     submitRoadRequest, approveRoadRequest, rejectRoadRequest, removeRoadRequest,
     addFloodArea, updateFloodArea, removeFloodArea,
     setIntegration,
@@ -865,6 +922,7 @@ export function AdminDataProvider({ children }) {
     addEvacCenter, updateEvacCenter, removeEvacCenter,
     addUser, addUsers, updateUser, removeUser,
     assignBarangay, reportRoad, removeRoadReport,
+    addRoadBlock, updateRoadBlock, resolveRoadBlock, removeRoadBlock,
     submitRoadRequest, approveRoadRequest, rejectRoadRequest, removeRoadRequest,
     addFloodArea, updateFloodArea, removeFloodArea,
     setIntegration, notify, markNotificationsRead,
@@ -945,6 +1003,19 @@ export function useRoadReports() {
   return { roadReports, reportRoad, removeRoadReport }
 }
 
+/**
+ * Selective (partial) road closures — a blocked SECTION of a road rather than
+ * the whole way. Read by every map (admin and resident) and by the router
+ * through roadBlocks.buildBlockIndex; written only from the CDRRMO road
+ * screens. Distinct from useRoadReports, which owns the way-keyed
+ * `road_status` row that closes an entire road.
+ */
+export function useRoadBlocks() {
+  const {
+    roadBlocks, addRoadBlock, updateRoadBlock, resolveRoadBlock, removeRoadBlock,
+  } = useAdminData()
+  return { roadBlocks, addRoadBlock, updateRoadBlock, resolveRoadBlock, removeRoadBlock }
+}
 
 /**
  * Road change requests (barangay → CDRRMO approval queue). Officials submit;

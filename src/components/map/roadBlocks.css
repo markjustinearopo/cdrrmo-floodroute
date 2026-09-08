@@ -1,0 +1,100 @@
+/* ============================================================
+   Road block popup + the picker's on-map affordances.
+   ============================================================ */
+
+.rbl-pop { min-width: 210px; max-width: 260px; font-size: 0.75rem; line-height: 1.5; }
+
+.rbl-pop-kicker {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.rbl-pop-msg { margin-top: 4px; color: #374151; font-weight: 600; }
+
+/* The half of the message that stops a partial closure being read as a full
+   one — which is the mistake this whole feature exists to prevent. */
+.rbl-pop-open { margin-top: 4px; color: #15803d; }
+
+.rbl-pop-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 8px 0 0;
+  font-size: 0.6875rem;
+}
+.rbl-pop-facts dt { color: #9ca3af; }
+.rbl-pop-facts dd { margin: 0; color: #374151; }
+.rbl-cap { text-transform: capitalize; }
+
+.rbl-pop-advice {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid #f3f4f6;
+  color: #9a3412;
+}
+
+.rbl-pop-open-btn {
+  margin-top: 8px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #b91c1c;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rbl-pop-open-btn:hover { text-decoration: underline; }
+
+/* ── Picker: the road being closed, and the two picks ───────────────────── */
+
+/* The candidate road, highlighted while the operator is choosing points on
+   it — so there is never any doubt WHICH road the two clicks belong to. */
+.rbp-candidate { animation: rbp-glow 1.6s ease-in-out infinite; }
+@keyframes rbp-glow { 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .rbp-candidate { animation: none; } }
+
+.rbp-cap-label {
+  background: #111827;
+  color: #fff;
+  border: 0;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.rbp-cap-label::before { display: none; } /* Leaflet tooltip arrow */
+
+/* ── Resident "Road Block Ahead" notice ─────────────────────────────────── */
+.rb-warn {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #7f1d1d;
+}
+.rb-warn svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  fill: none;
+  stroke: #dc2626;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.rb-warn b { display: block; margin-bottom: 2px; }
+.rb-warn ul { list-style: none; margin: 5px 0 0; padding: 0; }
+.rb-warn li { color: #9a3412; }
+.rb-warn li::before { content: '· '; }
