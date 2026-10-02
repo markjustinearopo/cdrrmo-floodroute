@@ -32,7 +32,7 @@ import {
   useRoadConditionSummary,
 } from '../../components/map/RoadConditionsLayer.jsx'
 import MapStatusLine from '../../components/map/MapStatusLine.jsx'
-import { useEvacCenters, useFloodAreas, useFloodReports, useIncidents } from '../../context/AdminDataContext.jsx'
+import { useEvacCenters, useFloodAreas, useFloodReports, useIncidents, useAdminData } from '../../context/AdminDataContext.jsx'
 import { useLiveWeather } from '../../services/weather.js'
 import { officialBarangayLabel, getOfficialBarangay, useJurisdictionView } from '../../data/barangay.js'
 import '../admin/FloodMap.css'
@@ -420,6 +420,7 @@ function FloodMap3DView({ barangays, field, weather, evac = [], layers = { inund
 
 /* ── Overview tab body ───────────────────────────────────────────────────── */
 function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
+  const { safetyReady } = useAdminData()
   const maxRain = Math.max(...rainHistory, 1)
 
   return (
@@ -428,13 +429,13 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
         <StatCard
           color="green"
           icon={<HomeIcon />}
-          value={stats.evacCounts?.open ?? 0}
+          value={safetyReady ? stats.evacCounts?.open ?? 0 : '--'}
           label="Centres Accepting"
           note={stats.evacCounts?.full ? `${stats.evacCounts.full} full` : null}
         />
         <StatCard color="orange" icon={<DropIcon />} value={`${rainfall.toFixed(1)}`} label="Rainfall mm/hr" />
-        <StatCard color="red" icon={<BarrierIcon />} value={stats.roadSummary?.closed ?? 0} label="Roads Closed" />
-        <StatCard color="amber" icon={<WaveIcon />} value={stats.roadSummary?.flooded ?? 0} label="Roads Flooded" />
+        <StatCard color="red" icon={<BarrierIcon />} value={safetyReady ? stats.roadSummary?.closed ?? 0 : '--'} label="Roads Closed" />
+        <StatCard color="amber" icon={<WaveIcon />} value={safetyReady ? stats.roadSummary?.flooded ?? 0 : '--'} label="Roads Flooded" />
       </div>
 
       {stats.openIncidents > 0 && (
@@ -455,7 +456,7 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
           </svg>
           City Flood Risk Index
         </span>
-        <span className="badge-rt">Real-time</span>
+        <span className="badge-rt">Modeled</span>
       </div>
 
       <div className="donut-wrap">

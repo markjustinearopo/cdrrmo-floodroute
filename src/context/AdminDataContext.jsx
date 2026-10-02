@@ -28,6 +28,7 @@ import db, { RESCUE_STATUS_LABEL } from '../services/db.js'
 import supabase from '../services/supabase.js'
 import { getSystemConfig } from '../services/systemConfig.js'
 import SaveErrorToast from '../components/SaveErrorToast.jsx'
+import { collectionNamesForRole, retryDelay, safetyDataReady } from '../services/dataHealth.js'
 
 /* ── localStorage plumbing ────────────────────────────────────────────────
    Most collections are Supabase-backed now. localStorage survives only as:
@@ -176,6 +177,8 @@ const EMPTY = {
 
 function reducer(state, action) {
   switch (action.type) {
+    case 'RESET':
+      return { ...EMPTY, lastUpdated: null }
     case 'SET':
       return { ...state, [action.name]: action.value, lastUpdated: Date.now() }
     case 'PATCH':
@@ -192,6 +195,25 @@ export function AdminDataProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true)
   /* Last background save that did NOT reach the database — see `persist`. */
   const [saveError, setSaveError] = useState(null)
+  const [sessionKey, setSessionKey] = useState(() => localStorage.getItem('cdrrmo_token') || '')
+  const [dataHealth, setDataHealth] = useState({})
+  const healthRef = useRef({})
+  const pendingReads = useRef(new Map())
+  const [clock, setClock] = useState(Date.now())
+  const activeNames = useMemo(() => collectionNamesForRole(readJSON('cdrrmo_user', null)?.role, Object.keys(REMOTE_LOADERS)), [sessionKey])
+  const safetyReady = safetyDataReady(dataHealth, clock)
+
+  useEffect(() => {
+    const changed = () => setSessionKey(localStorage.getItem('cdrrmo_token') || '')
+    window.addEventListener('cdrrmo-session', changed)
+    window.addEventListener('storage', changed)
+    const tick = setInterval(() => setClock(Date.now()), 10_000)
+    return () => {
+      window.removeEventListener('cdrrmo-session', changed)
+      window.removeEventListener('storage', changed)
+      clearInterval(tick)
+    }
+  }, [])
 
   // Latest state, readable inside callbacks for optimistic updates.
   const stateRef = useRef(state)
@@ -200,19 +222,35 @@ export function AdminDataProvider({ children }) {
   /* Re-fetch one remote collection. Only push to state when the data actually
      changed, so the periodic poll / realtime sync don't re-render the UI or
      bump the "last updated" stamp when nothing moved. */
-  const refetch = useCallback(async (name) => {
+  const refetch = useCallback(async (name, force = false) => {
     const loader = REMOTE_LOADERS[name]
-    if (!loader) return
-    try {
-      const value = await loader()
-      const prev = stateRef.current[name]
-      if (JSON.stringify(prev) !== JSON.stringify(value)) {
-        dispatch({ type: 'SET', name, value })
+    if (!loader || !activeNames.includes(name)) return
+    const key = `${sessionKey}:${name}`
+    if (pendingReads.current.has(key)) return pendingReads.current.get(key)
+    if (!force && Date.now() < (healthRef.current[name]?.retryAt || 0)) return
+    const request = (async () => {
+      try {
+        const value = await loader()
+        if ((localStorage.getItem('cdrrmo_token') || '') !== sessionKey) return
+        const prev = stateRef.current[name]
+        if (JSON.stringify(prev) !== JSON.stringify(value)) {
+          dispatch({ type: 'SET', name, value })
+        }
+        healthRef.current = { ...healthRef.current, [name]: { status: 'ready', lastSuccess: Date.now(), failures: 0 } }
+      } catch (e) {
+        if ((localStorage.getItem('cdrrmo_token') || '') !== sessionKey) return
+        const prior = healthRef.current[name] || {}
+        const failures = (prior.failures || 0) + 1
+        healthRef.current = { ...healthRef.current, [name]: { ...prior, status: 'error', failures, retryAt: Date.now() + retryDelay(failures) } }
+        console.error(`[AdminData] reload ${name} failed`, e)
+      } finally {
+        pendingReads.current.delete(key)
+        setDataHealth(healthRef.current)
       }
-    } catch (e) {
-      console.error(`[AdminData] reload ${name} failed`, e)
-    }
-  }, [])
+    })()
+    pendingReads.current.set(key, request)
+    return request
+  }, [sessionKey, activeNames])
 
   /* Apply an optimistic value now; persist in the background; reconcile.
 
@@ -227,7 +265,7 @@ export function AdminDataProvider({ children }) {
   const persist = useCallback((name, op) => {
     Promise.resolve()
       .then(op)
-      .then(() => setSaveError(null))
+      .then(() => setSaveError((error) => error?.collection === name ? null : error))
       .catch((e) => {
         console.error(`[AdminData] persist ${name} failed`, e)
         setSaveError({
@@ -242,20 +280,17 @@ export function AdminDataProvider({ children }) {
   /* Initial load: pull every remote collection + the local ones. */
   useEffect(() => {
     let alive = true
+    dispatch({ type: 'RESET' })
+    healthRef.current = {}
+    setDataHealth({})
+    setIsLoading(true)
     ;(async () => {
-      const names = Object.keys(REMOTE_LOADERS)
-      const results = await Promise.allSettled(names.map((n) => REMOTE_LOADERS[n]()))
+      await Promise.all(activeNames.map((name) => refetch(name, true)))
       if (!alive) return
-      const patch = {}
-      results.forEach((res, i) => {
-        patch[names[i]] = res.status === 'fulfilled' ? res.value : EMPTY[names[i]]
-        if (res.status === 'rejected') console.error(`[AdminData] load ${names[i]}`, res.reason)
-      })
-      dispatch({ type: 'PATCH', patch })
       setIsLoading(false)
     })()
     return () => { alive = false }
-  }, [])
+  }, [activeNames, refetch])
 
   /* ── Live cross-user sync ────────────────────────────────────────────────
      Every portal (admin / barangay / resident) shares one Supabase backend,
@@ -289,7 +324,7 @@ export function AdminDataProvider({ children }) {
     try {
       channel = supabase.channel('cdrrmo-shared')
       for (const [table, collection] of Object.entries(TABLE_TO_COLLECTION)) {
-        channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => refetch(collection))
+        if (activeNames.includes(collection)) channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => refetch(collection))
       }
       channel.subscribe()
     } catch (e) {
@@ -300,18 +335,18 @@ export function AdminDataProvider({ children }) {
       // Honour the "Auto-refresh dashboards" switch on System Configuration:
       // when off, the interval keeps ticking but skips the network pull, so the
       // operator relies on the manual "sync now" button until they re-enable it.
-      if (!getSystemConfig().autoRefresh) return
+      if (!getSystemConfig().autoRefresh || document.hidden || !navigator.onLine) return
       db.alerts.promoteDue()
         .then((changed) => { if (changed) refetch('alerts') })
         .catch((e) => console.error('[AdminData] promoteDue', e))
-      Object.keys(REMOTE_LOADERS).forEach((name) => refetch(name))
-    }, 6000)
+      activeNames.forEach((name) => refetch(name))
+    }, 60_000)
 
     return () => {
       clearInterval(poll)
       if (channel) supabase.removeChannel(channel)
     }
-  }, [refetch])
+  }, [refetch, activeNames])
 
   /* Manual "sync now" (topbar button): promote any due scheduled alert, pull
      every collection, and stamp the time so the chip acknowledges the click. */
@@ -319,9 +354,8 @@ export function AdminDataProvider({ children }) {
     db.alerts.promoteDue()
       .then((changed) => { if (changed) refetch('alerts') })
       .catch((e) => console.error('[AdminData] promoteDue', e))
-    Object.keys(REMOTE_LOADERS).forEach((name) => refetch(name))
-    dispatch({ type: 'TOUCH' })
-  }, [refetch])
+    activeNames.forEach((name) => refetch(name, true))
+  }, [refetch, activeNames])
 
   /* ── Notifications (declared first; other helpers call notify) ── */
   const notify = useCallback((level, title, message) => {
@@ -336,19 +370,22 @@ export function AdminDataProvider({ children }) {
   }, [optimistic, persist])
 
   /* ── Alerts ── */
-  const addAlert = useCallback((alert) => {
-    const saved = {
-      id: `tmp-${Date.now()}`, status: 'active', issued: nowLabel(), issuedAt: Date.now(), ...alert,
+  const addAlert = useCallback(async (alert) => {
+    let saved
+    try { saved = await db.alerts.create(alert) }
+    catch (error) {
+      setSaveError({ collection: 'alerts', message: error.message || 'Alert could not be saved.', at: Date.now() })
+      throw error
     }
     optimistic('alerts', [saved, ...stateRef.current.alerts])
+    setSaveError((error) => error?.collection === 'alerts' ? null : error)
     notify(
       saved.level === 'high' ? 'high' : 'moderate',
       saved.status === 'scheduled' ? 'Alert scheduled' : 'Alert issued',
       `${saved.title} — ${saved.barangay}`,
     )
-    persist('alerts', () => db.alerts.create(alert))
     return saved
-  }, [optimistic, persist, notify])
+  }, [optimistic, notify])
 
   const updateAlert = useCallback((id, updates) => {
     optimistic('alerts', stateRef.current.alerts.map((a) => (a.id === id ? { ...a, ...updates } : a)))
@@ -422,36 +459,20 @@ export function AdminDataProvider({ children }) {
      work it out — they get the instruction to stay put, and CDRRMO gets the
      request as soon as the network allows (the failed persist surfaces on the
      SaveErrorToast, and the 6 s poll reconciles the real id). */
-  const createRescueRequest = useCallback((request) => {
-    const now = Date.now()
-    const saved = {
-      id: `tmp-${now}`,
-      status: 'pending',
-      reason: 'no-safe-route',
-      requested: nowLabel(now),
-      requestedAt: now,
-      hazard: {},
-      blockedRoads: [],
-      history: [{
-        time: nowLabel(now),
-        label: 'Rescue request created automatically — no safe route available',
-        note: request.hazard?.summary || '',
-      }],
-      ...request,
-    }
-    optimistic('rescueRequests', [saved, ...stateRef.current.rescueRequests])
+  const createRescueRequest = useCallback(async (request) => {
+    const acknowledged = await db.rescue.create(request)
+    optimistic('rescueRequests', [acknowledged, ...stateRef.current.rescueRequests.filter((r) => r.id !== acknowledged.id)])
     /* 'high' puts it at the top of the notification feed and lights the
        topbar bell on every open CDRRMO screen — the same path an EMERGENCY
        alert takes, because this is the same class of event. */
     notify(
       'high',
       '🚨 Emergency rescue request',
-      `${saved.reporter || 'A resident'} is cut off in ${saved.barangay || 'Cabuyao City'}`
+      `${acknowledged.reporter || 'A resident'} needs assistance in ${acknowledged.barangay || 'Cabuyao City'}`
         + ' — no safe route available. Automatic request.',
     )
-    persist('rescueRequests', () => db.rescue.create(request))
-    return saved
-  }, [optimistic, persist, notify])
+    return acknowledged
+  }, [optimistic, notify])
 
   /* Working a request: Pending → Responding → Rescued → Resolved, with the
      same timeline-entry computation as incidents so the two read alike. */
@@ -896,6 +917,8 @@ export function AdminDataProvider({ children }) {
   const value = useMemo(() => ({
     ...state,
     isLoading,
+    dataHealth,
+    safetyReady,
     saveError,
     dismissSaveError,
     refresh,
@@ -914,7 +937,7 @@ export function AdminDataProvider({ children }) {
     notify, markNotificationsRead,
     addSavedRoute, updateSavedRoute, removeSavedRoute,
   }), [
-    state, isLoading, saveError, dismissSaveError, refresh,
+    state, isLoading, dataHealth, safetyReady, saveError, dismissSaveError, refresh,
     addAlert, updateAlert, resolveAlert, removeAlert,
     addIncident, updateIncident, removeIncident,
     createRescueRequest, updateRescueRequest, removeRescueRequest,
@@ -1067,8 +1090,8 @@ export const ALERT_SETTINGS_DEFAULTS = {
      records the message and reports it as simulated rather than pretending. */
   email: true, sms: true, push: false,
   autoIssue: false, triggerLevel: 'high', reissueInterval: 30,
-  tplHigh: '🚨 SEVERE FLOOD WARNING for {barangay}. Water level has reached {depth} m. Evacuate low-lying areas immediately and proceed to the nearest evacuation center.',
-  tplModerate: '⚠️ Flood advisory for {barangay}. Water level is rising ({depth} m). Avoid flooded roads and prepare to evacuate if conditions worsen.',
+  tplHigh: '🚨 SEVERE FLOOD WARNING for {barangay}. Modeled flood depth: {depth} m, not a field measurement. Follow CDRRMO evacuation instructions and avoid flooded roads.',
+  tplModerate: '⚠️ Flood advisory for {barangay}. Modeled flood depth: {depth} m, not a field measurement. Avoid flooded roads and prepare to evacuate if conditions worsen.',
   tplSafe: '✅ ALL CLEAR for {barangay}. Flood waters have receded. Stay alert for further advisories from CDRRMO.',
   /* toResidents defaults ON for the same reason sms does: a resident with a
      verified number has already asked to be warned, and defaulting that to
@@ -1100,10 +1123,9 @@ export async function loadAlertSettingsRemote() {
 }
 
 /** Persist to the shared backend (app_settings) and the local cache. */
-export function saveAlertSettings(cfg) {
-  writeJSON(KEYS.alertSettings, cfg) // optimistic cache for instant + offline read
-  return db.appSettings.set(ALERT_SETTINGS_DBKEY, cfg)
-    .catch((e) => console.error('[AlertSettings] remote save failed', e))
+export async function saveAlertSettings(cfg) {
+  await db.appSettings.set(ALERT_SETTINGS_DBKEY, cfg)
+  writeJSON(KEYS.alertSettings, cfg)
 }
 
 /**

@@ -9,7 +9,7 @@ import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import { useFloodRisk } from '../admin/floodRisk.js'
 import { floodStatus, floodBannerText } from '../../services/floodBanner.js'
-import { useAlerts } from '../../context/AdminDataContext.jsx'
+import { useAlerts, useAdminData } from '../../context/AdminDataContext.jsx'
 import '../admin/AdminLayout.css'
 import EmergencyAlert from '../EmergencyAlert.jsx'
 
@@ -59,6 +59,8 @@ const NAV = [
   },
 ]
 
+import DataHealthNotice from '../DataHealthNotice.jsx'
+
 export default function BarangayLayout({ children, mainClassName = '' }) {
   const navigate = useNavigate()
   const { weather } = useLiveWeather()
@@ -88,7 +90,8 @@ export default function BarangayLayout({ children, mainClassName = '' }) {
   // model — see services/floodBanner.js for why that matters.
   const { field } = useFloodRisk()
   const { alerts } = useAlerts()
-  const status = useMemo(() => floodStatus(alerts, field, myBrgy), [alerts, field, myBrgy])
+  const { safetyReady } = useAdminData()
+  const status = useMemo(() => floodStatus(alerts, field, myBrgy, safetyReady), [alerts, field, myBrgy, safetyReady])
   const level = status.tone
   const elevated = status.active
 
@@ -285,7 +288,7 @@ export default function BarangayLayout({ children, mainClassName = '' }) {
           </div>
         </aside>
 
-        <main className={`main ${mainClassName}`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">Barangay Official Portal</h1>{children}</main>
+        <main className={`main ${mainClassName}`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">Barangay Official Portal</h1><DataHealthNotice />{children}</main>
       </div>
 
       {confirmSignout && (

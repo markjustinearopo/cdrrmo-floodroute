@@ -16,7 +16,6 @@ export const INTEGRATION_CATALOG = [
     desc: 'Live rainfall, wind and 7-day forecast from the keyless Open-Meteo Forecast API — feeds the header chips, dashboards and the flood-risk model. An API key is optional (only needed for higher rate limits).',
     fields: [
       { key: 'endpoint', label: 'API Endpoint', type: 'text', placeholder: 'https://api.open-meteo.com/v1/forecast' },
-      { key: 'apiKey', label: 'Open-Meteo API Key', type: 'password', placeholder: 'Optional — keyless by default' },
     ],
     enabled: true, status: 'connected',
     values: { endpoint: 'https://api.open-meteo.com/v1/forecast' },
@@ -28,14 +27,13 @@ export const INTEGRATION_CATALOG = [
     desc: 'River-discharge & flood forecast from the keyless Open-Meteo Flood API (GloFAS / Copernicus model) — feeds the real-time hazard layer and flood-aware routing. An API key is optional (only needed for higher rate limits).',
     fields: [
       { key: 'endpoint', label: 'API Endpoint', type: 'text', placeholder: 'https://flood-api.open-meteo.com/v1/flood' },
-      { key: 'apiKey', label: 'Open-Meteo API Key', type: 'password', placeholder: 'Optional — keyless by default' },
     ],
     enabled: true, status: 'connected',
     values: { endpoint: 'https://flood-api.open-meteo.com/v1/flood' },
     testUrl: 'https://flood-api.open-meteo.com/v1/flood?latitude=14.27&longitude=121.13&daily=river_discharge&forecast_days=1',
   },
   {
-    id: 'sms', name: 'SMS Gateway (Semaphore)', category: 'Notifications', icon: 'phone',
+    id: 'sms', name: 'SMS Gateway', category: 'Notifications', icon: 'phone',
     desc: 'Emergency flood alerts by text message — the only channel that reaches a resident who is not looking at a screen. The API key lives in the Supabase secrets, never here: enter it with "npx supabase secrets set SEMAPHORE_API_KEY=…". Without a key the channel runs in simulation, recording every message without delivering it.',
     fields: [
       { key: 'provider', label: 'Provider', type: 'text', placeholder: 'semaphore | twilio' },
@@ -45,10 +43,9 @@ export const INTEGRATION_CATALOG = [
     values: { provider: 'semaphore', senderName: 'CDRRMO' },
   },
   {
-    id: 'email', name: 'Email Alerts (Resend)', category: 'Notifications', icon: 'mail',
-    desc: 'Send flood alert emails via Supabase Edge Functions + Resend. Free tier: 3,000 emails/month. Add your RESEND_API_KEY as a Supabase secret, then enter it below to connect.',
+    id: 'email', name: 'Email Alerts', category: 'Notifications', icon: 'mail',
+    desc: 'Server-managed email delivery. Provider credentials are held in Supabase secrets.',
     fields: [
-      { key: 'apiKey', label: 'Resend API Key', type: 'password', placeholder: 're_••••••••' },
       { key: 'fromEmail', label: 'From Address', type: 'text', placeholder: 'CDRRMO Alerts <alerts@cabuyao.gov.ph>' },
     ],
     enabled: false, status: 'disconnected',
@@ -65,10 +62,9 @@ export const INTEGRATION_CATALOG = [
   },
   {
     id: 'push', name: 'Push Notifications', category: 'Notifications', icon: 'bell',
-    desc: 'Browser push alerts for staff using the command-center web app.',
+    desc: 'External browser push delivery is not operational in this release.',
     fields: [
       { key: 'publicKey', label: 'VAPID Public Key', type: 'text', placeholder: 'Enter public key' },
-      { key: 'privateKey', label: 'VAPID Private Key', type: 'password', placeholder: 'Enter private key' },
     ],
     enabled: false, status: 'disconnected',
   },

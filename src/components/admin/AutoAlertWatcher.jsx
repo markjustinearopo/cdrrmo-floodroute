@@ -22,7 +22,7 @@ import { useEffect, useRef } from 'react'
 import { barangayRiskSamples } from './floodRisk.js'
 import { levelFromDepth } from '../../services/systemConfig.js'
 import {
-  useAlerts, loadAlertSettings, fillAlertTemplate,
+  useAlerts, useAdminData, loadAlertSettings, fillAlertTemplate,
 } from '../../context/AdminDataContext.jsx'
 import { isDrillActive } from '../../services/drillMode.js'
 import { dispatchAlert } from '../../services/alertDispatch.js'
@@ -35,7 +35,7 @@ import { dispatchAlert } from '../../services/alertDispatch.js'
 const DRILL_PREFIX = '[DRILL] '
 
 const LEDGER_KEY = 'cdrrmo_auto_alert_log' // { [barangay]: [issuedAtMs, …] }
-const RANK = { safe: 0, low: 1, moderate: 2, high: 3 }
+const RANK = { safe: 0, low: 1, moderate: 2, high: 3, emergency: 4 }
 const CHECK_MS = 60_000 // re-evaluate every minute
 
 function readLedger() {
@@ -60,14 +60,20 @@ function inQuietHours(from, to) {
 
 export default function AutoAlertWatcher({ field }) {
   const { alerts, addAlert } = useAlerts()
+  const { safetyReady } = useAdminData()
+  const busy = useRef(false)
+  const ready = useRef(false)
+  ready.current = safetyReady && field?.meta?.live === true
   // Latest alerts readable inside the interval without re-subscribing it.
   const alertsRef = useRef(alerts)
   alertsRef.current = alerts
 
   useEffect(() => {
-    function evaluate() {
+    async function evaluate() {
       const cfg = loadAlertSettings()
-      if (!cfg.autoIssue || !field) return
+      if (!cfg.autoIssue || !field || !ready.current || busy.current) return
+      busy.current = true
+      try {
 
       // Only auto-issue on real wetness — inherent lowland susceptibility alone
       // (a dry day) must never raise an alert.
@@ -81,6 +87,7 @@ export default function AutoAlertWatcher({ field }) {
       let changed = false
 
       for (const b of barangayRiskSamples(field)) {
+        if (!ready.current) break
         const level = levelFromDepth(b.floodDepth)
         if (RANK[level] < minRank) continue
 
@@ -89,7 +96,9 @@ export default function AutoAlertWatcher({ field }) {
 
         // Skip if this barangay already has an active alert at/above this level.
         const covered = alertsRef.current.some(
-          (a) => a.status === 'active' && a.barangay === b.name && RANK[a.level] >= RANK[level],
+          (a) => a.status === 'active' && !a.title?.startsWith(DRILL_PREFIX)
+            && ([a.barangay, ...(a.barangays || [])].some((name) => name === b.name || name === 'All' || name === 'All Barangays'))
+            && RANK[a.level] >= RANK[level],
         )
         if (covered) continue
 
@@ -109,23 +118,25 @@ export default function AutoAlertWatcher({ field }) {
           auto: true,
           drill,
         }
-        addAlert(alert)
+        const saved = await addAlert(alert)
         /* An automatic alert is the case where nobody is at the screen, which
            makes the outbound channels the entire point of it. dispatchAlert
            blocks its own sends during a drill, so a drill still exercises the
            watcher without texting the city. */
-        dispatchAlert(alert)
+        dispatchAlert({ ...saved, drill })
         ledger[b.name] = [...recent, now]
         changed = true
       }
 
       if (changed) writeLedger(ledger)
+      } catch (error) { console.error('[AutoAlertWatcher] alert not saved', error) }
+      finally { busy.current = false }
     }
 
     evaluate() // run immediately on mount / field change
     const id = setInterval(evaluate, CHECK_MS)
     return () => clearInterval(id)
-  }, [field, addAlert])
+  }, [field, addAlert, safetyReady])
 
   return null
 }

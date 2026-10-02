@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import RecordList from '../../components/admin/RecordList.jsx'
@@ -12,6 +12,7 @@ import EmergencyIssueModal from '../../components/admin/EmergencyIssueModal.jsx'
 import TextSmsModal from '../../components/admin/TextSmsModal.jsx'
 import { sendNoticeSms } from '../../services/smsAlert.js'
 import DialogOverlay from '../../components/DialogOverlay.jsx'
+import supabase from '../../services/supabase.js'
 
 /**
  * CDRRMO Admin — Alerts.
@@ -51,6 +52,15 @@ export default function Alerts() {
   const [showModal, setShowModal] = useState(false)
   const [scheduling, setScheduling] = useState(false)
   const [toast, setToast] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [scheduler, setScheduler] = useState(null)
+  useEffect(() => {
+    let alive = true
+    supabase.functions.invoke('alert-scheduler', { body: { action: 'status' } })
+      .then(({ data, error }) => { if (alive) setScheduler(error ? {} : data || {}) })
+      .catch(() => { if (alive) setScheduler({}) })
+    return () => { alive = false }
+  }, [])
   const [confirm, setConfirm] = useState(null) // { title, message, confirmLabel, onConfirm }
 
   // Issue-modal fields are controlled so the operator's saved MESSAGE TEMPLATE
@@ -88,8 +98,9 @@ export default function Alerts() {
     setTimeout(() => setToast(''), 2600)
   }
 
-  function handleIssue(e) {
+  async function handleIssue(e) {
     e.preventDefault()
+    if (saving) return
     const f = new FormData(e.currentTarget)
     const alert = {
       title: form.title.trim(),
@@ -105,7 +116,11 @@ export default function Alerts() {
       alert.scheduledFor = when
       alert.issued = `Scheduled · ${nowLabel(when)}`
     }
-    const saved = addAlert(alert)
+    setSaving(true)
+    let saved
+    try { saved = await addAlert(alert) }
+    catch (error) { flash(`Alert not saved: ${error.message}`); return }
+    finally { setSaving(false) }
     /* Email + SMS for immediately-active alerts; a scheduled one dispatches
        when the store promotes it at its due time. The toast is rewritten once
        the channels report back, so "issued" never stands in for "delivered". */
@@ -233,7 +248,7 @@ export default function Alerts() {
 
         <div className="mng-note">
           <SparkIcon />
-          <span>Alerts are shared system-wide: they appear on the Dashboard feed and the Flood Map, persist across refreshes, and scheduled alerts auto-issue at their set time.</span>
+          <span>Scheduled delivery: {scheduler === null ? 'checking' : scheduler.lastRun && Date.now() - Date.parse(scheduler.lastRun) < 300000 ? `worker last checked ${nowLabel(scheduler.lastRun)}` : 'not verified; contact the administrator before relying on scheduled notifications'}.</span>
         </div>
       </div>
 
@@ -316,7 +331,7 @@ export default function Alerts() {
               )}
               <div className="mng-form-actions">
                 <button type="button" className="mng-btn mng-btn-ghost" onClick={() => { setShowModal(false); setScheduling(false) }}>Cancel</button>
-                <button type="submit" className="mng-btn">{scheduling ? 'Schedule Alert' : 'Issue Alert'}</button>
+                <button type="submit" className="mng-btn" disabled={saving}>{saving ? 'Saving...' : scheduling ? 'Schedule Alert' : 'Issue Alert'}</button>
               </div>
             </form>
           </div>
@@ -360,10 +375,10 @@ export default function Alerts() {
       {emergency && (
         <EmergencyIssueModal
           onClose={() => setEmergency(false)}
-          onIssue={(alert) => {
-            const saved = addAlert({ ...alert, issuedBy: api.getUser?.()?.name || 'CDRRMO' })
+          onIssue={async (alert) => {
+            const saved = await addAlert({ ...alert, issuedBy: api.getUser?.()?.name || 'CDRRMO' })
             setEmergency(false)
-            flash('Emergency alert issued — every signed-in screen is showing it.')
+            flash('Emergency alert saved. Notification delivery is being checked.')
             /* The top tier goes out on every channel. This used to take over
                the screens of people already signed in and reach nobody else. */
             dispatchAlert({ ...alert, id: saved?.id }).then((res) => {

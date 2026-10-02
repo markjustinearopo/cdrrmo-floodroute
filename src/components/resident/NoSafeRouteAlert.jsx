@@ -50,6 +50,7 @@ export default function NoSafeRouteAlert({
   summary,
   request,
   sendError,
+  filing = false,
   onClose,
   onRetry,
 }) {
@@ -83,7 +84,7 @@ export default function NoSafeRouteAlert({
   const status = request?.status || 'pending'
   // A `tmp-` id is the optimistic row: the request exists on this screen but
   // has not come back from the database with a real reference number yet.
-  const pending = typeof request?.id === 'string' && request.id.startsWith('tmp-')
+  const pending = filing || !request?.id || String(request.id).startsWith('tmp-')
 
   return (
     <div
@@ -108,9 +109,10 @@ export default function NoSafeRouteAlert({
         {/* The instruction, in the exact words CDRRMO asked for. Everything
             else on this screen is supporting detail for this sentence. */}
         <p className="nsr-instruction">
-          <b>Please stay at your current location.</b> Do not attempt to travel
-          through flooded or blocked roads. A rescue request has been
-          automatically sent to the CDRRMO.
+          <b>Do not travel through flooded or blocked roads.</b>{' '}
+          {sendError ? 'Your rescue request has not been confirmed. Contact CDRRMO directly.'
+            : pending ? 'Sending your rescue request. CDRRMO has not acknowledged it yet.'
+              : 'CDRRMO has received your request. This does not yet mean a team has been dispatched.'}
         </p>
 
         {/* ── Where they are ── */}
@@ -128,8 +130,7 @@ export default function NoSafeRouteAlert({
                 )}
               </div>
               <div className="nsr-note">
-                Read these numbers to the responder if you call. They have been sent
-                to CDRRMO with your request.
+                Read these numbers to the responder if you call.
               </div>
             </>
           ) : (
@@ -144,7 +145,7 @@ export default function NoSafeRouteAlert({
         <section className="nsr-block">
           <h3 className="nsr-block-title"><WaterIcon /> Why there is no route</h3>
           <p className="nsr-sub">{summary}</p>
-          {depth && <p className="nsr-depth">Deepest water on every route out: {depth}</p>}
+          {depth && <p className="nsr-depth">Maximum modeled depth on the assessed route: {depth}</p>}
           {roads.length > 0 && (
             <ul className="nsr-roads">
               {roads.slice(0, 8).map((r) => (
@@ -178,7 +179,7 @@ export default function NoSafeRouteAlert({
             </>
           ) : (
             <>
-              <h3 className="nsr-block-title"><CheckIcon /> Rescue request sent to CDRRMO</h3>
+              <h3 className="nsr-block-title"><CheckIcon /> {pending ? 'Awaiting confirmation' : 'Request received by CDRRMO'}</h3>
               <div className="nsr-receipt-row">
                 <span className="nsr-ref">
                   {pending ? 'Sending…' : `Request #${request?.id}`}
@@ -188,9 +189,8 @@ export default function NoSafeRouteAlert({
                 </span>
               </div>
               <div className="nsr-sub">
-                Filed {request?.requested || 'just now'} · Reason: No safe route available.
-                CDRRMO can see your location on their map. This status updates here
-                as responders move.
+                {pending ? 'No receipt yet. Contact CDRRMO directly if confirmation does not arrive.'
+                  : `Filed ${request?.requested || 'just now'}. Await a responder status update; receipt is not a dispatch confirmation.`}
               </div>
             </>
           )}

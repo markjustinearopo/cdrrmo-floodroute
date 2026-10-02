@@ -22,6 +22,8 @@ export default function EmergencyIssueModal({ onClose, onIssue }) {
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const target = barangay || 'CITY-WIDE'
   const armed =
@@ -29,15 +31,18 @@ export default function EmergencyIssueModal({ onClose, onIssue }) {
     && message.trim().length > 10
     && confirm.trim().toUpperCase() === target.toUpperCase()
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault()
-    if (!armed) return
-    onIssue({
+    if (!armed || saving) return
+    setSaving(true)
+    setError('')
+    try { await onIssue({
       level: 'emergency',
       barangay: barangay || CITY_WIDE,
       title: title.trim(),
       message: message.trim(),
-    })
+    }) } catch (e) { setError(e.message || 'Alert could not be saved. No notification was sent.') }
+    finally { setSaving(false) }
   }
 
   return (
@@ -69,6 +74,7 @@ export default function EmergencyIssueModal({ onClose, onIssue }) {
         </div>
 
         <form className="mng-form" onSubmit={submit}>
+          {error && <p role="alert">{error}</p>}
           <label>
             Target
             <select value={barangay} onChange={(e) => { setBarangay(e.target.value); setConfirm('') }}>
@@ -118,7 +124,7 @@ export default function EmergencyIssueModal({ onClose, onIssue }) {
 
           <div className="mng-form-actions">
             <button type="button" className="mng-btn mng-btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="eim-go" disabled={!armed}>
+            <button type="submit" className="eim-go" disabled={!armed || saving}>
               {armed ? 'Issue emergency alert' : 'Complete the fields above'}
             </button>
           </div>

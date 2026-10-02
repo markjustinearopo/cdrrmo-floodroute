@@ -8,7 +8,7 @@ import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import { useFloodRisk } from './floodRisk.js'
 import { floodStatus, floodBannerText } from '../../services/floodBanner.js'
-import { useAlerts, useRescueRequests } from '../../context/AdminDataContext.jsx'
+import { useAlerts, useRescueRequests, useAdminData } from '../../context/AdminDataContext.jsx'
 import { useRealTimeSync } from '../../hooks/useRealTimeSync.js'
 import { useSystemConfig, loadSystemConfigRemote } from '../../services/systemConfig.js'
 import { useT } from '../../services/i18n.js'
@@ -83,6 +83,8 @@ const NAV = [
   },
 ]
 
+import DataHealthNotice from '../DataHealthNotice.jsx'
+
 export default function AdminLayout({ children, mainClassName = '' }) {
   const navigate = useNavigate()
   const { weather } = useLiveWeather()
@@ -112,7 +114,8 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   // when there is real wetness (rain / elevated discharge) — so a dry day reads
   // "no active flood issue" even though the lowland barangays stay coloured.
   const { alerts } = useAlerts()
-  const status = useMemo(() => floodStatus(alerts, field, null), [alerts, field])
+  const { safetyReady } = useAdminData()
+  const status = useMemo(() => floodStatus(alerts, field, null, safetyReady), [alerts, field, safetyReady])
 
   /* People currently waiting on a rescue. Drives the sidebar badge, so the
      count is visible from every admin screen — the point of a badge here is
@@ -125,7 +128,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
 
   const hasAlert = status.active
   const lvlClass = `lvl-${status.tone}`
-  const bannerText = hasAlert
+  const bannerText = hasAlert || status.source === 'unavailable'
     ? floodBannerText(status, { audience: 'admin' })
     : t('No active flood issue reported.')
 
@@ -379,7 +382,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           </div>
         </aside>
 
-        <main className={`main ${mainClassName}`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">CDRRMO Command Center</h1>{children}</main>
+        <main className={`main ${mainClassName}`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">CDRRMO Command Center</h1><DataHealthNotice />{children}</main>
       </div>
 
       {confirmSignout && (

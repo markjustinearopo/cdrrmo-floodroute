@@ -30,31 +30,19 @@
                    no road to it), and raising a rescue would be wrong. The
                    screen falls back to the message it always showed.
 
-   A rescue request is raised only when 1 fails AND 3 succeeds — that is the
-   precise statement of "every possible route is blocked or unsafe", and it is
-   why one closed road can never trigger it: A* will have found its way around
-   a single closure in step 1, and around ten of them, and it only gives up
-   when the water genuinely encircles the person.
+   A rescue request is raised only when 1 fails AND 3 succeeds. This describes
+   the assessed road network and candidate shelters, not proof that a person
+   is physically surrounded or that an unflagged path is safe in the field.
 
    Pure functions, no React. Used by the resident routing screen; safe for the
    admin/barangay screens to adopt unchanged.
    ============================================================ */
 
 import { planToNearestSafe, DEFAULT_ALPHA } from './routeEngine.js'
-import { estDepthFromRisk } from './floodRisk.js'
+import { estDepthFromRisk } from '../../services/modeledDepth.js'
 
-/* ── What "impassable" means, in metres of standing water ──────────────────
-   0.6 m is the top of the knee-deep band in services/depth.js — the line
-   where an adult on foot stops wading and starts being carried by the
-   current, and well past where a child is already in danger. Below it the
-   engine's existing soft penalty is the right behaviour (expensive, still
-   walkable, warned about on screen); at or above it there is no honest way to
-   call a road a route.
-
-   Deliberately a SEPARATE constant from DEPTH_THRESHOLDS.high (0.5 m), which
-   grades the colour of a badge. This one decides whether the system tells a
-   person to stay put, and it should not move because somebody retuned a
-   legend. */
+// Existing modeled exclusion threshold; not proof that lesser depths are safe.
+// Operational validation is required before changing this policy.
 export const IMPASSABLE_DEPTH_M = 0.6
 
 /* Operator flags that mean "do not route anyone along this". `blocked` was
@@ -68,40 +56,13 @@ const UNSAFE_STATUS = new Set(['blocked', 'flooded'])
  * person down, keyed by OSM way id, valued 'blocked' so the existing
  * `edgeRisk` returns Infinity and A* removes the edge from the graph entirely.
  *
- * Three sources, all of them already in the system:
- *   • the operator's own flags        (statusMap: 'blocked' | 'flooded')
- *   • the live flood model            (estDepthFromRisk ≥ IMPASSABLE_DEPTH_M)
- *   • nothing else — no new feed, no new judgement call
- *
- * The model term is the reason a road nobody has visited yet can still be
- * refused, which matters at 2 a.m. when there is no official on that street
- * to flag it. It is sampled at each road's midpoint, exactly as
- * floodRisk.projectedRoadStatus does, so the two agree about which roads the
- * model says are under water.
+ * Whole-road operator flags only. Partial closures and modeled exclusions
+ * are applied separately at actual graph segments by strictBlockedEdges.
  */
-export function impassableStatusMap({ roads, riskAt, statusMap = {}, thresholdM = IMPASSABLE_DEPTH_M }) {
+export function impassableStatusMap({ statusMap = {} }) {
   const out = {}
-
-  // 1. The live model. Skipped entirely when there is no field — an offline
-  //    weather feed must not silently start closing roads, nor silently stop:
-  //    with no riskAt the verdict falls back to the operator's flags alone,
-  //    which is the honest degraded answer.
-  if (riskAt && roads?.features) {
-    for (const f of roads.features) {
-      const coords = f.geometry?.coordinates
-      if (!Array.isArray(coords) || coords.length === 0) continue
-      const [lng, lat] = coords[Math.floor(coords.length / 2)] || []
-      if (lat == null || lng == null) continue
-      if (estDepthFromRisk(riskAt(lat, lng)) >= thresholdM) out[f.properties.id] = 'blocked'
-    }
-  }
-
-  // 2. The operator's flags, applied last so a human's judgement always wins
-  //    over the model — including the case where an official has REOPENED a
-  //    road the model still thinks is wet.
   for (const [wayId, status] of Object.entries(statusMap)) {
     if (UNSAFE_STATUS.has(status)) out[wayId] = 'blocked'
-    else delete out[wayId]
   }
 
   return out
@@ -130,7 +91,7 @@ export function hazardEvidence(plan, { statusMap = {}, riskAt } = {}) {
     if (modeled > maxDepthM) maxDepthM = modeled
 
     const status = statusMap[seg.wayId]
-    if (!UNSAFE_STATUS.has(status) && modeled < IMPASSABLE_DEPTH_M) return
+    if (!UNSAFE_STATUS.has(status) && !seg.flooded && modeled < IMPASSABLE_DEPTH_M) return
 
     const key = seg.name || `way-${seg.wayId}`
     const prev = roads.get(key)
@@ -139,7 +100,7 @@ export function hazardEvidence(plan, { statusMap = {}, riskAt } = {}) {
       wayId: seg.wayId,
       // An operator's flag is the more authoritative statement, so it is what
       // the row reports; the model only fills in where nobody has been.
-      status: status === 'blocked' ? 'closed' : status === 'flooded' ? 'flooded' : 'flooded (modeled)',
+      status: status === 'blocked' ? 'closed' : status === 'flooded' || seg.flooded ? 'flooded' : 'flooded (modeled)',
       depthM: Math.max(prev?.depthM ?? 0, modeled),
     })
   })
@@ -172,16 +133,16 @@ export function findSafeRoute(graph, origin, candidates, opts = {}) {
   if (!origin) return { verdict: 'unreachable', reason: 'no-origin' }
   if (list.length === 0) return { verdict: 'unreachable', reason: 'no-destination' }
 
+  if (opts.dataReady === false) return { verdict: 'unavailable', reason: 'stale-safety-data' }
   const { roads, ...planOpts } = opts
   const alpha = planOpts.alpha ?? DEFAULT_ALPHA
 
   /* ── 1. STRICT ── */
   const strictStatus = impassableStatusMap({
-    roads,
-    riskAt: planOpts.riskAt,
     statusMap: planOpts.statusMap || {},
   })
-  const safe = planToNearestSafe(graph, origin, list, { ...planOpts, statusMap: strictStatus, alpha })
+  const blockedEdges = strictBlockedEdges(graph, planOpts)
+  const safe = planToNearestSafe(graph, origin, list, { ...planOpts, blockedEdges, statusMap: strictStatus, alpha })
   if (safe) return { verdict: 'safe', centre: safe.centre, plan: safe.plan, strict: true }
 
   /* ── 3. TOPOLOGY (run before 2: it decides whether 2's answer means
@@ -225,6 +186,20 @@ export function findSafeRoute(graph, origin, candidates, opts = {}) {
   }
 }
 
+/** Apply the same exclusions to planning and live rerouting, segment by segment. */
+export function strictBlockedEdges(graph, { blockedEdges, floodedEdges, riskAt, statusMap = {} } = {}) {
+  const blocked = new Set([...(blockedEdges || []), ...(floodedEdges || [])])
+  if (!riskAt) return blocked
+  for (const edges of graph?.adj || []) {
+    for (const edge of edges) {
+      // Explicit operator assessments override modeled conditions, not closures.
+      if (Object.prototype.hasOwnProperty.call(statusMap, edge.wayId)) continue
+      if (estDepthFromRisk(riskAt(edge.mlat, edge.mlng)) >= IMPASSABLE_DEPTH_M) blocked.add(edge)
+    }
+  }
+  return blocked
+}
+
 /**
  * The same verdict for a route to ONE known destination — the "Start guided
  * navigation" path, where the resident has already chosen where they are
@@ -243,7 +218,7 @@ export function checkRouteSafety(graph, origin, destination, opts = {}) {
 export function describeBlockage(evidence) {
   const roads = evidence?.roads || []
   if (roads.length === 0) {
-    return 'Flooding on every available route out of this location.'
+    return 'No route to the available destinations meets the current road and flood restrictions.'
   }
   const named = roads.filter((r) => r.name && r.name !== 'Unnamed road')
   const head = named.slice(0, 3).map((r) => r.name)
@@ -251,7 +226,7 @@ export function describeBlockage(evidence) {
   const where = head.length
     ? `${head.join(', ')}${rest > 0 ? ` and ${rest} more road${rest > 1 ? 's' : ''}` : ''}`
     : `${roads.length} road${roads.length > 1 ? 's' : ''} around this location`
-  return `${where} ${roads.length === 1 ? 'is' : 'are'} flooded or closed — every route out passes through them.`
+  return `${where} ${roads.length === 1 ? 'is' : 'are'} flooded or closed on the assessed routes.`
 }
 
 /* Small helper shared by the resident popup and the admin request card: the

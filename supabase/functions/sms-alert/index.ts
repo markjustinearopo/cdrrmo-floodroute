@@ -53,6 +53,8 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { authorizeOperator } from '../_shared/operatorAuth.ts'
+import { alertScopes } from '../_shared/alertScope.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -486,23 +488,9 @@ serve(async (req) => {
        model can. Closing that last gap means real signed sessions — see
        README — and this gate is written so it becomes a JWT check in one place
        when they arrive, rather than a rule scattered across call sites. */
-    if (action === 'broadcast' || action === 'notice' || action === 'test') {
-      const auth = req.headers.get('authorization') || ''
-      const token = auth.replace(/^Bearer\s+/i, '').trim()
-      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-      // The service role (AutoAlertWatcher, cron, our own tooling) always passes.
-      const isService = Boolean(serviceKey) && token === serviceKey
-      if (!isService) {
-        const actorId = Number(body.actorId)
-        if (!Number.isInteger(actorId)) {
-          return json({ error: 'Only CDRRMO administrators can send SMS alerts.' }, 403)
-        }
-        const { data: actor } = await db
-          .from('accounts').select('id, role, status').eq('id', actorId).maybeSingle()
-        if (!actor || actor.role !== 'admin' || actor.status !== 'active') {
-          return json({ error: 'Only CDRRMO administrators can send SMS alerts.' }, 403)
-        }
-      }
+    if (['broadcast', 'notice', 'test', 'outbox', 'stats'].includes(action)) {
+      const actor = await authorizeOperator(req, db, ['admin'])
+      if (!actor) return json({ error: 'An active CDRRMO administrator session is required.' }, 403)
     }
 
     /* ── What is configured? (no secrets leave this function) ─────────── */
@@ -638,6 +626,7 @@ serve(async (req) => {
       const message = String(body.message ?? '').trim()
       const barangay = body.barangay ? String(body.barangay) : null
       const alertId = Number.isInteger(body.alertId) ? Number(body.alertId) : null
+      const scopes = alertScopes(body.barangay, body.barangays)
       /* A notice is only its message; an alert may carry either field. */
       if (isNotice ? !message : (!title && !message)) {
         return json({ error: 'Nothing to send.' }, 400)
@@ -664,8 +653,8 @@ serve(async (req) => {
          audience deliberately, and silently widening a "relief goods at 8am"
          text to the whole city would be the same lie in the other direction. */
       const cityWide = !isNotice && level === 'emergency'
-      if (!cityWide && barangay && barangay !== 'All' && barangay !== 'All Barangays') {
-        q = q.or(`barangay.eq.${barangay},barangay.is.null`)
+      if (!cityWide && scopes.length) {
+        q = q.or(`barangay.in.(${scopes.join(',')}),barangay.is.null`)
       }
 
       const { data: subs, error } = await q

@@ -27,7 +27,7 @@ import RouteSketch3DView from '../../components/admin/RouteSketch3DView.jsx'
 import { evacPinIcon } from '../../components/admin/EvacLocationPicker.jsx'
 import { useGeolocation } from '../../hooks/useGeolocation.js'
 import { usePersistedState } from '../../utils/usePersistedState.js'
-import { useEvacCenters, useRoadBlocks, barangayCoords } from '../../context/AdminDataContext.jsx'
+import { useAdminData, useEvacCenters, useRoadBlocks, barangayCoords } from '../../context/AdminDataContext.jsx'
 import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
 import { useRoadBlockIndex, blocksOnRoute } from '../../components/admin/roadBlocks.js'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
@@ -67,6 +67,10 @@ export default function EvacuationRouting() {
   const { roads } = useCabuyaoRoads()
   const graph = useRouteGraph(roads)
   const { field } = useFloodRisk()
+  const { safetyReady } = useAdminData()
+  const routingReady = safetyReady && Boolean(field?.meta?.live)
+  const readyRef = useRef(routingReady)
+  readyRef.current = routingReady
   const { evacuationCenters } = useEvacCenters()
   const evacMarkers = useMemo(
     () => evacuationCenters.filter((c) => Array.isArray(c.coords)),
@@ -138,6 +142,7 @@ export default function EvacuationRouting() {
   async function startNavigation() {
     speech.prime()
     setGenMsg('')
+    if (!readyRef.current) return setGenMsg('Current safety data is unavailable. Check with CDRRMO before travelling.')
     if (!graph || graph.size === 0) return setGenMsg('Road network unavailable.')
 
     // Where are we going? The shelter the generated route picked, else the end
@@ -168,6 +173,7 @@ export default function EvacuationRouting() {
          navigator will keep asking for a fix on its own once it opens. */
     }
     setStarting(false)
+    if (!readyRef.current) return setGenMsg('Safety data changed while locating you. Please try again when service returns.')
     if (!start) return setGenMsg('Pin your location first, then start guided navigation.')
 
     /* Same verdict as the preview, re-run from the live fix. Someone about to
@@ -247,6 +253,7 @@ export default function EvacuationRouting() {
      operator's road flags, and the road network itself (routeSafety needs the
      GeoJSON to decide which roads the model puts under water). */
   const routeOpts = {
+    dataReady: routingReady,
     riskAt: field?.riskAt,
     statusMap,
     // Only the closed SECTIONS are excluded — never the whole road.
@@ -259,6 +266,7 @@ export default function EvacuationRouting() {
 
   function generateRoute(targetId) {
     setGenMsg('')
+    if (!routingReady) return setGenMsg('Current safety data is unavailable. Check with CDRRMO before travelling.')
     if (!origin) return setGenMsg('Pin your location (or set your barangay) to generate a route.')
     if (!graph || graph.size === 0) return setGenMsg('Road network unavailable.')
     /* Same eligibility rules as the dashboard card (src/data/shelters.js):
@@ -267,10 +275,10 @@ export default function EvacuationRouting() {
        them is the failure this filter exists to prevent. */
     let candidates = usableShelters(evacuationCenters).filter((c) => Array.isArray(c.coords))
     if (targetId) {
-      // An explicit tap overrides the filter — if a resident deliberately
-      // chooses a centre, route them there and let the badge warn them.
-      const t = evacuationCenters.find((c) => c.id === targetId && Array.isArray(c.coords))
-      if (t) candidates = [t]
+      // A selected destination must meet the same shelter eligibility rules.
+      const t = candidates.find((c) => c.id === targetId)
+      if (!t) return setGenMsg('That shelter is not currently open with available space. Choose another centre.')
+      candidates = [t]
     }
     if (candidates.length === 0) {
       return setGenMsg('No evacuation centre has space right now. Call your barangay hall or 911.')
@@ -324,11 +332,17 @@ export default function EvacuationRouting() {
   useEffect(() => {
     const destId = routerLoc.state?.destId
     if (!destId || autoDestRef.current === destId) return
-    if (!graph || graph.size === 0 || evacuationCenters.length === 0) return
+    if (!routingReady || !graph || graph.size === 0 || evacuationCenters.length === 0) return
     autoDestRef.current = destId
     generateRoute(destId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routerLoc.state, graph, evacuationCenters.length])
+  }, [routerLoc.state, graph, evacuationCenters.length, routingReady])
+
+  useEffect(() => {
+    if (routingReady) return
+    setGen(null)
+    setNavSession(null)
+  }, [routingReady])
 
   return (
     <ResidentLayout mainClassName="main--flush">
@@ -700,6 +714,7 @@ export default function EvacuationRouting() {
         summary={rescue.alert?.summary}
         request={rescue.request}
         sendError={rescue.sendError}
+        filing={rescue.filing}
         onClose={rescue.dismiss}
         onRetry={rescue.retry}
       />
@@ -711,6 +726,14 @@ export default function EvacuationRouting() {
           graph={graph}
           riskAt={field?.riskAt}
           statusMap={statusMap}
+          blockedEdges={blockIndex.blockedEdges}
+          floodedEdges={blockIndex.floodedEdges}
+          onUnsafe={(verdict, from) => {
+            setNavSession(null)
+            setGen(null)
+            if (verdict.verdict === 'no-safe-route') rescue.trigger(verdict, { origin: from, locate })
+            else setGenMsg('Navigation paused: a current route could not be verified. Contact CDRRMO.')
+          }}
           destination={navSession.destination}
           initialCoords={navSession.coords}
           initialSegments={navSession.segments}

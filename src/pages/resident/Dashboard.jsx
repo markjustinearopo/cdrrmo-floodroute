@@ -16,7 +16,7 @@ import { useLiveWeather } from '../../services/weather.js'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import { useNarrowScreen } from '../../hooks/useNarrowScreen.js'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
-import { useAlerts, useEvacCenters, useBarangayAssignments, barangayCoords } from '../../context/AdminDataContext.jsx'
+import { useAdminData, useAlerts, useEvacCenters, useBarangayAssignments, barangayCoords } from '../../context/AdminDataContext.jsx'
 import { pickShelter, isNearlyFull, remainingHeadroom } from '../../data/shelters.js'
 import { describeDepth } from '../../services/depth.js'
 import { floodStatus } from '../../services/floodBanner.js'
@@ -97,12 +97,14 @@ const PREP_ITEMS = [
 const NATIONAL_HOTLINE = { name: 'National Emergency Hotline', number: '911' }
 
 export default function Dashboard() {
+  const { safetyReady } = useAdminData()
   const navigate = useNavigate()
   const t = useT()
   const brgyLabel = residentBarangayLabel()
   const myBrgy = getResidentBarangay()
 
   const { field } = useFloodRisk()
+  const conditionsVerified = safetyReady && Boolean(field?.meta?.live)
   const { weather } = useLiveWeather()
   const { alerts: allAlerts } = useAlerts()
   const { evacuationCenters } = useEvacCenters()
@@ -202,11 +204,11 @@ export default function Dashboard() {
                 'moderate' is the four-character "MOD" that fits in a map
                 legend. A resident reading their own safety card gets the
                 whole word. */}
-            <div className="res-risk-level">{t(RESIDENT_RISK_LABEL[level])}</div>
+            <div className="res-risk-level">{status.source === 'alert' || conditionsVerified ? t(RESIDENT_RISK_LABEL[level]) : 'UNVERIFIED'}</div>
             <div className="res-risk-sub">
               Brgy. {brgyLabel}
-              {status.source !== 'alert' && describeDepth(floodDepth) && <> · {describeDepth(floodDepth)}</>}
-              {' · '}{t(RISK_BLURB[level])}
+              {conditionsVerified && status.source !== 'alert' && describeDepth(floodDepth) && <> · Modeled: {describeDepth(floodDepth)}</>}
+              {' · '}{status.source === 'alert' || conditionsVerified ? t(RISK_BLURB[level]) : 'Current flood conditions are unavailable.'}
             </div>
             {/* The admin screens carry this caveat; the person who has to act
                 on the number did not. It is a model estimate from rainfall and
@@ -235,7 +237,7 @@ export default function Dashboard() {
               <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
               {t('Nearest Evacuation Centre')}
             </div>
-            {nearestCenter ? (
+            {safetyReady && nearestCenter ? (
               <>
                 <div className="res-evac-name">{nearestCenter.name}</div>
                 <div className="res-evac-meta">
@@ -255,10 +257,9 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <div className="res-evac-name muted">No centre with space right now</div>
+                <div className="res-evac-name muted">{safetyReady ? 'No eligible centre listed' : 'Shelter availability unverified'}</div>
                 <div className="res-evac-meta">
-                  Every listed centre is full or closed. Call your barangay hall or
-                  911 — do not set out without somewhere to go.
+                  Confirm an open centre with your barangay hall before travelling. Call 911 in an emergency.
                 </div>
               </>
             )}
@@ -314,8 +315,8 @@ export default function Dashboard() {
             {alerts.length === 0 ? (
               <div className="res-empty">
                 <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
-                <div className="res-empty-title">No active alerts</div>
-                <div className="res-empty-sub">Alerts affecting Brgy. {brgyLabel} will show here.</div>
+                <div className="res-empty-title">{safetyReady ? 'No active alerts' : 'Alert feed unverified'}</div>
+                <div className="res-empty-sub">{safetyReady ? `Alerts affecting Brgy. ${brgyLabel} will show here.` : 'Check official announcements from CDRRMO and your barangay.'}</div>
               </div>
             ) : (
               <div className="res-alert-list">

@@ -15,6 +15,16 @@
 /** Registered in production only: a service worker in front of the Vite dev
  *  server intercepts HMR and makes edits appear not to apply, which costs
  *  more debugging time than it saves. */
+export function clearPrivateOfflineData() {
+  for (const key of ['cdrrmo_routes', 'cdrrmo_road_status', 'cdrrmo_road_reports_local', 'cdrrmo-res-pin', 'cdrrmo_integration_probes']) {
+    localStorage.removeItem(key)
+  }
+  if ('caches' in window) {
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith('cdrrmo-data-')).map((key) => caches.delete(key)))).catch(() => {})
+  }
+  navigator.serviceWorker?.controller?.postMessage({ type: 'CDRRMO_CLEAR_PRIVATE' })
+}
+
 export function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return
   if (!import.meta.env.PROD) return

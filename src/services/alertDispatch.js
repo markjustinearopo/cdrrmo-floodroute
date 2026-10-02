@@ -39,12 +39,16 @@ import { sendAlertSms } from './smsAlert.js'
 export async function dispatchAlert(alert = {}) {
   const out = { email: null, sms: null, errors: [] }
   if (!alert || alert.status === 'scheduled') return out
+  if (alert.drill || String(alert.title).startsWith('[DRILL] ')) {
+    return { ...out, email: { blockedByDrill: true, skipped: true }, sms: { blockedByDrill: true, skipped: true } }
+  }
 
   const payload = {
     level: alert.level,
     title: alert.title,
     message: alert.message,
     barangay: alert.barangay,
+    barangays: alert.barangays,
   }
 
   const [email, sms] = await Promise.allSettled([

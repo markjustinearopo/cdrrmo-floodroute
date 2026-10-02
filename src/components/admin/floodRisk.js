@@ -547,11 +547,8 @@ export const NEUTRAL_FIELD = {
  * risk bands line up with the depth thresholds the dashboards already use
  * (≈0.5 m at high risk). A live, model-derived estimate — not a sensor reading.
  */
-const DEPTH_PER_RISK = 0.83
-
-export function estDepthFromRisk(risk) {
-  return Math.max(0, risk * DEPTH_PER_RISK)
-}
+import { DEPTH_PER_RISK, estDepthFromRisk } from '../../services/modeledDepth.js'
+export { estDepthFromRisk } from '../../services/modeledDepth.js'
 
 /**
  * Roads the model expects to be under water deep enough to stop a vehicle, at

@@ -41,7 +41,7 @@ const TONE = { emergency: 'high', high: 'high', moderate: 'moderate', low: 'mode
  * @returns {{ tone: 'high'|'moderate'|'safe', level: string, active: boolean,
  *             source: 'alert'|'model'|'none', names: string[], alert: object|null }}
  */
-export function floodStatus(alerts = [], field = null, barangay = null) {
+export function floodStatus(alerts = [], field = null, barangay = null, dataReady = true) {
   /* 1 — Issued alerts. Authoritative. An "all clear" (safe) is a real decision
      too, but it is not a warning, so it does not raise the banner. */
   const live = (alerts || []).filter(
@@ -56,6 +56,8 @@ export function floodStatus(alerts = [], field = null, barangay = null) {
       : [...new Set(live.filter((a) => rankOf(a.level) >= rankOf(worst.level)).map((a) => a.barangay))]
     return { tone: TONE[worst.level] || 'moderate', level: worst.level, active: true, source: 'alert', names, alert: worst }
   }
+
+  if (!dataReady || !field?.meta?.live) return { tone: 'moderate', level: 'unverified', active: false, source: 'unavailable', names: [], alert: null }
 
   /* 2 — Fall back to the model: nobody has issued anything, but the field may
      already see water arriving. Same wetness gate as before. */
@@ -79,6 +81,7 @@ export function floodStatus(alerts = [], field = null, barangay = null) {
 /** Human sentence for the banner, given a floodStatus() result. */
 export function floodBannerText(status, { barangay = null, audience = 'admin' } = {}) {
   const where = barangay ? `Brgy. ${barangay}` : 'Cabuyao City'
+  if (status.source === 'unavailable') return `Current flood conditions in ${where} cannot be verified.`
 
   if (status.source === 'alert') {
     // Lead with what the operator actually said — it is more specific and more
@@ -93,7 +96,7 @@ export function floodBannerText(status, { barangay = null, audience = 'admin' } 
   if (status.source === 'model' && !barangay && status.names.length) {
     const shown = status.names.slice(0, 4).join(', ')
     const more = status.names.length > 4 ? ` +${status.names.length - 4} more` : ''
-    return `${shown}${more} reporting elevated water levels.`
+    return `${shown}${more}: elevated modeled flood risk.`
   }
 
   const ACTION = {

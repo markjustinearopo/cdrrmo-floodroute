@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { planRoute, profileFor, DEFAULT_ALPHA } from '../admin/routeEngine.js'
+import { profileFor, DEFAULT_ALPHA } from '../admin/routeEngine.js'
+import { checkRouteSafety } from '../admin/routeSafety.js'
 import { FlaggedRoadsLayer } from '../map/RoadConditionsLayer.jsx'
 import { formatDistance } from '../../services/systemConfig.js'
 import { getUserLanguage } from '../../services/i18n.js'
@@ -332,6 +333,9 @@ export default function LiveNavigation({
   graph,
   riskAt,
   statusMap,
+  blockedEdges,
+  floodedEdges,
+  onUnsafe,
   destination,
   initialCoords,
   initialSegments,
@@ -358,6 +362,9 @@ export default function LiveNavigation({
   const spokenRef = useRef({ step: -1, phases: new Set(), departed: false, hazards: new Set() })
   const lastRerouteRef = useRef(0)
   const rerouteBusyRef = useRef(false)
+  const rerouteTimerRef = useRef(null)
+  const unsafeRef = useRef(onUnsafe)
+  unsafeRef.current = onUnsafe
   const mapRef = useRef(null)
 
   chaseRef.current.follow = follow
@@ -390,7 +397,7 @@ export default function LiveNavigation({
   /* ── Re-plan from where the walker is actually standing ───────────────── */
   const reroute = useCallback((from, reason) => {
     if (!graph || !destination?.coords || rerouteBusyRef.current) return
-    if (Date.now() - lastRerouteRef.current < REROUTE_COOLDOWN_MS) return
+    if (reason !== 'hazard' && Date.now() - lastRerouteRef.current < REROUTE_COOLDOWN_MS) return
     rerouteBusyRef.current = true
     lastRerouteRef.current = Date.now()
     setPhase('rerouting')
@@ -410,12 +417,18 @@ export default function LiveNavigation({
     /* Give the browser a frame to paint the toast before A* takes the thread —
        the search is a few tens of milliseconds on this network, but the user
        must see that the system reacted the instant it did. */
-    setTimeout(() => {
+    rerouteTimerRef.current = setTimeout(() => {
       try {
-        const plan = planRoute(graph, from, destination.coords, {
-          riskAt, statusMap, alpha: DEFAULT_ALPHA, compare: false,
+        const verdict = checkRouteSafety(graph, from, destination.coords, {
+          riskAt, statusMap, blockedEdges, floodedEdges, alpha: DEFAULT_ALPHA, compare: false,
           ...profileFor('evacuation'), // the resident is walking
         })
+        if (verdict.verdict !== 'safe') {
+          speech.cancel()
+          unsafeRef.current?.(verdict, from)
+          return
+        }
+        const plan = verdict.plan
         if (plan?.ok && plan.safe.coords.length > 1) {
           const next = prepareRoute(plan.safe.coords, plan.safe.segments, {
             destination: destination?.name,
@@ -440,26 +453,31 @@ export default function LiveNavigation({
             { lang },
           )
         } else {
-          setPhase('live')
-          setToast({
-            kind: 'failed',
-            text: lang === 'fil'
-              ? 'Walang mahanap na bagong ruta mula rito. Bumalik sa dating daan o tumawag sa CDRRMO.'
-              : 'No route could be found from here. Return to the previous road, or call CDRRMO.',
-          })
+          speech.cancel()
+          unsafeRef.current?.({ verdict: 'unavailable', reason: 'route-geometry' }, from)
         }
       } catch (e) {
         console.error('[LiveNavigation] reroute failed', e)
-        setPhase('live')
+        speech.cancel()
+        unsafeRef.current?.({ verdict: 'unavailable', reason: 'routing-error' }, from)
       } finally {
         rerouteBusyRef.current = false
       }
     }, 60)
-  }, [graph, destination, riskAt, statusMap, lang, resetSim])
+  }, [graph, destination, riskAt, statusMap, blockedEdges, floodedEdges, lang, resetSim])
+
+  useEffect(() => {
+    const from = navRef.current?.raw || initialCoords?.[0]
+    if (open && from) reroute(from, 'hazard')
+    return () => {
+      clearTimeout(rerouteTimerRef.current)
+      rerouteBusyRef.current = false
+    }
+  }, [open, riskAt, statusMap, blockedEdges, floodedEdges])
 
   /* ── Every fix: advance the navigation state, speak what is due ───────── */
   useEffect(() => {
-    if (!open || !route || !fix) return
+    if (!open || !route || !fix || phase === 'rerouting') return
     const next = navigate(route, fix, navRef.current)
     if (!next) return
     navRef.current = next

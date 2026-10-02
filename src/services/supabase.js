@@ -19,6 +19,7 @@
    ============================================================ */
 
 import { createClient } from '@supabase/supabase-js'
+import { clearPrivateOfflineData } from './offline.js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -40,17 +41,20 @@ export const supabase = createClient(url, key, {
   global: {
     fetch: (input, init = {}) => {
       const token = localStorage.getItem(TOKEN_KEY)
-      if (!token) return fetch(input, init)
-
       const headers = new Headers(init.headers)
+      if (!token) {
+        return fetch(input, { ...init, headers })
+      }
       headers.set('Authorization', `Bearer ${token}`)
       return fetch(input, { ...init, headers }).then((res) => {
         // The token expired or was rejected: drop it so the next route
         // render sends the user back to /login instead of silently failing
         // every request from here on (see RequireAuth.jsx).
-        if (res.status === 401) {
+        if (res.status === 401 && localStorage.getItem(TOKEN_KEY) === token) {
           localStorage.removeItem(TOKEN_KEY)
           localStorage.removeItem('cdrrmo_user')
+          clearPrivateOfflineData()
+          window.dispatchEvent(new Event('cdrrmo-session'))
         }
         return res
       })

@@ -4,6 +4,8 @@ import { INTEGRATION_STATUS_LABEL as STATUS_LABEL, INTEGRATION_SECRET_KEYS } fro
 import { SettingsNote, TabHead } from '../SettingsKit.jsx'
 import RecordList from '../RecordList.jsx'
 import DialogOverlay from '../../DialogOverlay.jsx'
+import { emailConfig } from '../../../services/emailAlert.js'
+import { smsConfig } from '../../../services/smsAlert.js'
 
 /**
  * Settings → Integrations (was the API Integrations page).
@@ -58,15 +60,15 @@ export default function IntegrationsTab({ onToast }) {
     const f = new FormData(e.currentTarget)
     const values = {}
     for (const field of current.fields) values[field.key] = (f.get(field.key) || '').trim()
-    // Connected once the first field has a value; otherwise back to not-connected.
+    // Metadata alone does not prove that the service is operational.
     const connected = Boolean(values[current.fields[0].key])
     setIntegration(configuring, {
       values,
-      status: connected ? 'connected' : 'disconnected',
+      status: 'disconnected',
       enabled: connected ? current.enabled : false,
     })
     setConfiguring(null)
-    onToast(connected ? `${current.name} connected.` : `${current.name} configuration cleared.`)
+    onToast(connected ? `${current.name} metadata saved. Connection not verified.` : `${current.name} configuration cleared.`)
   }
 
   function disconnect(id) {
@@ -77,13 +79,22 @@ export default function IntegrationsTab({ onToast }) {
 
   /** Probe the service for real (keyless feeds carry a reachable testUrl). */
   async function testConnection(i) {
+    if (i.id === 'sms' || i.id === 'email') {
+      setTesting(i.id)
+      try {
+        const config = await (i.id === 'sms' ? smsConfig() : emailConfig())
+        const configured = i.id === 'sms' ? !config.simulation : config.configured
+        setIntegration(i.id, { status: configured ? 'connected' : 'disconnected', lastCheck: nowLabel(), lastCheckAt: Date.now() })
+        onToast(`${i.name}: ${config.provider || 'unknown provider'}; ${configured ? 'server configured, delivery not tested' : 'simulation only, no delivery'}.`)
+      } catch (error) {
+        setIntegration(i.id, { status: 'error', lastCheck: nowLabel() })
+        onToast(`${i.name}: ${error.message}`)
+      } finally { setTesting(null) }
+      return
+    }
     if (!i.testUrl) {
-      // No public probe target — verify configuration shape instead.
-      const ok = i.status === 'connected'
-      setIntegration(i.id, { lastCheck: nowLabel(), lastCheckAt: Date.now() })
-      return onToast(ok
-        ? `${i.name}: configuration present — full validation needs the live gateway.`
-        : `${i.name} is not configured yet.`)
+      setIntegration(i.id, { status: 'disconnected', enabled: false, lastCheck: nowLabel(), lastCheckAt: Date.now() })
+      return onToast(`${i.name}: operational connection cannot be verified.`)
     }
     setTesting(i.id)
     const started = performance.now()
@@ -190,8 +201,7 @@ export default function IntegrationsTab({ onToast }) {
       />
 
       <SettingsNote>
-        Keys are masked and configuration persists. "Test" really probes the keyless live feeds and records
-        response time — this screen is the single record of what is connected.
+        Public metadata only. Provider configuration does not confirm message delivery.
       </SettingsNote>
 
       {/* Configure modal */}
@@ -220,7 +230,7 @@ export default function IntegrationsTab({ onToast }) {
               ))}
               <div className="mng-form-actions">
                 <button type="button" className="mng-btn mng-btn-ghost" onClick={() => setConfiguring(null)}>Cancel</button>
-                <button type="submit" className="mng-btn">Save &amp; Connect</button>
+                <button type="submit" className="mng-btn">Save metadata</button>
               </div>
             </form>
           </div>

@@ -21,6 +21,7 @@ const routes = {
       await context.route('**/*', async route => {
         const url = new URL(route.request().url());
         if (url.hostname.endsWith('supabase.co')) {
+          if (process.env.UI_TEST_OUTAGE === '1') return route.fulfill({ status: 402, contentType: 'application/json', body: '{"message":"Service restricted"}' });
           const table = url.pathname.split('/').pop();
           const rows = table === 'alerts' ? [{ id: 1, title: 'Flood warning for Marinig', message: 'Follow official evacuation instructions.', level: 'moderate', status: 'active', barangay: 'Marinig', issued_at: new Date().toISOString() }]
             : table === 'evacuation_centers' ? [{ id: 1, name: 'Marinig Evacuation Centre', barangay: 'Marinig', capacity: 500, occupancy: 120, status: 'open', lat: 14.276, lng: 121.14 }]
@@ -42,6 +43,10 @@ const routes = {
         await page.goto(`${baseUrl}/${role}/${path}`);
         await page.locator('main').waitFor({ timeout: 30000 }).catch(() => {});
         await page.waitForTimeout(900);
+        if (process.env.UI_TEST_OUTAGE === '1') {
+          assert.match(await page.locator('.alert-banner').innerText(), /cannot be verified/);
+          assert.equal(await page.getByText('No centre with space right now', { exact: true }).count(), 0);
+        }
         const layout = await page.evaluate(() => ({
           width: innerWidth, scroll: document.documentElement.scrollWidth,
           overflow: [...document.querySelectorAll('main *')].filter(e => {
@@ -54,7 +59,7 @@ const routes = {
         results.push(entry);
         if (errors.length || layout.overflow.length || layout.scroll > width) console.log(JSON.stringify(entry));
         if (role === 'resident' && path === 'dashboard') {
-          assert.match(await page.locator('.res-risk-level').innerText(), /MODERATE/);
+          assert.match(await page.locator('.res-risk-level').innerText(), process.env.UI_TEST_OUTAGE === '1' ? /UNVERIFIED/ : /MODERATE/);
           const summary = page.locator('.res-prep-card > summary');
           await summary.focus();
           await page.keyboard.press('Enter');

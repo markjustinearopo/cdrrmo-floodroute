@@ -117,7 +117,7 @@ export function unsubscribeSms(phone) {
  * sit where the message would actually leave the building rather than in each
  * of the several places that can raise an alert.
  */
-export async function sendAlertSms({ level, title, message, barangay, alertId } = {}) {
+export async function sendAlertSms({ level, title, message, barangay, barangays, alertId } = {}) {
   if (isDrillActive()) {
     console.info('[drill] outbound SMS blocked:', title)
     return { skipped: true, blockedByDrill: true }
@@ -142,7 +142,7 @@ export async function sendAlertSms({ level, title, message, barangay, alertId } 
      residents, and one who turned it ON to start reaching them changed
      nothing and had no way to tell. It now means what it says. */
   if (!cfg.toResidents) return { skipped: true, reason: 'residents-off' }
-  return call('broadcast', { level, title, message, barangay, alertId, actorId: actor()?.id })
+  return call('broadcast', { level, title, message, barangay, barangays, alertId, actorId: actor()?.id })
 }
 
 /**

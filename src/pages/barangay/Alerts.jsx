@@ -68,8 +68,11 @@ export default function Alerts() {
     setTimeout(() => setToast(''), 2600)
   }
 
-  function handleIssue(e) {
+  async function handleIssue(e) {
     e.preventDefault()
+    const submitter = e.nativeEvent.submitter
+    if (submitter?.disabled) return
+    if (submitter) submitter.disabled = true
     const f = new FormData(e.currentTarget)
     const alert = {
       title: f.get('title').trim(),
@@ -77,7 +80,10 @@ export default function Alerts() {
       level: f.get('level'),
       message: f.get('message').trim(),
     }
-    addAlert(alert)
+    let saved
+    try { saved = await addAlert(alert) }
+    catch (error) { flash(`Alert not saved: ${error.message}`); return }
+    finally { if (submitter) submitter.disabled = false }
     setShowModal(false)
     flash(`Alert raised for Brgy. ${brgyLabel} — notifying open screens…`)
     /* A barangay alert still fans out: it is recorded, it lands on every open
@@ -85,7 +91,7 @@ export default function Alerts() {
        send (see sendAlertSms), so the wording here promises screens rather
        than handsets — the previous "notifying residents…" was a promise this
        call could not keep, which is the worst thing an alert screen can say. */
-    dispatchAlert(alert).then((res) => {
+    dispatchAlert(saved).then((res) => {
       const detail = describeDispatch(res)
       if (detail) flash(`Brgy. ${brgyLabel} — ${detail}.`)
     })

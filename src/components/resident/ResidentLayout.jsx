@@ -11,7 +11,7 @@ import { useLiveWeather, formatRain, formatWind } from '../../services/weather.j
 import { useFloodRisk } from '../admin/floodRisk.js'
 import { floodStatus, floodBannerText } from '../../services/floodBanner.js'
 import { useT } from '../../services/i18n.js'
-import { useAlerts } from '../../context/AdminDataContext.jsx'
+import { useAlerts, useAdminData } from '../../context/AdminDataContext.jsx'
 import ResidentTabBar from './ResidentTabBar.jsx'
 import '../admin/AdminLayout.css'
 import EmergencyAlert from '../EmergencyAlert.jsx'
@@ -59,6 +59,8 @@ const NAV = [
   },
 ]
 
+import DataHealthNotice from '../DataHealthNotice.jsx'
+
 export default function ResidentLayout({ children, mainClassName = '' }) {
   const navigate = useNavigate()
   const t = useT()
@@ -88,7 +90,8 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
   // outranks the model — see services/floodBanner.js for why that matters.
   const { field } = useFloodRisk()
   const { alerts } = useAlerts()
-  const status = useMemo(() => floodStatus(alerts, field, myBrgy), [alerts, field, myBrgy])
+  const { safetyReady } = useAdminData()
+  const status = useMemo(() => floodStatus(alerts, field, myBrgy, safetyReady), [alerts, field, myBrgy, safetyReady])
   const level = status.tone
   const elevated = status.active
 
@@ -283,7 +286,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
 
         {/* `main--restabs` reserves the height the bottom tab bar occupies, so
             content is never parked underneath it (see residentTabBar.css). */}
-        <main className={`main ${mainClassName} main--restabs`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">My Safety Info</h1>{children}</main>
+        <main className={`main ${mainClassName} main--restabs`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">My Safety Info</h1><DataHealthNotice />{children}</main>
       </div>
 
       <ResidentTabBar />

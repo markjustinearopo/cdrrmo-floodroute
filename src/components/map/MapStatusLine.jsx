@@ -20,6 +20,8 @@
    ============================================================ */
 
 import './mapStatusLine.css'
+import { useAdminData } from '../../context/AdminDataContext.jsx'
+import { SAFETY_COLLECTIONS } from '../../services/dataHealth.js'
 
 /**
  * @param updated   formatted PHT time string (formatPHT())
@@ -30,11 +32,14 @@ import './mapStatusLine.css'
  * @param children  extra inline chips (legend ramp, scale note …)
  */
 export default function MapStatusLine({ updated, coords, forecast = null, children }) {
+  const { safetyReady, dataHealth } = useAdminData()
+  const checkedAt = Math.min(...SAFETY_COLLECTIONS.map((name) => dataHealth[name]?.lastSuccess || 0))
+  const checked = checkedAt ? new Date(checkedAt).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' }) : updated
   return (
     <div className={`map-statusline ${forecast ? 'map-statusline--forecast' : ''}`}>
       <span className={`msl-live ${forecast ? 'msl-live--forecast' : ''}`}>
         <i className="msl-dot" aria-hidden="true" />
-        {forecast ? `Forecast · ${forecast}` : `Live · Updated ${updated} PHT`}
+        {!safetyReady ? 'Safety data unverified' : forecast ? `Forecast · ${forecast}` : `Checked ${checked} PHT`}
       </span>
       <span className="msl-coords">
         {coords

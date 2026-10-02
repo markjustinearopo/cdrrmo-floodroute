@@ -25,7 +25,7 @@ import { FloodReportMarkers } from '../../components/admin/FloodReportsLayer.jsx
 import FloodReportModal from '../../components/resident/FloodReportModal.jsx'
 import {
   useEvacCenters, useFloodAreas, useFloodReports, useRoadReports, useRoadBlocks,
-  useAlerts,
+  useAlerts, useAdminData,
 } from '../../context/AdminDataContext.jsx'
 import { floodStatus } from '../../services/floodBanner.js'
 import './residentFloodMap.css'
@@ -170,6 +170,7 @@ export default function FloodMap() {
   const setShowLayers = narrow ? setLayersOpenMobile : setLayersPref
   const controlsRef = useRef(null)
   const { alerts } = useAlerts()
+  const { safetyReady } = useAdminData()
   const officialStatus = useMemo(() => floodStatus(alerts, field, myBrgy), [alerts, field, myBrgy])
   const riskLabel = { safe: 'No elevated risk', low: 'Low risk', moderate: 'Moderate risk', high: 'High risk', emergency: 'Emergency' }
   // Still drives the pin + flyTo when the Emergency panel picks a shelter
@@ -286,7 +287,7 @@ export default function FloodMap() {
             Report Flood Status
           </button>
           <span className={`risk-badge ${officialStatus.source === 'alert' ? officialStatus.tone : myLevel}`} style={{ alignSelf: 'center' }}>
-            Brgy. {brgyLabel}: {riskLabel[officialStatus.source === 'alert' ? officialStatus.level : myLevel]}
+            Brgy. {brgyLabel}: {officialStatus.source === 'alert' || (safetyReady && field?.meta?.live) ? riskLabel[officialStatus.source === 'alert' ? officialStatus.level : myLevel] : 'Conditions unverified'}
           </span>
         </div>
 
@@ -529,6 +530,7 @@ export default function FloodMap() {
 }
 
 function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
+  const { safetyReady } = useAdminData()
   const maxRain = Math.max(...rainHistory, 1)
   return (
     <>
@@ -536,13 +538,13 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
         <StatCard
           color="green"
           icon={<HomeIcon />}
-          value={stats.evacCounts?.open ?? 0}
+          value={safetyReady ? stats.evacCounts?.open ?? 0 : '--'}
           label="Centres Accepting"
           note={stats.evacCounts?.full ? `${stats.evacCounts.full} full` : null}
         />
         <StatCard color="orange" icon={<DropIcon />} value={`${rainfall.toFixed(1)}`} label="Rainfall mm/hr" />
-        <StatCard color="red" icon={<BarrierIcon />} value={stats.roadSummary?.closed ?? 0} label="Roads Closed" />
-        <StatCard color="amber" icon={<WaveIcon />} value={stats.roadSummary?.flooded ?? 0} label="Roads Flooded" />
+        <StatCard color="red" icon={<BarrierIcon />} value={safetyReady ? stats.roadSummary?.closed ?? 0 : '--'} label="Roads Closed" />
+        <StatCard color="amber" icon={<WaveIcon />} value={safetyReady ? stats.roadSummary?.flooded ?? 0 : '--'} label="Roads Flooded" />
       </div>
 
       <div className="divider" />
@@ -556,7 +558,7 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
           </svg>
           City Flood Risk Index
         </span>
-        <span className="badge-rt">Real-time</span>
+        <span className="badge-rt">Modeled</span>
       </div>
 
       <div className="donut-wrap">

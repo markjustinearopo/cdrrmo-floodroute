@@ -10,6 +10,7 @@
 import db from './db.js'
 import * as otp from './authOtp.js'
 import { TOKEN_KEY } from './supabase.js'
+import { clearPrivateOfflineData } from './offline.js'
 
 const api = {
   getToken() {
@@ -26,6 +27,8 @@ const api = {
   clearToken() {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem('cdrrmo_user')
+    clearPrivateOfflineData()
+    window.dispatchEvent(new Event('cdrrmo-session'))
   },
   getUser() {
     try {
@@ -36,6 +39,7 @@ const api = {
   },
   setUser(user) {
     localStorage.setItem('cdrrmo_user', JSON.stringify(user))
+    window.dispatchEvent(new Event('cdrrmo-session'))
   },
 }
 

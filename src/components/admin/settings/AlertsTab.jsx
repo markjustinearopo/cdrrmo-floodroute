@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import {
-  loadAlertSettings, loadAlertSettingsRemote, saveAlertSettings, useNotifications,
+  loadAlertSettings, loadAlertSettingsRemote, saveAlertSettings,
 } from '../../../context/AdminDataContext.jsx'
 import { useSystemConfig } from '../../../services/systemConfig.js'
-import { sendAlertEmail } from '../../../services/emailAlert.js'
+import { sendTestEmail } from '../../../services/emailAlert.js'
+import api from '../../../services/api.js'
 import { sendTestSms, smsConfig, smsStats } from '../../../services/smsAlert.js'
 import { Panel, Toggle, UnitInput, SaveBar, SettingsNote, TabHead } from '../SettingsKit.jsx'
 
@@ -20,7 +21,6 @@ import { Panel, Toggle, UnitInput, SaveBar, SettingsNote, TabHead } from '../Set
  * channels.
  */
 export default function AlertsTab({ onToast, onGoToTab }) {
-  const { notify } = useNotifications()
   const config = useSystemConfig()
   const [cfg, setCfg] = useState(loadAlertSettings)
   const [dirty, setDirty] = useState(false)
@@ -31,6 +31,8 @@ export default function AlertsTab({ onToast, onGoToTab }) {
   const [smsCounts, setSmsCounts] = useState(null)
   const [testNumber, setTestNumber] = useState('')
   const [testingSms, setTestingSms] = useState(false)
+  const [testingEmail, setTestingEmail] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   // Pull the shared settings from Supabase once on mount (cache renders first).
   useEffect(() => {
@@ -45,11 +47,16 @@ export default function AlertsTab({ onToast, onGoToTab }) {
     setCfg((prev) => ({ ...prev, [key]: value }))
     setDirty(true)
   }
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault()
-    saveAlertSettings(cfg)
-    setDirty(false)
-    onToast('Alert settings saved.')
+    if (saving) return
+    setSaving(true)
+    try {
+      await saveAlertSettings(cfg)
+      setDirty(false)
+      onToast('Alert settings saved.')
+    } catch (error) { onToast(`Settings not saved: ${error.message}`) }
+    finally { setSaving(false) }
   }
   function sendTestText() {
     if (!testNumber.trim()) return onToast('Enter a mobile number to send the test to.')
@@ -66,13 +73,19 @@ export default function AlertsTab({ onToast, onGoToTab }) {
       .finally(() => setTestingSms(false))
   }
 
-  function sendTest() {
-    const channels = [cfg.email && 'Email', cfg.push && 'Push'].filter(Boolean)
-    if (!channels.length) return onToast('Enable a channel to send a test alert.')
-    sendAlertEmail({ level: 'moderate', title: 'Test Alert', message: 'This is a test from CDRRMO FloodRoute.', barangay: 'All Barangays' })
-      .then(() => notify('moderate', 'Test email sent', `Delivered via ${channels.join(', ')}.`))
-      .catch(() => notify('moderate', 'Test notification', `Would deliver via ${channels.join(', ')} (email not yet configured).`))
-    onToast(`Test alert sent via ${channels.join(', ')}.`)
+  async function sendTest() {
+    const email = api.getUser()?.email
+    if (!cfg.email || !email) return onToast('Enable email and use an account with an email address for this test.')
+    if (testingEmail) return
+    setTestingEmail(true)
+    try {
+      const result = await sendTestEmail(email)
+      onToast(result.blockedByDrill ? 'Drill mode: no email sent.'
+        : result.simulated ? 'Simulation only: no email delivered.'
+          : result.sent > 0 ? 'Test email accepted by the provider. Check your inbox.'
+            : 'No test email was accepted by the provider.')
+    } catch (error) { onToast(`Test email failed: ${error.message}`) }
+    finally { setTestingEmail(false) }
   }
 
   return (
@@ -89,8 +102,8 @@ export default function AlertsTab({ onToast, onGoToTab }) {
       />
 
       <SaveBar dirty={dirty}>
-        <button type="button" className="mng-btn mng-btn-ghost" onClick={sendTest}>Send Test Alert</button>
-        <button type="submit" className="mng-btn" disabled={!dirty}>Save Changes</button>
+        <button type="button" className="mng-btn mng-btn-ghost" onClick={sendTest} disabled={testingEmail}>Test My Email</button>
+        <button type="submit" className="mng-btn" disabled={!dirty || saving}>Save Changes</button>
       </SaveBar>
 
       <div className="set-cols">
@@ -104,7 +117,7 @@ export default function AlertsTab({ onToast, onGoToTab }) {
               checked={cfg.sms}
               onChange={(v) => set('sms', v)}
             />
-            <Toggle label="Web push" sub="Browser notifications for command-center staff." checked={cfg.push} onChange={(v) => set('push', v)} />
+            <Toggle label="Web push" sub="Not operational in this release." checked={false} disabled />
           </div>
 
           {/* The honest state of the SMS channel, stated where it is switched
@@ -114,8 +127,7 @@ export default function AlertsTab({ onToast, onGoToTab }) {
             {sms === null && <span>Checking the SMS gateway…</span>}
             {sms?.unavailable && (
               <span>
-                <b>Not deployed.</b> Run <code>npx supabase functions deploy sms-alert</code> to
-                switch this channel on.
+                <b>Gateway unavailable.</b> Configuration and delivery cannot currently be verified.
               </span>
             )}
             {sms && !sms.unavailable && sms.simulation && (
@@ -127,7 +139,7 @@ export default function AlertsTab({ onToast, onGoToTab }) {
             )}
             {sms && !sms.unavailable && !sms.simulation && (
               <span>
-                <b>Live via {sms.provider}</b>{sms.senderName ? ` · sender "${sms.senderName}"` : ''}.
+                <b>Configured via {sms.provider}</b>{sms.senderName ? ` · sender "${sms.senderName}"` : ''}. Delivery not yet verified.
                 {smsCounts ? ` ${smsCounts.verified} confirmed number${smsCounts.verified === 1 ? '' : 's'}.` : ''}
               </span>
             )}
@@ -251,9 +263,8 @@ export default function AlertsTab({ onToast, onGoToTab }) {
       </Panel>
 
       <SettingsNote>
-        These settings take effect immediately: the message templates pre-word every alert issued from the Alerts &amp;
-        Dashboard screens, and — when Automatic Alerts is on — the system raises alerts on its own using the trigger
-        level, quiet hours and throttle above. They persist to the shared backend.
+        Automatic modeled alerts require an open command-center session and verified feeds.
+        Scheduled outbound notifications require a healthy server worker. Provider acceptance does not confirm receipt.
       </SettingsNote>
     </form>
   )

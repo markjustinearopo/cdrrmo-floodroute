@@ -58,7 +58,7 @@ export default function OfflineBanner() {
         <b>You are offline.</b>{' '}
         {stamp
           ? <>Showing information saved at {stamp}. It may have changed.</>
-          : <>Showing the last information saved on this phone. It may have changed.</>}
+          : <>Only previously loaded resources may be available. Current safety data cannot be verified.</>}
       </span>
     </div>
   )

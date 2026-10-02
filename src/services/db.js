@@ -17,6 +17,7 @@
    ============================================================ */
 
 import supabase from './supabase.js'
+import { publicIntegrationConfig } from './integrationConfig.js'
 
 /* ── small shared helpers ─────────────────────────────────────────────── */
 const epochOf = (ts) => (ts ? new Date(ts).getTime() : undefined)
@@ -532,12 +533,15 @@ export const rescueDb = {
   async create(request) {
     const row = rescueToDb({ status: 'pending', requestedAt: Date.now(), ...request })
     const saved = unwrap(await supabase.from('rescue_requests').insert(row).select().single())
-    unwrap(await supabase.from('rescue_request_updates').insert({
+    const { error: historyError } = await supabase.from('rescue_request_updates').insert({
       request_id: saved.id,
       label: 'Rescue request created automatically — no safe route available',
       note: request.hazard?.summary || null,
       created_by: request.reporter || null,
-    }))
+    })
+    // The request is already accepted. A secondary history failure must not
+    // report it as unsent and encourage a duplicate rescue request.
+    if (historyError) console.error('[rescue] Initial history unavailable', historyError.message)
     return rescueFromDb(saved)
   },
   /**
@@ -609,7 +613,7 @@ export const integrationsDb = {
   async read() {
     const rows = unwrap(await supabase.from('integrations').select('*'))
     const out = {}
-    for (const r of rows) out[r.id] = { enabled: r.enabled, status: r.status, values: r.config || {} }
+    for (const r of rows) out[r.id] = { enabled: r.enabled, status: r.status, values: publicIntegrationConfig(r.config) }
     return out
   },
   async set(id, patch) {
@@ -618,7 +622,7 @@ export const integrationsDb = {
       id,
       enabled: 'enabled' in patch ? patch.enabled : existing?.enabled ?? false,
       status: 'status' in patch ? patch.status : existing?.status ?? 'disconnected',
-      config: 'values' in patch ? { ...(existing?.config || {}), ...patch.values } : existing?.config || {},
+      config: 'values' in patch ? publicIntegrationConfig(patch.values, true) : publicIntegrationConfig(existing?.config),
     }
     unwrap(await supabase.from('integrations').upsert(merged, { onConflict: 'id' }))
   },

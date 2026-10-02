@@ -52,7 +52,7 @@
        We cache the RESPONSE body only, never credentials.
    ============================================================================ */
 
-const VERSION = 'v1'
+const VERSION = 'v2'
 const SHELL_CACHE = `cdrrmo-shell-${VERSION}`
 const ASSET_CACHE = `cdrrmo-assets-${VERSION}`
 const TILE_CACHE = `cdrrmo-tiles-${VERSION}`
@@ -148,6 +148,18 @@ function isSupabaseRead(url) {
   return /\.supabase\.co$/i.test(url.host) && url.pathname.startsWith('/rest/')
 }
 
+function isPublicDataRead(url, request) {
+  const table = url.pathname.split('/')[3]
+  let anonymous = !request.headers.has('authorization')
+  try {
+    const token = request.headers.get('authorization').replace(/^Bearer\s+/i, '')
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    anonymous = payload.role === 'anon'
+  } catch { /* Unknown bearer formats are never cached. */ }
+  return isSupabaseRead(url) && anonymous
+    && ['alerts', 'evacuation_centers', 'road_status', 'road_blocks', 'barangays', 'hazard_zones'].includes(table)
+}
+
 function isNeverCache(url) {
   // Auth, one-time codes, SMS/email dispatch: always live, never replayed.
   return url.pathname.includes('/functions/')
@@ -210,7 +222,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // ── Supabase reads: network-first, fall back to last known ───────────────
-  if (isSupabaseRead(url)) {
+  if (isPublicDataRead(url, request)) {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(request)
@@ -220,13 +232,13 @@ self.addEventListener('fetch', (event) => {
           const body = await fresh.clone().blob()
           const headers = new Headers(fresh.headers)
           headers.set('x-cdrrmo-cached-at', new Date().toISOString())
-          await cache.put(request, new Response(body, {
+          await cache.put(new Request(request.url), new Response(body, {
             status: fresh.status, statusText: fresh.statusText, headers,
           }))
         }
         return fresh
       } catch {
-        const cached = await caches.match(request, { cacheName: DATA_CACHE })
+        const cached = await caches.match(new Request(request.url), { cacheName: DATA_CACHE })
         if (cached) return cached
         throw new Error('offline and nothing cached for this request')
       }
@@ -238,6 +250,10 @@ self.addEventListener('fetch', (event) => {
    instead of just saying "offline" — "showing information from 4:20 PM" is
    something a person can act on. */
 self.addEventListener('message', (event) => {
+  if (event.data?.type === 'CDRRMO_CLEAR_PRIVATE') {
+    event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith('cdrrmo-data-')).map((key) => caches.delete(key)))))
+    return
+  }
   if (event.data?.type !== 'CDRRMO_CACHE_AGE') return
   event.waitUntil((async () => {
     const cache = await caches.open(DATA_CACHE)

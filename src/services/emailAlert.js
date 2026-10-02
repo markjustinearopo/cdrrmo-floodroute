@@ -55,7 +55,7 @@ export function isEmailEnabled() {
  *
  * @param {{ level: string, title: string, message: string, barangay?: string }} alert
  */
-export async function sendAlertEmail({ level, title, message, barangay } = {}) {
+export async function sendAlertEmail({ level, title, message, barangay, barangays } = {}) {
   /* Drill mode blocks outbound mail HERE, at the send itself, rather than
      asking each caller to remember. A drill exists precisely to make the
      system act on its own — the auto-alert watcher issuing a real alert is the
@@ -74,11 +74,12 @@ export async function sendAlertEmail({ level, title, message, barangay } = {}) {
      them is what keeps "who gets warned" answerable from one place. */
   const cfg = loadAlertSettings()
   const toStaff = cfg.toStaff !== false
+  const toOfficials = cfg.toOfficials !== false
   const toResidents = cfg.toResidents !== false
-  if (!toStaff && !toResidents) return { skipped: true, reason: 'no-audience' }
+  if (!toStaff && !toOfficials && !toResidents) return { skipped: true, reason: 'no-audience' }
 
   const { data, error } = await supabase.functions.invoke('send-alert-email', {
-    body: { level, title, message, barangay, toStaff, toResidents },
+    body: { level, title, message, barangay, barangays, toStaff, toOfficials, toResidents },
   })
   if (error) throw error
   return data

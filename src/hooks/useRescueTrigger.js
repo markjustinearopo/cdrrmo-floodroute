@@ -26,7 +26,7 @@
    ============================================================ */
 
 import { useCallback, useRef, useState } from 'react'
-import { useAdminData, useRescueRequests, barangayCoords } from '../context/AdminDataContext.jsx'
+import { useRescueRequests, barangayCoords } from '../context/AdminDataContext.jsx'
 import { describeBlockage, blockageLevel } from '../components/admin/routeSafety.js'
 import { getResidentBarangay } from '../data/resident.js'
 import api from '../services/api.js'
@@ -43,23 +43,14 @@ const OPEN = new Set(['pending', 'responding'])
 
 export function useRescueTrigger() {
   const { rescueRequests, createRescueRequest } = useRescueRequests()
-  /* The provider's background-save failure. createRescueRequest is optimistic
-     — it returns the row synchronously and persists afterwards — so a database
-     that rejects the write reports it HERE, not as a thrown error. Reading it
-     is the only way this screen can tell the difference between "sent" and
-     "shown to you and lost", and on this screen that difference is somebody
-     waiting for a boat that was never dispatched. */
-  const { saveError } = useAdminData()
   const [alert, setAlert] = useState(null) // { location, evidence, summary } | null
   const [request, setRequest] = useState(null)
   const [localError, setLocalError] = useState(null)
   const [filing, setFiling] = useState(false)
-  // When this filing started, so an unrelated older save failure on another
-  // collection (or a stale one from before) is not reported as ours.
-  const filedAt = useRef(0)
   // Last payload, so "Try sending again" re-files exactly what failed rather
   // than re-running the router from a screen that has since moved on.
   const lastPayload = useRef(null)
+  const inFlight = useRef(false)
 
   /**
    * File the request and open the resident takeover.
@@ -69,12 +60,16 @@ export function useRescueTrigger() {
    *                 way to ask the device for a better answer
    */
   const trigger = useCallback(async (verdict, { origin, locate } = {}) => {
+    if (inFlight.current) return null
+    inFlight.current = true
     const user = api.getUser?.() || null
     const barangay = getResidentBarangay() || user?.barangay || ''
     const evidence = verdict?.evidence || { roads: [], maxDepthM: 0 }
     const summary = describeBlockage(evidence)
 
     setFiling(true)
+    setLocalError(null)
+    setRequest(null)
 
     /* A fresh fix, if the device will give one quickly. Failure here is
        ordinary (indoors, permission denied, no signal) and must not stop the
@@ -102,6 +97,7 @@ export function useRescueTrigger() {
     // popup at it instead of filing a second one.
     const existing = rescueRequests.find((r) => (
       OPEN.has(r.status)
+      && r.id != null && !String(r.id).startsWith('tmp-')
       && (user?.id != null ? r.accountId === user.id : r.barangay === barangay)
       && Date.now() - (r.requestedAt || 0) < REUSE_WINDOW_MS
     ))
@@ -131,16 +127,14 @@ export function useRescueTrigger() {
       blockedRoads: (evidence.roads || []).map((r) => r.name).filter(Boolean),
     }
     lastPayload.current = payload
+    setAlert({ location, evidence, summary })
 
     let filed = existing || null
     let error = null
-    filedAt.current = Date.now()
     if (!existing) {
       try {
-        filed = createRescueRequest(payload)
+        filed = await createRescueRequest(payload)
       } catch (e) {
-        // Synchronous failures only (a missing provider, a bad payload). The
-        // database's own rejection arrives later, via saveError below.
         error = e?.message || 'Could not reach CDRRMO.'
       }
     }
@@ -149,33 +143,33 @@ export function useRescueTrigger() {
     setLocalError(error)
     setAlert({ location, evidence, summary })
     setFiling(false)
+    inFlight.current = false
     return filed
   }, [rescueRequests, createRescueRequest])
 
-  const retry = useCallback(() => {
-    if (!lastPayload.current) return
-    filedAt.current = Date.now()
+  const retry = useCallback(async () => {
+    if (!lastPayload.current || inFlight.current) return
+    inFlight.current = true
+    setFiling(true)
+    setLocalError(null)
     try {
-      setRequest(createRescueRequest(lastPayload.current))
+      setRequest(await createRescueRequest(lastPayload.current))
       setLocalError(null)
     } catch (e) {
       setLocalError(e?.message || 'Could not reach CDRRMO.')
+    } finally {
+      inFlight.current = false
+      setFiling(false)
     }
   }, [createRescueRequest])
 
   const dismiss = useCallback(() => setAlert(null), [])
 
-  // A rescueRequests save that failed at or after this filing began is ours.
-  const persistError = saveError?.collection === 'rescueRequests'
-    && (saveError.at ?? 0) >= filedAt.current
-    ? saveError.message
-    : null
-  const sendError = localError || persistError
+  const sendError = localError
 
   /* The row the popup shows, re-read from the live collection on every render
      so the status a responder sets (Pending → Responding → Rescued) appears on
-     the resident's own screen without them doing anything. Falls back to the
-     optimistic object until the database hands back a real id. */
+     the resident's own screen. Keep the acknowledged row until the next read. */
   const liveRequest = (request && rescueRequests.find((r) => r.id === request.id)) || request
 
   return { alert, request: liveRequest, sendError, filing, trigger, retry, dismiss }

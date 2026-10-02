@@ -19,7 +19,7 @@ import {
 } from '../../components/admin/routingHelpers.jsx'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock } from '../../components/admin/mapHelpers.jsx'
 import {
-  useAlerts, useIncidents, useRoadReports, useEvacCenters, useRescueRequests, useRoadBlocks,
+  useAlerts, useIncidents, useRoadReports, useEvacCenters, useRescueRequests, useRoadBlocks, useAdminData,
 } from '../../context/AdminDataContext.jsx'
 import RescueRequestsLayer from '../../components/admin/RescueRequestsLayer.jsx'
 import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
@@ -113,6 +113,7 @@ export default function Dashboard() {
 
   // ── Shared store ──
   const { alerts, addAlert, resolveAlert } = useAlerts()
+  const { safetyReady } = useAdminData()
   const { incidents } = useIncidents()
   /* Residents the router could not get out. No banner on this screen — the
      queue lives on Rescue Requests and the live alert card handles the push.
@@ -278,15 +279,20 @@ export default function Dashboard() {
     toastTimer.current = setTimeout(() => setToast({ msg: '', tone: '' }), tone === 'high' ? 3600 : 2600)
   }
 
-  function handleHazardSubmit(e) {
+  async function handleHazardSubmit(e) {
     e.preventDefault()
+    const submitter = e.nativeEvent.submitter
+    if (submitter?.disabled) return
+    if (submitter) submitter.disabled = true
     const f = new FormData(e.currentTarget)
-    const alert = addAlert({
+    let alert
+    try { alert = await addAlert({
       title: f.get('title').trim(),
       barangay: f.get('barangay'),
       level: f.get('level'),
       message: f.get('message').trim(),
-    })
+    }) } catch (error) { flashToast(`Alert not saved: ${error.message}`, 'high'); return }
+    finally { if (submitter) submitter.disabled = false }
     setModal(null)
     /* This screen used to record the alert and stop there — no email, no text.
        An operator raising a HIGH alert from the Dashboard had every reason to
@@ -489,7 +495,7 @@ export default function Dashboard() {
           </div>
           <div className="alert-list">
             {activeAlertList.length === 0 ? (
-              <div className="empty-state">{t('No active alerts.')}</div>
+              <div className="empty-state">{safetyReady ? t('No active alerts.') : 'Alert feed unverified.'}</div>
             ) : (
               activeAlertList.map((a) => (
                 <div

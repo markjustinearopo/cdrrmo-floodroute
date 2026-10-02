@@ -974,26 +974,16 @@ serve(async (req) => {
           expiresInMinutes: CODE_TTL_MIN,
         })
       } catch (e) {
-        /* The second factor could not be delivered. Refusing the sign-in here
-           locks the account holder out of their own account over an outage in
-           OUR mail provider — the failure mode that has already cost this
-           system its entire resident base once. The password check has
-           already passed, so the session is granted and the operator is told
-           that the second factor did not run. */
+        // Provider failure must not bypass the required second factor.
         if (!(e instanceof Undeliverable)) {
-          /* A throttle is not an outage, so it does not get the free pass
-             above — but it must not surface as a 500 either. Someone who has
-             genuinely been mailed six codes in an hour needs to be told to
-             wait, in words, not handed "Internal Server Error" on a screen
-             that gives them nothing to do next. */
           return json({ error: (e as Error).message }, 429)
         }
         await db.from('notifications').insert({
           level: 'moderate',
           title: 'Two-factor code could not be delivered',
-          message: `${acc.email} signed in with a correct password, but the second-factor code could not be sent (${e.detail}). The sign-in was allowed rather than locking the account holder out.`,
+          message: `Second-factor delivery failed for account ${acc.id}. Sign-in was not completed.`,
         })
-        return json({ user: sessionOf(acc), token: await mintToken(acc), mfaSkipped: true, detail: e.detail })
+        return json({ error: 'The verification service is unavailable. Sign-in was not completed. Try again later or contact your administrator.' }, 503)
       }
     }
 
@@ -1005,6 +995,7 @@ serve(async (req) => {
 
       const { data: acc, error } = await db.from('accounts').select('*').ilike('email', addr).single()
       if (error) return json({ error: error.message }, 500)
+      if (acc.status !== 'active') return json({ error: 'This account is not active. Contact your administrator.' }, 403)
       await db.from('accounts').update({ last_login: new Date().toISOString() }).eq('id', acc.id)
 
       let deviceToken: string | null = null

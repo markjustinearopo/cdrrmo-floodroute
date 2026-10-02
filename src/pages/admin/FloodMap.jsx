@@ -38,7 +38,7 @@ import {
   useRoutes,
 } from '../../components/admin/routingHelpers.jsx'
 import {
-  useAlerts, useEvacCenters, useIncidents, useRoadReports, useFloodAreas, useRoadBlocks,
+  useAlerts, useEvacCenters, useIncidents, useRoadReports, useFloodAreas, useRoadBlocks, useAdminData,
 } from '../../context/AdminDataContext.jsx'
 import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
 import '../../components/map/roadBlocks.css'
@@ -958,19 +958,20 @@ function FloodMap3DView({
 
 /* ── Overview tab body ───────────────────────────────────────────────────── */
 function OverviewTab({ stats, risk, rainfall, rainHistory, forecast, riskSummary }) {
+  const { safetyReady } = useAdminData()
   const maxRain = Math.max(...rainHistory, 1)
 
   return (
     <>
       {/* Stat cards — same vocabulary as the Hazard Layer summary */}
       <div className="stats-grid">
-        <StatCard color="red" icon={<AlertTriangleIcon />} value={stats.activeAlerts} label="Active Flood Alerts" />
-        <StatCard color="orange" icon={<BarIcon />} value={stats.flaggedRoads} label="Flagged Roads" />
+        <StatCard color="red" icon={<AlertTriangleIcon />} value={safetyReady ? stats.activeAlerts : '--'} label="Active Flood Alerts" />
+        <StatCard color="orange" icon={<BarIcon />} value={safetyReady ? stats.flaggedRoads : '--'} label="Flagged Roads" />
         <StatCard color="green" icon={<TargetIcon />} value={stats.highRisk} label="High-Risk Brgys" />
         <StatCard
           color="blue"
           icon={<HomeIcon />}
-          value={stats.evacCounts?.open ?? 0}
+          value={safetyReady ? stats.evacCounts?.open ?? 0 : '--'}
           label="Centres Accepting"
           note={stats.evacCounts?.full ? `${stats.evacCounts.full} full` : null}
         />
@@ -988,7 +989,7 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast, riskSummary
           </svg>
           City Flood Risk Index
         </span>
-        <span className="badge-rt">Real-time</span>
+        <span className="badge-rt">Modeled</span>
       </div>
 
       <div className="donut-wrap">

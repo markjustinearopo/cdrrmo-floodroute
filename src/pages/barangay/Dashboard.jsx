@@ -16,7 +16,7 @@ import { useRoadStatus } from '../../components/admin/routingHelpers.jsx'
 import { useLiveWeather, formatRain } from '../../services/weather.js'
 import { officialBarangayLabel, getOfficialBarangay } from '../../data/barangay.js'
 import {
-  useAlerts, useEvacCenters, useIncidents, useRoadRequests, useBarangayAssignments,
+  useAlerts, useEvacCenters, useIncidents, useRoadRequests, useBarangayAssignments, useAdminData,
 } from '../../context/AdminDataContext.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
@@ -49,6 +49,7 @@ export default function Dashboard() {
 
   const { field } = useFloodRisk()
   const { alerts: allAlerts } = useAlerts()
+  const { safetyReady } = useAdminData()
   const { evacuationCenters } = useEvacCenters()
 
   /* Same search as every other map in the system — an official checking their
@@ -249,7 +250,7 @@ export default function Dashboard() {
               {alerts.length === 0 ? (
                 <div className="bq-empty">
                   <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
-                  <div className="bq-empty-title">No active alerts</div>
+                  <div className="bq-empty-title">{safetyReady ? 'No active alerts' : 'Alert feed unverified'}</div>
                   <div className="bq-empty-sub">Alerts affecting Brgy. {brgyLabel} will appear here.</div>
                 </div>
               ) : (

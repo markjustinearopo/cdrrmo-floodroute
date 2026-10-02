@@ -62,6 +62,8 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { authorizeOperator } from '../_shared/operatorAuth.ts'
+import { alertScopes } from '../_shared/alertScope.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -266,12 +268,19 @@ serve(async (req) => {
   }
 
   try {
+    const authDb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const actor = await authorizeOperator(req, authDb, ['admin', 'staff', 'barangay'])
+    if (!actor) return json({ error: 'An active operator session is required.' }, 403)
+    const scopes = alertScopes(body.barangay, body.barangays)
+    if (actor.role === 'barangay' && (action === 'test' || scopes.length !== 1 || !actor.barangay || scopes[0] !== actor.barangay)) {
+      return json({ error: 'Barangay officials may send alerts only for their assigned barangay.' }, 403)
+    }
     const {
       level = 'moderate', title, message, barangay,
-      toStaff = true, toResidents = true,
+      toStaff = true, toOfficials = true, toResidents = true,
     } = body as {
       level?: string; title?: string; message?: string; barangay?: string
-      toStaff?: boolean; toResidents?: boolean
+      toStaff?: boolean; toOfficials?: boolean; toResidents?: boolean
     }
     const meta = LEVEL_META[level] ?? LEVEL_META.moderate
     const subject = `[CDRRMO] ${meta.label}: ${title ?? 'Flood Alert'}`
@@ -304,19 +313,22 @@ serve(async (req) => {
 
     /* Is this alert about one barangay, or the whole city? Everything below
        keys off this, and the two "all" spellings both occur in the data. */
-    const scoped = Boolean(barangay) && barangay !== 'All' && barangay !== 'All Barangays'
+    const scoped = scopes.length > 0
 
     if (toStaff) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('accounts')
         .select('email')
         .in('role', CITYWIDE_ROLES)
         .eq('status', 'active')
         .not('email', 'is', null)
+      if (error) throw error
       for (const a of data ?? []) {
         if (a.email) { recipients.add(a.email); staffCount++ }
       }
+    }
 
+    if (toOfficials) {
       /* Barangay officials count as staff for the purposes of the toggle, but
          are scoped like residents — the Punong Barangay of Casile does not
          need Marinig's flood warning. */
@@ -326,8 +338,9 @@ serve(async (req) => {
         .eq('role', BARANGAY_ROLE)
         .eq('status', 'active')
         .not('email', 'is', null)
-      if (scoped) q = q.eq('barangay', barangay)
-      const { data: officials } = await q
+      if (scoped) q = q.in('barangay', scopes)
+      const { data: officials, error: officialsError } = await q
+      if (officialsError) throw officialsError
       for (const a of officials ?? []) {
         if (a.email && !recipients.has(a.email)) { recipients.add(a.email); officialCount++ }
       }
@@ -342,8 +355,9 @@ serve(async (req) => {
         .eq('role', 'resident')
         .eq('status', 'active')
         .not('email', 'is', null)
-      if (scoped) q = q.eq('barangay', barangay)
-      const { data } = await q
+      if (scoped) q = q.in('barangay', scopes)
+      const { data, error } = await q
+      if (error) throw error
       for (const a of data ?? []) {
         if (a.email && !recipients.has(a.email)) { recipients.add(a.email); residentCount++ }
       }
@@ -356,7 +370,7 @@ serve(async (req) => {
         staff: 0,
         officials: 0,
         residents: 0,
-        info: toStaff || toResidents
+        info: toStaff || toOfficials || toResidents
           ? 'No active accounts with an email address matched this alert.'
           : 'Both audiences are switched off in Alert Settings.',
       })

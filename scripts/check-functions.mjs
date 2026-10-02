@@ -38,12 +38,17 @@ if (!existsSync(ROOT)) {
 const fns = readdirSync(ROOT, { withFileTypes: true })
   .filter((d) => d.isDirectory() && existsSync(join(ROOT, d.name, 'index.ts')))
   .map((d) => d.name)
+const files = fns.map((name) => [name, join(ROOT, name, 'index.ts')])
+if (existsSync(join(ROOT, '_shared'))) {
+  for (const name of readdirSync(join(ROOT, '_shared')).filter((name) => name.endsWith('.ts'))) {
+    files.push([`_shared/${name}`, join(ROOT, '_shared', name)])
+  }
+}
 
 let failed = 0
 console.log(`Parse-checking ${fns.length} Edge Function(s)\n`)
 
-for (const name of fns) {
-  const file = join(ROOT, name, 'index.ts')
+for (const [name, file] of files) {
   const src = readFileSync(file, 'utf8')
   try {
     const { code } = transformSync(src, { loader: 'ts', format: 'cjs', target: 'es2022' })
@@ -134,4 +139,4 @@ if (impls.length) {
   console.log(`  ${GREEN}✓${OFF} ${PHONE_CASES.length} formats, all copies agree\n`)
 }
 
-console.log(`${GREEN}All functions parse and agree. Safe to deploy.${OFF}`)
+console.log(`${GREEN}All functions parse and phone formats agree. Runtime and deployment checks are still required.${OFF}`)
