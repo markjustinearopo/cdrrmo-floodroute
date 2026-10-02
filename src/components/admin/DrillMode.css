@@ -14,17 +14,14 @@
 
 /* ── The launcher in the topbar ── */
 .drill-launch {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 850;
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.16);
+  position: static;
+  width: 100%;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   border: 1px solid #e5e2dd;
   background: #fff;
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 6px 12px;
   font: inherit;
   font-size: 0.75rem;

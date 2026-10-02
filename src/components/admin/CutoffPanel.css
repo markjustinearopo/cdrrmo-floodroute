@@ -252,7 +252,8 @@
 
 @media (max-width: 720px) {
   .cut-scale { display: none; }
-  .cut-name { width: 118px; }
+  .cut-btn { flex-wrap: wrap; gap: 8px; }
+  .cut-name { width: auto; flex: 1 1 110px; }
   .cut-val { width: 68px; }
 }
 

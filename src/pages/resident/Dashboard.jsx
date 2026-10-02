@@ -19,6 +19,7 @@ import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.
 import { useAlerts, useEvacCenters, useBarangayAssignments, barangayCoords } from '../../context/AdminDataContext.jsx'
 import { pickShelter, isNearlyFull, remainingHeadroom } from '../../data/shelters.js'
 import { describeDepth } from '../../services/depth.js'
+import { floodStatus } from '../../services/floodBanner.js'
 import EmergencySmsCard from '../../components/resident/EmergencySmsCard.jsx'
 import MapSearchBar from '../../components/map/MapSearchBar.jsx'
 import SearchResultLayer from '../../components/map/SearchResultLayer.jsx'
@@ -129,7 +130,10 @@ export default function Dashboard() {
     [barangayAssignments, myBrgy],
   )
 
-  const level = useMemo(() => levelFromDepth(floodDepth), [floodDepth])
+  const status = useMemo(() => floodStatus(allAlerts, field, myBrgy), [allAlerts, field, myBrgy])
+  const level = status.source === 'alert'
+    ? (status.level === 'emergency' ? 'high' : status.level)
+    : levelFromDepth(floodDepth)
 
   /* Alert rows collapse to their title — the adviser's note that the
      dashboards are too crowded, and on a phone four full alert bodies were
@@ -201,14 +205,16 @@ export default function Dashboard() {
             <div className="res-risk-level">{t(RESIDENT_RISK_LABEL[level])}</div>
             <div className="res-risk-sub">
               Brgy. {brgyLabel}
-              {describeDepth(floodDepth) && <> · {describeDepth(floodDepth)}</>}
+              {status.source !== 'alert' && describeDepth(floodDepth) && <> · {describeDepth(floodDepth)}</>}
               {' · '}{t(RISK_BLURB[level])}
             </div>
             {/* The admin screens carry this caveat; the person who has to act
                 on the number did not. It is a model estimate from rainfall and
                 terrain, not a gauge reading on their street. */}
             <div className="res-risk-note">
-              {t('Estimated from rainfall and ground height — not a measurement of your street. Trust what you can see outside.')}
+              {status.source === 'alert'
+                ? status.alert.title
+                : t('Estimated from rainfall and ground height — not a measurement of your street. Trust what you can see outside.')}
             </div>
           </div>
 
@@ -346,15 +352,15 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="res-side-card res-forecast-card">
-            <div className="res-side-title">
+          <details className="res-side-card res-forecast-card res-disclosure">
+            <summary className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" /><line x1="8" y1="19" x2="8" y2="21" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="16" y1="19" x2="16" y2="21" /></svg>
               {/* Counted from what is actually rendered. The heading said
                   "3-Day Forecast" above four columns (today plus three), and
                   a hardcoded "4" would drift the same way the moment the
                   upstream feed returns fewer days. */}
               {forecast.length}-Day Forecast
-            </div>
+            </summary>
             <div className="res-forecast">
               {forecast.map((f, i) => (
                 <div key={f.day} className={`res-fc-day ${i === 0 ? 'today' : ''}`}>
@@ -364,14 +370,14 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-          </div>
+          </details>
 
-          <div className="res-side-card res-prep-card">
-            <div className="res-side-title">
+          <details className="res-side-card res-prep-card res-disclosure">
+            <summary className="res-side-title">
               <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
               {t('Preparedness Checklist')}
               <span className="res-prep-count">{prepDone}/{PREP_ITEMS.length}</span>
-            </div>
+            </summary>
             <div className="res-prep-track">
               <div className="res-prep-fill" style={{ width: `${(prepDone / PREP_ITEMS.length) * 100}%` }} />
             </div>
@@ -388,7 +394,7 @@ export default function Dashboard() {
                 </label>
               ))}
             </div>
-          </div>
+          </details>
 
           <div className="res-side-card res-contacts-card">
             <div className="res-side-title">

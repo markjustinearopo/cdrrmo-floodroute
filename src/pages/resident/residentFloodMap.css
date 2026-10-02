@@ -1,0 +1,109 @@
+.floodmap--resident .map-area {
+  display: block;
+}
+
+.floodmap--resident .right-panel {
+  overflow-y: auto;
+}
+
+.floodmap--resident .panel-content {
+  flex: none;
+  overflow: visible;
+}
+
+.resident-map-controls {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+  display: grid;
+  gap: 8px;
+}
+
+.resident-map-controls summary {
+  padding: 12px 4px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.resident-map-controls .map-toggles,
+.resident-map-controls .fsc,
+.resident-map-controls .fsc-card,
+.resident-map-controls .fsc-toast,
+.resident-map-controls .wxc,
+.resident-map-controls .emg {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-width: 100%;
+  max-height: none;
+  box-shadow: none;
+  border-radius: 6px;
+  z-index: auto;
+}
+
+.resident-map-controls .fsc,
+.resident-map-controls .wxc {
+  margin-top: 8px;
+}
+
+.resident-map-controls .emg-body {
+  max-height: none;
+  margin: 8px 0 0;
+  box-shadow: none;
+  border-radius: 6px;
+}
+.resident-map-controls .emg { flex-direction: column; }
+.resident-map-controls .emg-toggle { box-shadow: none; border-radius: 6px; }
+
+.floodmap--resident .fsp-head { flex-wrap: wrap; }
+.floodmap--resident :is(.fsp-updated, .fsp-summary, .fsp-foot, .fsp-row-name, .fsp-row-depth, .fsp-badge) {
+  font-size: 0.75rem;
+}
+.floodmap--resident .fsp-foot { color: var(--color-text-secondary); }
+
+.floodmap--resident .subtab-bar {
+  flex-wrap: wrap;
+  white-space: normal;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.floodmap--resident .subtab-bar > * {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.floodmap--resident .risk-badge {
+  white-space: normal;
+}
+.floodmap--resident .report-flood-btn { margin-left: auto; }
+
+@media (max-width: 1180px) {
+  .floodmap--resident .map-panel-wrap { flex-direction: column; }
+  .floodmap--resident .right-panel { width: 100%; }
+  .floodmap--resident .map-area { flex: none; }
+  .floodmap--resident .map-area > .leaflet-container { height: max(55vh, 380px); }
+}
+
+@media (max-width: 760px) {
+  .floodmap--resident .report-flood-btn { margin-left: 0; }
+  .floodmap--resident .fabs {
+    bottom: 70px;
+    right: 58px;
+    left: 10px;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .floodmap--resident .fab { width: 44px; height: 44px; flex: none; }
+  .floodmap--resident .map-statusline { bottom: 10px; }
+}
+
+@media (max-width: 360px) {
+  .floodmap--resident .fabs {
+    display: grid;
+    grid-template-columns: repeat(3, 44px);
+    justify-content: start;
+  }
+}

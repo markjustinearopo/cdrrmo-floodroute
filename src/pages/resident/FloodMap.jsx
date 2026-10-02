@@ -25,7 +25,10 @@ import { FloodReportMarkers } from '../../components/admin/FloodReportsLayer.jsx
 import FloodReportModal from '../../components/resident/FloodReportModal.jsx'
 import {
   useEvacCenters, useFloodAreas, useFloodReports, useRoadReports, useRoadBlocks,
+  useAlerts,
 } from '../../context/AdminDataContext.jsx'
+import { floodStatus } from '../../services/floodBanner.js'
+import './residentFloodMap.css'
 import RoadBlocksLayer from '../../components/map/RoadBlocksLayer.jsx'
 import { residentBarangayLabel, getResidentBarangay } from '../../data/resident.js'
 import { BARANGAY_CENTROIDS, CABUYAO_LAND_BOUNDS } from '../../data/cabuyaoBarangays.js'
@@ -137,7 +140,7 @@ export default function FloodMap() {
   // City-wide road conditions — the same figures the map is painting.
   const roadSummary = useRoadConditionSummary()
 
-  const [panelTab, setPanelTab] = useState('Overview')
+  const [panelTab, setPanelTab] = useState('Live Status')
   const [coords, setCoords] = useState(null)
   const [updated, setUpdated] = useState(formatPHT())
   const [showReport, setShowReport] = useState(false)
@@ -156,23 +159,19 @@ export default function FloodMap() {
   const { roadBlocks } = useRoadBlocks()
   const { coords: myPos, loading: locating, locate } = useGeolocation()
   const [dark, setDark] = usePersistedState('cdrrmo-map-dark-v1', false)
-  // Layers panel: visible by default on desktop, tucked away on phones (the
-  // Layers FAB opens it) so the small map isn't buried under chrome.
-  //
-  // The phone case can't come from the persisted default — that is consulted
-  // only on the very first visit, so a reader whose first load was on a wide
-  // viewport had `true` stored and then got the panel covering the map on
-  // their phone forever after. The width is checked live instead, and the
-  // phone state is session-only so opening the panel there never rewrites the
-  // desktop preference.
+  // Keep desktop preferences, but start the phone's detail panel folded.
   const narrow = useNarrowScreen()
-  const [layersPref, setLayersPref] = usePersistedState('cdrrmo-map-showlayers-v1', true)
+  const [layersPref, setLayersPref] = usePersistedState('cdrrmo-map-showlayers-v1', false)
   const [layersOpenMobile, setLayersOpenMobile] = useState(false)
   useEffect(() => {
     if (narrow) setLayersOpenMobile(false)
   }, [narrow])
   const showLayers = narrow ? layersOpenMobile : layersPref
   const setShowLayers = narrow ? setLayersOpenMobile : setLayersPref
+  const controlsRef = useRef(null)
+  const { alerts } = useAlerts()
+  const officialStatus = useMemo(() => floodStatus(alerts, field, myBrgy), [alerts, field, myBrgy])
+  const riskLabel = { safe: 'No elevated risk', low: 'Low risk', moderate: 'Moderate risk', high: 'High risk', emergency: 'Emergency' }
   // Still drives the pin + flyTo when the Emergency panel picks a shelter
   // (the always-on search BAR lives on the Hazard Layer screens; here it
   // opens on demand from the Search Location FAB).
@@ -268,7 +267,7 @@ export default function FloodMap() {
 
   return (
     <ResidentLayout mainClassName="main--flush">
-      <div className={`floodmap ${dark ? 'floodmap--dark' : ''}`}>
+      <div className={`floodmap floodmap--resident ${dark ? 'floodmap--dark' : ''}`}>
         <div className="subtab-bar">
           <button type="button" className="subtab active">
             <MapIcon />
@@ -281,14 +280,13 @@ export default function FloodMap() {
           <button
             type="button"
             className="report-flood-btn"
-            style={{ marginLeft: 'auto' }}
             onClick={() => setShowReport(true)}
           >
             <ReportIcon />
             Report Flood Status
           </button>
-          <span className={`risk-badge ${myLevel}`} style={{ alignSelf: 'center' }}>
-            Brgy. {brgyLabel}: {RISK_META[myLevel].label}
+          <span className={`risk-badge ${officialStatus.source === 'alert' ? officialStatus.tone : myLevel}`} style={{ alignSelf: 'center' }}>
+            Brgy. {brgyLabel}: {riskLabel[officialStatus.source === 'alert' ? officialStatus.level : myLevel]}
           </span>
         </div>
 
@@ -427,53 +425,63 @@ export default function FloodMap() {
               floodAreas={floodAreas}
               floodReports={floodReports}
             />
-            <FloodStatusCard barangays={barangays} roadReports={roadReports} />
-            <WeatherCard />
             <MapFabs
               onSearch={() => setShowSearch((v) => !v)}
               searchOn={showSearch}
               onLocate={handleLocate}
               locating={locating}
               onRoute={() => navigate('/resident/evacuation-routing')}
-              onLayers={() => setShowLayers((v) => !v)}
+              onLayers={() => {
+                setShowLayers((v) => !v)
+                controlsRef.current?.scrollIntoView({ block: 'nearest' })
+              }}
               layersOn={showLayers}
               onReport={() => setShowReport(true)}
               dark={dark}
               onToggleDark={() => setDark((v) => !v)}
               onReset={handleReset}
             />
-            <EmergencyPanel
-              evacCenters={evacuationCenters}
-              origin={emergencyOrigin}
-              originLabel={myPos ? 'your location' : `Brgy. ${brgyLabel}`}
-              onGoto={gotoEvac}
-            />
-
-            {showLayers && (
-              <MapLayerToggles
-                layers={FLOOD_LAYERS.map((l) => ({
-                  ...l,
-                  on: layers[l.key],
-                  onToggle: () => setLayers((v) => ({ ...v, [l.key]: !v[l.key] })),
-                }))}
-                opacity={intensity}
-                onOpacity={setIntensity}
-              />
-            )}
-
             <MapStatusLine updated={updated} coords={coords} />
           </div>
 
           <div className="right-panel">
+            <div className="resident-map-controls" ref={controlsRef}>
+              <EmergencyPanel
+                evacCenters={evacuationCenters}
+                origin={emergencyOrigin}
+                originLabel={myPos ? 'your location' : `Brgy. ${brgyLabel}`}
+                onGoto={gotoEvac}
+              />
+              <details open={showLayers} onToggle={(e) => setShowLayers(e.currentTarget.open)}>
+                <summary>Map layers</summary>
+                <MapLayerToggles
+                  placement="left"
+                  layers={FLOOD_LAYERS.map((l) => ({
+                    ...l,
+                    on: layers[l.key],
+                    onToggle: () => setLayers((v) => ({ ...v, [l.key]: !v[l.key] })),
+                  }))}
+                  opacity={intensity}
+                  onOpacity={setIntensity}
+                />
+              </details>
+              <details>
+                <summary>Weather and road conditions</summary>
+                <FloodStatusCard barangays={barangays} roadReports={roadReports} />
+                <WeatherCard />
+              </details>
+            </div>
             <div className="panel-tabs">
               {PANEL_TABS.map((tab) => (
-                <div
+                <button
+                  type="button"
                   key={tab}
                   className={`panel-tab ${panelTab === tab ? 'active' : ''}`}
+                  aria-pressed={panelTab === tab}
                   onClick={() => setPanelTab(tab)}
                 >
                   {tab}
-                </div>
+                </button>
               ))}
             </div>
 
@@ -592,7 +600,7 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
 
       <div className="divider" />
 
-      <div className="section-hdr"><span>3-Day Forecast</span></div>
+      <div className="section-hdr"><span>{forecast.length}-Day Forecast</span></div>
       <div className="forecast-grid">
         {forecast.map((f, i) => (
           <div key={f.day} className={`forecast-day ${i === 0 ? 'today' : ''}`}>

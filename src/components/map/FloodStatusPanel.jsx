@@ -65,7 +65,7 @@ export default function FloodStatusPanel({ barangays = [], roadReports = [], myB
       <div className="fsp-head">
         <span className="fsp-live">
           <span className="fsc-pulse" />
-          LIVE MONITORING
+          MODELED FLOOD CONDITIONS
         </span>
         <span className="fsp-updated">Updated {updated} PHT</span>
       </div>
@@ -78,8 +78,8 @@ export default function FloodStatusPanel({ barangays = [], roadReports = [], myB
 
       <div className="fsp-summary">
         {affected.length === 0
-          ? 'No areas currently affected by flooding.'
-          : `${affected.length} affected area${affected.length > 1 ? 's' : ''}${closedRoads ? ` · ${closedRoads} road${closedRoads > 1 ? 's' : ''} closed` : ''}`}
+          ? 'No elevated flood risk in the current model.'
+          : `${affected.length} area${affected.length > 1 ? 's' : ''} with modeled flood risk${closedRoads ? ` · ${closedRoads} road${closedRoads > 1 ? 's' : ''} closed` : ''}`}
       </div>
 
       <div className="fsp-list">

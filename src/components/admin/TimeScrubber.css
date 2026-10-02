@@ -301,11 +301,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ts-src { font-size: 0.75rem; color: var(--ts-dim); }
+.ts-src { font-size: 0.75rem; color: var(--ts-dim); min-width: 0; max-width: 100%; }
 .ts-src summary {
   cursor: pointer;
   list-style: none;
-  white-space: nowrap;
+  white-space: normal;
   transition: color 0.15s ease;
 }
 .ts-src summary::-webkit-details-marker { display: none; }

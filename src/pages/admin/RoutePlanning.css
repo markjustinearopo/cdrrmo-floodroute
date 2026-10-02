@@ -14,11 +14,7 @@
 }
 
 /* ── Toolbar ── */
-/* ONE row, always. Wrapping only ever moved whole children down, so the moment
-   the buttons stopped fitting the toolbar doubled in height and the title sat
-   alone on a line of its own. Instead the caption — the only part that repeats
-   what the title already says — gives up its width first and ellipsises, and
-   the strip scrolls sideways in the rare case that still isn't enough. */
+/* Keep route actions visible, wrapping both the toolbar and its button groups. */
 .route-plan .rp-toolbar {
   min-height: 48px;
   flex-shrink: 0;
@@ -28,15 +24,15 @@
   align-items: center;
   gap: 12px;
   padding: 6px 16px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  overflow-x: visible;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
 }
 .route-plan .rp-toolbar::-webkit-scrollbar { display: none; }
-/* The title and the buttons keep their intrinsic width; only the caption flexes. */
+/* Button groups shrink and wrap before their labels overflow. */
 .route-plan .rp-title,
-.route-plan .rp-tools { flex: 0 0 auto; }
+.route-plan .rp-tools { flex: 0 1 auto; min-width: 0; flex-wrap: wrap; }
 .route-plan .rp-type-seg--note {
   flex: 0 1 auto;
   min-width: 0;
@@ -817,41 +813,26 @@
     min-height: 44px;
   }
 
-  /* This toolbar is what dragged the whole SCREEN sideways on a phone.
-
-     .rp-toolbar sets flex-wrap:wrap, so it looked safe — but wrapping only
-     moves whole CHILDREN onto the next line, and each child (.rp-tools, and
-     the route-type segment) is itself a nowrap row wider than the phone.
-     Neither could wrap nor shrink, so the document went to 515px wide and the
-     resident got 140px of horizontal scroll on every panel, map and button
-     underneath it. Letting the children wrap instead fixed the scroll but cost
-     268px of toolbar — a third of the screen, taken from the map, on the one
-     page someone opens while they are trying to leave.
-
-     So the toolbar becomes ONE row that scrolls inside itself. Making the
-     toolbar the scroll container rather than .rp-tools matters: these three
-     portals put different children in here (the barangay and admin screens
-     have a real route-type segment where the resident has a caption), and
-     scrolling the container covers all of them instead of whichever child was
-     widest on the page that got tested. */
+  /* Both nested button groups must wrap so every action remains visible. */
   .route-plan .rp-toolbar {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
     min-height: 0;
-    overflow-x: auto;
+    overflow-x: visible;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
   .route-plan .rp-toolbar::-webkit-scrollbar { display: none; }
-  /* Nothing in the strip may be squeezed by the scroller it now lives in. */
-  .route-plan .rp-toolbar > * { flex: 0 0 auto; }
+  /* Each group stays within the phone's available width. */
+  .route-plan .rp-toolbar > * { flex: 0 1 auto; min-width: 0; max-width: 100%; }
   .route-plan .rp-tools {
     margin-left: 0;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
+  .route-plan .rp-type-seg { flex-wrap: wrap; }
 
   /* Both of these repeat what the screen already says: the tab bar marks the
      current page, and the caption restates the title. On a phone that is ~54px

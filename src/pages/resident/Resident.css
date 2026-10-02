@@ -10,6 +10,25 @@
    the admin map CSS.
    ============================================================ */
 
+.res-disclosure > summary {
+  cursor: pointer;
+  margin-bottom: 0;
+  min-height: 44px;
+}
+.res-disclosure > summary::after {
+  content: '+';
+  margin-left: auto;
+  font-size: 1rem;
+}
+.res-disclosure[open] > summary { margin-bottom: 12px; }
+.res-disclosure[open] > summary::after { content: '-'; }
+.res-disclosure > summary:focus-visible {
+  outline: 2px solid var(--cdrrmo-red);
+  outline-offset: 3px;
+}
+.res-feed, .res-side { min-width: 0; }
+.res-risk-level, .res-evac-name, .res-shelter-name { overflow-wrap: anywhere; }
+
 .res {
   display: flex;
   flex-direction: column;
@@ -19,7 +38,7 @@
 /* ── Dashboard layout (feed + side panel) ────────────────────────────────── */
 .res-dash {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: 14px;
   /* Stretch both columns equal so the map fills the feed down to the bottom
      edge of the side panel beside it (no short, dangling map). */

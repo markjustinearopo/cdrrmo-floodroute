@@ -661,7 +661,7 @@
    wide — under this breakpoint — so a bare max-width query would also match
    while printing and would clip table columns off the PDF.
    ============================================================ */
-@media screen and (max-width: 760px) {
+@media screen and (max-width: 1180px) {
   .reports {
     flex-direction: column;
     gap: 12px;

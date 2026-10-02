@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
+import { mapCanvas } from './mapCanvas.js'
 import ROADS_BUNDLE from '../../data/cabuyaoRoads.json'
 import db from '../../services/db.js'
 import './routingHelpers.css'
@@ -310,7 +311,7 @@ export function RoadNetworkLayer({ roads, statusMap = {}, trafficMap = {}, view 
     // (an SVG path-per-segment would lock the main thread). `tolerance` widens
     // the clickable/hover band well beyond the hairline stroke so roads are
     // easy to hit — the difference between a chore and a game.
-    const renderer = L.canvas({ padding: 0.5, tolerance: 10 })
+    const renderer = mapCanvas({ padding: 0.5, tolerance: 10 })
     const layer = L.geoJSON(roads, {
       interactive,
       renderer,

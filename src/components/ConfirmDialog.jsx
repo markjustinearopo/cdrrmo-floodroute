@@ -11,8 +11,7 @@ import './ConfirmDialog.css'
  * single dismiss.
  *
  * Closes (cancels) on the X, the Cancel button, a backdrop click, or Escape.
- * Pressing Enter confirms, so a keyboard user can act without reaching for the
- * mouse.
+ * Enter activates the focused button, including Cancel.
  *
  * props:
  *   title        — heading (e.g. "Sign out?")
@@ -43,13 +42,6 @@ export default function ConfirmDialog({
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onCancel?.()
-      if (e.key === 'Enter') {
-        // Don't hijack Enter while the user is typing in a field (e.g. a reason
-        // textarea inside the dialog) — let it insert a newline as expected.
-        const tag = (e.target?.tagName || '').toLowerCase()
-        if (tag === 'textarea' || tag === 'input' || e.target?.isContentEditable) return
-        onConfirm?.()
-      }
     }
     document.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow

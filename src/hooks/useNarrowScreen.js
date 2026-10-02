@@ -36,7 +36,7 @@ export function useNarrowScreen(query = NARROW_QUERY) {
  * on the card's minimize/expand button still sticks — resizing within the same
  * breakpoint never overrides the reader.
  */
-export function useOverlayOpen(query = NARROW_QUERY) {
+export function useOverlayOpen(query = '(max-width: 1180px)') {
   const narrow = useNarrowScreen(query)
   const [open, setOpen] = useState(!narrow)
 

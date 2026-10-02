@@ -15,14 +15,15 @@
 
 /* ── Toolbar ── */
 .hazard .hz-toolbar {
-  height: 44px;
+  min-height: 44px;
+  flex-wrap: wrap;
   flex-shrink: 0;
   background: #fff;
   border-bottom: 1px solid #e5e2dd;
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 16px;
+  padding: 8px 16px;
 }
 .hazard .hz-title {
   display: flex;

@@ -81,6 +81,7 @@ export function MapLayerToggles({ layers, opacity, onOpacity, collapsible = fals
           </div>
           <input
             type="range"
+            aria-label="Map layer intensity"
             min="20"
             max="100"
             value={opacity}

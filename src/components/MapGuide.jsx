@@ -166,6 +166,7 @@ export function MapGuideButton({ steps, label = 'Tutorial', title = 'How to use 
         className="mguide-trigger"
         onClick={() => setOpen(true)}
         title={title}
+        aria-label={title}
         aria-haspopup="dialog"
       >
         <GuideIcon />

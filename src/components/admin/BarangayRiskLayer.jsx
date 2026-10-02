@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useRef } from 'react'
 import { GeoJSON, Polygon, useMap } from 'react-leaflet'
-import L from 'leaflet'
+import { mapCanvas } from './mapCanvas.js'
 import { BARANGAY_FEATURES, CABUYAO_LAND_BOUNDS, barangayAt } from '../../data/cabuyaoBarangays.js'
 import { buildFloodHexes, BAND_FILL } from './floodRisk.js'
 import { RISK_META } from './mapHelpers.jsx'
@@ -119,7 +119,7 @@ export function InundationGrid({ field, opacity = 1, only = null }) {
     const all = buildFloodHexes(field)
     return only ? all.filter((h) => barangayAt(h.center[0], h.center[1]) === only) : all
   }, [field, only])
-  const renderer = useMemo(() => L.canvas({ padding: 1 }), [])
+  const renderer = useMemo(() => mapCanvas({ padding: 1 }), [])
   return hexes.map((hex) => (
     <Polygon
       key={hex.key}

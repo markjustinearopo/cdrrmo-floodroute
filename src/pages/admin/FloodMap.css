@@ -36,9 +36,10 @@
   align-items: center;
   padding: 0 16px;
   gap: 4px;
-  white-space: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
+  flex-wrap: wrap;
+  white-space: normal;
+  padding-block: 6px;
+  overflow: visible;
   /* The bar is 44px tall; a scrollbar track inside it would eat the tabs. */
   scrollbar-width: none;
 }
@@ -232,6 +233,9 @@
   background: #fafaf9;
 }
 .floodmap .panel-tab {
+  font-family: inherit;
+  border: 0;
+  background: transparent;
   flex: 1 1 33.333%;
   min-width: 0;
   text-align: center;
@@ -1048,7 +1052,7 @@
    which on a 375px canvas is -85px, i.e. a zero-width, invisible search bar.
    This rule is (0,3,0) so it also outranked the responsive rules meant to take
    over on phones. */
-@media (min-width: 761px) {
+@media (min-width: 1181px) {
   .floodmap .map-canvas .msb {
     left: calc(50% + 106px);
     width: min(420px, calc(100% - 460px));
@@ -1275,7 +1279,7 @@
    Anything added here that also has a plain (non-media) rule elsewhere in the
    file has to stay below that rule to take effect.
    ============================================================ */
-@media (max-width: 760px) {
+@media (max-width: 1180px) {
   .main--flush {
     height: auto;
     overflow: visible;

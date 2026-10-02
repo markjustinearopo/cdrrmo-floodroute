@@ -34,6 +34,7 @@ export default function RequireAuth({ group }) {
   if (!user) return <Navigate to="/login" replace />
 
   const userGroup = ROLE_GROUP[user.role]
+  if (!userGroup) return <Navigate to="/login" replace />
   if (group && userGroup && userGroup !== group) {
     return <Navigate to={HOME[userGroup] || '/login'} replace />
   }

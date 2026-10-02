@@ -6,6 +6,9 @@ _manuscript.txt
 .env
 .env.*
 
+# Local assistant settings are not application source.
+.claude/
+
 # Supabase CLI scratch state (project ref, pooler URL, version pins)
 supabase/.temp
 

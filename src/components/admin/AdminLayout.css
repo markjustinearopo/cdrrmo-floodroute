@@ -1056,6 +1056,13 @@
   height: 100%;
 }
 
+.main.main--flush { padding-inline: 0; padding-top: 0; }
+
+.main :is(button, a, summary):focus-visible {
+  outline: 2px solid var(--cdrrmo-red);
+  outline-offset: 3px;
+}
+
 /* ── Responsive ── */
 @media (max-width: 1180px) {
   .topbar {
@@ -1197,6 +1204,7 @@
      width, slid in from the left when the burger is tapped. */
   .sidebar {
     position: fixed;
+    visibility: hidden;
     top: 0;
     left: 0;
     bottom: 0;
@@ -1222,6 +1230,7 @@
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.18);
   }
   .sidebar.open {
+    visibility: visible;
     transform: translateX(0);
   }
   .main {

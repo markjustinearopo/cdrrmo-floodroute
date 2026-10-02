@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DRILL_SECONDS, getDrillState, startDrill, stopDrill, resumeDrill, subscribeDrill,
 } from '../../services/drillMode.js'
@@ -40,7 +41,7 @@ function isDrillRecord(r) {
   return false
 }
 
-export default function DrillMode() {
+export default function DrillMode({ launcherTarget }) {
   const [state, setState] = useState(getDrillState)
   const [confirmReset, setConfirmReset] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -120,7 +121,7 @@ export default function DrillMode() {
      warnings and nothing saying they were simulated. */
   useEffect(() => { resumeDrill(runStep) }, [runStep])
 
-  if (!state.active) return <DrillLauncher onStart={begin} />
+  if (!state.active) return <DrillLauncher onStart={begin} target={launcherTarget} />
 
   const pct = Math.min(100, (state.elapsed / DRILL_SECONDS) * 100)
   const latest = state.log[state.log.length - 1]
@@ -189,11 +190,11 @@ export default function DrillMode() {
 }
 
 /** The start control, tucked away so it can't be hit by accident. */
-function DrillLauncher({ onStart }) {
+function DrillLauncher({ onStart, target }) {
   const [confirm, setConfirm] = useState(false)
   return (
     <>
-      <button
+      {target && createPortal(<button
         type="button"
         className="drill-launch"
         onClick={() => setConfirm(true)}
@@ -201,7 +202,7 @@ function DrillLauncher({ onStart }) {
       >
         <SirenIcon />
         Drill
-      </button>
+      </button>, target)}
       {confirm && (
         <ConfirmDialog
           title="Run a 90-second drill?"

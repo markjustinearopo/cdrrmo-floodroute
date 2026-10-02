@@ -154,6 +154,7 @@ export default function RecordList({
               <input
                 type="search"
                 placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -166,6 +167,7 @@ export default function RecordList({
                   key={f.key}
                   type="button"
                   className={`mng-chip ${filter === f.key ? 'active' : ''}`}
+                  aria-pressed={filter === f.key}
                   onClick={() => setFilter(f.key)}
                 >
                   {f.label}
@@ -179,7 +181,7 @@ export default function RecordList({
 
       {selection && selection.selected.size > 0 && bulkBar}
 
-      <div className={cardless ? '' : 'mng-card'}>
+      <div className={cardless ? '' : 'mng-card'} tabIndex={columns ? 0 : undefined} role={columns ? 'region' : undefined} aria-label={columns ? 'Records' : undefined}>
         {columns ? (
           <table className="mng-table">
             <thead>

@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import { MapContainer, TileLayer, ZoomControl, Tooltip, Polyline, Marker, Popup, GeoJSON } from 'react-leaflet'
-import L from 'leaflet'
+import { mapCanvas } from '../../components/admin/mapCanvas.js'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import PromptDialog from '../../components/PromptDialog.jsx'
@@ -233,7 +233,7 @@ export default function FloodMap() {
   // while the map is dragged (the default SVG renderer clips to ~viewport and
   // blanks the edges mid-pan). Fresh instance per 2D mount.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const canvasRenderer = useMemo(() => L.canvas({ padding: 1 }), [use3D])
+  const canvasRenderer = useMemo(() => mapCanvas({ padding: 1 }), [use3D])
 
   // Refresh the "Updated --:-- PHT" stamp every minute.
   useEffect(() => {
@@ -540,9 +540,6 @@ export default function FloodMap() {
               {/* Closed SECTIONS, over the whole-road conditions. */}
               <RoadBlocksLayer blocks={roadBlocks} audience="admin" />
 
-              {/* Closed SECTIONS, over the whole-road conditions. */}
-              <RoadBlocksLayer blocks={roadBlocks} audience="admin" />
-
               {/* Searched location: flyTo + pin + glowing road highlight */}
               <SearchResultLayer result={searchResult} barangays={barangays} navigateTo="/admin/routing?tab=draw" />
 
@@ -706,13 +703,15 @@ export default function FloodMap() {
           <div className="right-panel">
             <div className="panel-tabs">
               {PANEL_TABS.map((tab) => (
-                <div
+                <button
+                  type="button"
                   key={tab}
                   className={`panel-tab ${panelTab === tab ? 'active' : ''}`}
+                  aria-pressed={panelTab === tab}
                   onClick={() => setPanelTab(tab)}
                 >
                   {tab}
-                </div>
+                </button>
               ))}
             </div>
 
@@ -1038,7 +1037,7 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast, riskSummary
       <div className="divider" />
 
       {/* 3-day forecast */}
-      <div className="section-hdr"><span>3-Day Forecast</span></div>
+      <div className="section-hdr"><span>{forecast.length}-Day Forecast</span></div>
       <div className="forecast-grid">
         {forecast.map((f, i) => (
           <div key={f.day} className={`forecast-day ${i === 0 ? 'today' : ''}`}>

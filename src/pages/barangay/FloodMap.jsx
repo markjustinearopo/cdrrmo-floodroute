@@ -334,13 +334,15 @@ export default function FloodMap() {
           <div className="right-panel">
             <div className="panel-tabs">
               {PANEL_TABS.map((tab) => (
-                <div
+                <button
+                  type="button"
                   key={tab}
                   className={`panel-tab ${panelTab === tab ? 'active' : ''}`}
+                  aria-pressed={panelTab === tab}
                   onClick={() => setPanelTab(tab)}
                 >
                   {tab}
-                </div>
+                </button>
               ))}
             </div>
 
@@ -497,7 +499,7 @@ function OverviewTab({ stats, risk, rainfall, rainHistory, forecast }) {
 
       <div className="divider" />
 
-      <div className="section-hdr"><span>3-Day Forecast</span></div>
+      <div className="section-hdr"><span>{forecast.length}-Day Forecast</span></div>
       <div className="forecast-grid">
         {forecast.map((f, i) => (
           <div key={f.day} className={`forecast-day ${i === 0 ? 'today' : ''}`}>

@@ -84,6 +84,8 @@ function Fab({ label, onClick, children, accent = '', active = false, busy = fal
       onClick={onClick}
       title={label}
       aria-label={label}
+      disabled={busy}
+      aria-busy={busy || undefined}
     >
       {children}
       <span className="fab-label">{label}</span>

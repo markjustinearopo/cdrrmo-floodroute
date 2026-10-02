@@ -178,7 +178,7 @@ export default function Alerts() {
               <div className="mng-sub">Issue and manage flood-hazard alerts per barangay</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', maxWidth: '100%' }}>
             {/* Only CDRRMO administrators can arm the siren. Barangay officials
                 and operators issue ordinary alerts; taking over every screen in
                 the city is a command-centre decision. */}

@@ -137,6 +137,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   // Mobile nav drawer. The sidebar is a permanent rail on desktop, so this only
   // has any effect below the drawer breakpoint.
   const [navOpen, setNavOpen] = useState(false)
+  const [drillTarget, setDrillTarget] = useState(null)
 
   // Escape closes the drawer, matching the topbar overlays.
   useEffect(() => {
@@ -191,7 +192,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
       {/* Drill banner + runner. Above everything, and unmissable while active:
           the one thing that must never happen is a simulated event being read
           as a real one. */}
-      <DrillMode />
+      <DrillMode launcherTarget={drillTarget} />
       <EmergencyAlert />
 
       {/* Pushes a new rescue request onto whatever admin screen is open, the
@@ -365,6 +366,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
             </div>
           ))}
 
+          <div ref={setDrillTarget} />
           <div className="signout">
             <a className="nav-item" href="/login" onClick={handleSignout}>
               <svg viewBox="0 0 24 24">

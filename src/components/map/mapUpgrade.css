@@ -761,9 +761,9 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   color: #16a34a;
 }
 .fsp-updated { font-size: 0.62rem; color: #6B7280; white-space: nowrap; }
