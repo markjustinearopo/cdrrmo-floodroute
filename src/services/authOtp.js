@@ -176,8 +176,8 @@ export async function verifyEmail(email, code) {
 }
 
 /** Re-send a code. `purpose` is 'verify_email' (default) or 'login_mfa'. */
-export async function resendCode(email, purpose = 'verify_email') {
-  return call('resend', { email, purpose })
+export async function resendCode(email, purpose = 'verify_email', mfaTicket = null) {
+  return call('resend', { email, purpose, mfaTicket })
 }
 
 /**
@@ -191,9 +191,9 @@ export async function login(identifier, password) {
 }
 
 /** Finish a 2FA sign-in. Stores the device token when `trustDevice` is set. */
-export async function verifyLogin(email, code, trustDevice = false) {
+export async function verifyLogin(email, code, trustDevice = false, mfaTicket = null) {
   const data = await call('verify-login', {
-    email, code, trustDevice, deviceLabel: deviceLabel(),
+    email, code, trustDevice, mfaTicket, deviceLabel: deviceLabel(),
   })
   if (data?.deviceToken) setDeviceToken(data.deviceToken)
   return data

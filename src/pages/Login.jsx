@@ -133,7 +133,7 @@ export default function Login() {
       const res = await authApi.login(email, password)
 
       if (res.mfaRequired) {
-        setChallenge({ kind: 'mfa', email: res.email, role, brgy })
+        setChallenge({ kind: 'mfa', email: res.email, role, brgy, mfaTicket: res.mfaTicket })
         return
       }
       if (res.unverified) {
@@ -236,7 +236,7 @@ export default function Login() {
 
   /** Second factor: the emailed code, plus the optional trusted-device tick. */
   async function handleMfa(code, trustDevice) {
-    const user = await authApi.completeMfa(challenge.email, code, trustDevice)
+    const user = await authApi.completeMfa(challenge.email, code, trustDevice, challenge.mfaTicket)
     finishLogin(user, challenge.role, challenge.brgy)
   }
 
@@ -275,7 +275,7 @@ export default function Login() {
                 submitLabel="Sign in"
                 offerTrust
                 onSubmit={handleMfa}
-                onResend={() => authApi.resendCode(challenge.email, 'login_mfa')}
+                onResend={() => authApi.resendCode(challenge.email, 'login_mfa', challenge.mfaTicket)}
                 onBack={() => { setChallenge(null); setError('') }}
                 backLabel="Cancel"
               />

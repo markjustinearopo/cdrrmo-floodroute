@@ -450,6 +450,21 @@ serve(async (req) => {
   const SECRET = Deno.env.get('AUTH_OTP_SECRET') || SERVICE_KEY
   const db = createClient(Deno.env.get('SUPABASE_URL')!, SERVICE_KEY)
 
+  const ticketFor = async (accountId: number) => {
+    const payload = `${Date.now() + CODE_TTL_MIN * 60_000}.${accountId}.${randomHex(12)}`
+    return `${payload}.${await hmacHex(SECRET, payload)}`
+  }
+  const accountFromTicket = async (ticket: string, email: string) => {
+    const [expiry, id, nonce, sig, extra] = ticket.split('.')
+    if (extra !== undefined || !/^\d+$/.test(expiry ?? '') || Number(expiry) <= Date.now()
+      || !/^\d+$/.test(id ?? '') || !/^[a-f0-9]{24}$/.test(nonce ?? '')
+      || !/^[a-f0-9]{64}$/.test(sig ?? '')) return null
+    if (!timingSafeEqual(sig, await hmacHex(SECRET, `${expiry}.${id}.${nonce}`))) return null
+    const { data } = await db.from('accounts').select('*').eq('id', Number(id))
+      .eq('email', email).eq('status', 'active').eq('mfa_enabled', true).maybeSingle()
+    return data
+  }
+
   try {
     const body = await req.json()
     const action = String(body.action ?? '')
@@ -707,8 +722,11 @@ serve(async (req) => {
     if (action === 'resend') {
       const addr = String(body.email ?? '').trim().toLowerCase()
       const purpose = body.purpose === 'login_mfa' ? 'login_mfa' : 'verify_email'
-      const { data: acc } = await db
-        .from('accounts').select('id, full_name, email_verified_at, phone').ilike('email', addr).maybeSingle()
+      const acc = purpose === 'login_mfa'
+        ? await accountFromTicket(String(body.mfaTicket ?? ''), addr)
+        : (await db.from('accounts').select('id, full_name, email_verified_at, phone')
+          .eq('email', addr).maybeSingle()).data
+      if (purpose === 'login_mfa' && !acc) return json({ error: 'Start sign-in again with your password.' }, 403)
       // Always answer the same way: whether an address is registered is not
       // something an unauthenticated caller gets to enumerate.
       if (!acc) return json({ sent: true, expiresInMinutes: CODE_TTL_MIN })
@@ -887,6 +905,7 @@ serve(async (req) => {
         })
         return json({
           mfaRequired: true, email: acc.email, channel: issued.channel,
+          mfaTicket: await ticketFor(acc.id),
           expiresInMinutes: CODE_TTL_MIN,
         })
       } catch (e) {
@@ -906,8 +925,11 @@ serve(async (req) => {
     /* ── Verify the 2FA code and start the session ───────────────────── */
     if (action === 'verify-login') {
       const addr = String(body.email ?? '').trim().toLowerCase()
+      const challenged = await accountFromTicket(String(body.mfaTicket ?? ''), addr)
+      if (!challenged) return json({ error: 'Start sign-in again with your password.' }, 403)
       const res = await consumeCode(db, addr, 'login_mfa', body.code)
       if (!res.ok) return json({ error: res.error }, 400)
+      if (res.accountId !== challenged.id) return json({ error: 'The sign-in code does not match this account.' }, 403)
 
       const { data: acc, error } = await db.from('accounts').select('*').eq('id', res.accountId).eq('email', addr).single()
       if (error) return json({ error: error.message }, 500)

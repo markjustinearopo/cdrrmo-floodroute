@@ -82,8 +82,8 @@ export const authApi = {
   },
 
   /** Finish a two-factor sign-in with the emailed code. */
-  async completeMfa(email, code, trustDevice = false) {
-    const res = await otp.verifyLogin(email, code, trustDevice)
+  async completeMfa(email, code, trustDevice = false, mfaTicket = null) {
+    const res = await otp.verifyLogin(email, code, trustDevice, mfaTicket)
     startSession(res.user, res.token)
     return res.user
   },

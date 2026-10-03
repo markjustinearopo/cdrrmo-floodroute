@@ -8,7 +8,7 @@ import { transformSync } from 'esbuild'
 const source = readFileSync('supabase/functions/auth-otp/index.ts','utf8')
 const { code } = transformSync(source,{loader:'ts',format:'cjs',target:'es2022'})
 const secret = 'local-test-secret-not-a-real-credential'
-function harness(queue = [], rpc = {}) {
+function harness(queue = [], rpc = {}, options = {}) {
   let handler
   const calls = []
   const db = {
@@ -30,8 +30,12 @@ function harness(queue = [], rpc = {}) {
     exports:{}, TextEncoder,TextDecoder,Uint8Array,Uint32Array,Response,Request,Date,atob,btoa,
     crypto:webcrypto, console,
     Deno:{env:{get:key=>({SUPABASE_SERVICE_ROLE_KEY:secret,AUTH_OTP_SECRET:secret,
-      SESSION_JWT_SECRET:secret,SUPABASE_URL:'https://example.test',GOOGLE_CLIENT_ID:'fixture-client'})[key]}},
-    fetch:async()=>{throw new Error('Tests must not send network requests')},
+      SESSION_JWT_SECRET:secret,SUPABASE_URL:'https://example.test',GOOGLE_CLIENT_ID:'fixture-client',
+      RESEND_API_KEY:options.emailConfigured?'fixture-only':undefined})[key]}},
+    fetch:async()=>{
+      if(options.emailConfigured)return new Response(JSON.stringify({id:'fixture'}),{status:200})
+      throw new Error('Tests must not send network requests')
+    },
     require(name) {
       if(name.includes('/http/server'))return {serve:fn=>{handler=fn}}
       if(name.includes('supabase-js'))return {createClient:()=>db}
@@ -66,6 +70,39 @@ test('Google completion race cannot sign into an existing privileged account',as
   const h=harness([{data:{value:{allowRegistration:true}}},{data:{role:'admin',status:'active',email_verified_at:'today'}}])
   const r=await h.request({action:'google-complete',ticket,barangay:'A'})
   assert.equal(r.status,403); assert.equal(r.body.token,undefined)
+})
+test('an MFA code alone cannot start a session or request another code',async()=>{
+  const h=harness()
+  const verify=await h.request({action:'verify-login',email:'admin@example.test',code:'123456'})
+  const resend=await h.request({action:'resend',email:'admin@example.test',purpose:'login_mfa'})
+  assert.equal(verify.status,403)
+  assert.equal(resend.status,403)
+  assert.equal(h.calls.length,0)
+})
+test('MFA challenge binds the code to the password-checked account',async()=>{
+  const payload=`${Date.now()+60000}.3.${'a'.repeat(24)}`
+  const mfaTicket=payload+'.'+createHmac('sha256',secret).update(payload).digest('hex')
+  const h=harness([{data:{id:3,email:'resident@example.test',status:'active',mfa_enabled:true}}],
+    {app_consume_auth_code:{data:{ok:true,accountId:4,channel:'email'}}})
+  const r=await h.request({action:'verify-login',email:'resident@example.test',code:'123456',mfaTicket})
+  assert.equal(r.status,403)
+  assert.equal(r.body.token,undefined)
+})
+test('password then MFA code starts a session with the signed ticket',async()=>{
+  const account={id:3,email:'resident@example.test',full_name:'Resident',role:'resident',
+    status:'active',mfa_enabled:true,session_version:0}
+  const h=harness([{data:account},{data:[]},{data:null},{data:{id:11}},
+    {data:null},{data:account},{data:account},{data:null}],{
+    app_login:{data:{id:3}},
+    app_consume_auth_code:{data:{ok:true,accountId:3,channel:'email'}},
+  },{emailConfigured:true})
+  const first=await h.request({action:'login',identifier:'resident@example.test',password:'fixture-password'})
+  assert.equal(first.status,200,JSON.stringify(first.body))
+  assert.equal(first.body.mfaRequired,true)
+  assert.match(first.body.mfaTicket,/^\d+\.3\.[a-f0-9]{24}\.[a-f0-9]{64}$/)
+  const second=await h.request({action:'verify-login',email:account.email,code:'123456',mfaTicket:first.body.mfaTicket})
+  assert.equal(second.status,200,JSON.stringify(second.body))
+  assert.equal(JSON.parse(second.body.token).account_id,3)
 })
 test('verification and recovery bind to the atomically consumed account and status',async()=>{
   for(const action of ['verify-email','confirm-reset']) {
