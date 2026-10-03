@@ -16,7 +16,8 @@
      alert settings, system config, roles.
    ============================================================ */
 
-import supabase from './supabase.js'
+import supabase, { TOKEN_KEY } from './supabase.js'
+import * as otp from './authOtp.js'
 import { publicIntegrationConfig } from './integrationConfig.js'
 
 /* ── small shared helpers ─────────────────────────────────────────────── */
@@ -650,6 +651,19 @@ export const authDb = {
       p_id: id, p_current: current, p_new: next,
     }))
     if (!ok) throw new Error('Current password is incorrect.')
+    const user = JSON.parse(localStorage.getItem('cdrrmo_user') || 'null')
+    try {
+      const session = await otp.login(user?.username || user?.email, next)
+      if (!session?.token || !session?.user) throw new Error('Fresh sign-in required')
+      localStorage.setItem(TOKEN_KEY, session.token)
+      localStorage.setItem('cdrrmo_user', JSON.stringify(session.user))
+      window.dispatchEvent(new Event('cdrrmo-session'))
+    } catch {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem('cdrrmo_user')
+      window.dispatchEvent(new Event('cdrrmo-session'))
+      throw new Error('Password changed. Please sign in again with your new password.')
+    }
     return true
   },
   /**

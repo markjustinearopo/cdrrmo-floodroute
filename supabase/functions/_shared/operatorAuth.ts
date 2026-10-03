@@ -27,7 +27,9 @@ export async function authorizeOperator(req: Request, db: any, roles: string[]) 
   if (serviceKey && token === serviceKey) return { role: 'service_role', barangay: null }
   const claims = await verifySessionToken(token, Deno.env.get('SESSION_JWT_SECRET') || '')
   if (!claims) return null
-  const { data, error } = await db.from('accounts').select('id,role,status,barangay').eq('id', Number(claims.account_id)).maybeSingle()
-  if (error || data?.status !== 'active' || !roles.includes(data.role)) return null
+  const { data, error } = await db.from('accounts').select('id,role,status,barangay,session_version').eq('id', Number(claims.account_id)).maybeSingle()
+  if (error || data?.status !== 'active' || !roles.includes(data.role)
+    || data.role !== claims.app_role || (data.barangay ?? null) !== (claims.barangay ?? null)
+    || Number(data.session_version ?? 0) !== Number(claims.session_version ?? 0)) return null
   return data
 }

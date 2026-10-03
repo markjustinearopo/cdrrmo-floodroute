@@ -99,7 +99,7 @@ function signed(claims, key = secret) {
   const input = `${Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url')}.${Buffer.from(JSON.stringify(claims)).toString('base64url')}`
   return `${input}.${createHmac('sha256', key).update(input).digest('base64url')}`
 }
-const claims = { role: 'authenticated', aud: 'authenticated', account_id: 7, exp: Math.floor(Date.now() / 1000) + 300 }
+const claims = { role: 'authenticated', aud: 'authenticated', account_id: 7, app_role: 'admin', exp: Math.floor(Date.now() / 1000) + 300 }
 test('operator identity requires a valid, unexpired signature', async () => {
   assert.equal((await verifySessionToken(signed(claims), secret)).account_id, 7)
   assert.equal(await verifySessionToken(signed(claims, 'wrong'), secret), null)
@@ -114,4 +114,6 @@ test('current account status and role override JWT or body claims', async () => 
   assert.equal(await authorizeOperator(req, db({ role: 'resident', status: 'active' }), ['admin']), null)
   assert.equal(await authorizeOperator(req, db({ role: 'admin', status: 'disabled' }), ['admin']), null)
   assert.equal((await authorizeOperator(req, db({ role: 'admin', status: 'active' }), ['admin'])).role, 'admin')
+  assert.equal(await authorizeOperator(req, db({ role: 'admin', status: 'active', session_version: 1 }), ['admin']), null)
+  assert.equal(await authorizeOperator(req, db({ role: 'admin', status: 'active', barangay: 'Casile' }), ['admin']), null)
 })

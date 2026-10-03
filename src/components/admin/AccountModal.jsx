@@ -148,7 +148,7 @@ export default function AccountModal({ tab, onTabChange, onClose, identity = ADM
     e.preventDefault()
     if (!meId) return flash('You are not signed in.')
     if (!pw.current || !pw.next) return flash('Enter your current and new password.')
-    if (pw.next.length < 6) return flash('New password must be at least 6 characters.')
+    if (pw.next.length < 8) return flash('New password must be at least 8 characters.')
     if (pw.next !== pw.confirm) return flash('New passwords do not match.')
     setBusy(true)
     try {

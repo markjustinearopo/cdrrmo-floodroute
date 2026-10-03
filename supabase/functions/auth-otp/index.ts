@@ -26,8 +26,8 @@
    registered was left at status='pending' with a correct password and no way
    in. So a code goes out over whichever channel can actually carry it —
    EMAIL first, SMS as the backup when a mobile number was given — and when
-   NEITHER can deliver, the account is activated rather than stranded, plainly
-   labelled as unverified for the operator to see. See issueCode().
+   NEITHER can deliver, the account stays pending. Delivery failure never
+   counts as proof that the user owns the address. See issueCode().
 
    Email is first because that is what someone registering with an email
    address expects, and because the fallback is real: Resend REJECTS a send to
@@ -59,7 +59,6 @@ const CORS = {
 
 /* ── Tunables ──────────────────────────────────────────────────────────── */
 const CODE_TTL_MIN = 10          // a code is good for ten minutes
-const MAX_ATTEMPTS = 5           // wrong guesses before a code is burned
 const RESEND_COOLDOWN_S = 60     // between "send me another"
 const MAX_CODES_PER_HOUR = 6     // per address, across both purposes
 const DEVICE_TRUST_DAYS = 30
@@ -327,9 +326,8 @@ async function issueCode(db: any, opts: {
      Resend REJECTS a send to any address other than the account owner's while
      the sending domain is unverified, and sendCodeEmail throws on that
      rejection — so a real resident's registration falls through to SMS
-     automatically, and if neither channel can carry it the caller activates
-     the account rather than stranding them. Nobody is locked out by this
-     preference; at worst the code arrives by the other route.
+     automatically. If neither channel can carry it, registration stays
+     pending until delivery is available.
 
      When a verified sending domain (or BREVO_API_KEY) is in place, email
      simply starts succeeding and SMS stops being reached at all. */
@@ -356,40 +354,11 @@ async function issueCode(db: any, opts: {
 
 // deno-lint-ignore no-explicit-any
 async function consumeCode(db: any, email: string, purpose: string, code: string) {
-  const lower = email.toLowerCase()
-  const { data: rows } = await db
-    .from('auth_codes')
-    .select('*')
-    .eq('email', lower).eq('purpose', purpose).is('consumed_at', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-
-  const row = rows?.[0]
-  if (!row) return { ok: false, error: 'No active code. Request a new one.' }
-  if (new Date(row.expires_at).getTime() < Date.now()) {
-    return { ok: false, error: 'That code has expired. Request a new one.' }
-  }
-  if (row.attempts >= MAX_ATTEMPTS) {
-    await db.from('auth_codes').update({ consumed_at: new Date().toISOString() }).eq('id', row.id)
-    return { ok: false, error: 'Too many incorrect attempts. Request a new code.' }
-  }
-
-  const given = await sha256Hex(row.code_salt + String(code ?? '').trim())
-  if (!timingSafeEqual(given, row.code_hash)) {
-    const left = MAX_ATTEMPTS - (row.attempts + 1)
-    await db.from('auth_codes').update({ attempts: row.attempts + 1 }).eq('id', row.id)
-    return {
-      ok: false,
-      error: left > 0
-        ? `That code is not right. ${left} attempt${left === 1 ? '' : 's'} left.`
-        : 'Too many incorrect attempts. Request a new code.',
-    }
-  }
-
-  await db.from('auth_codes').update({ consumed_at: new Date().toISOString() }).eq('id', row.id)
-  // `channel` tells the caller what this code actually proves: a code that
-  // arrived by SMS proves the handset, one that arrived by email does not.
-  return { ok: true, accountId: row.account_id as number | null, channel: row.channel as string | null }
+  const { data, error } = await db.rpc('app_consume_auth_code', {
+    p_email: email.toLowerCase(), p_purpose: purpose, p_code: String(code ?? '').trim(),
+  })
+  if (error || !data) return { ok: false, error: 'Verification is unavailable. Please try again later.' }
+  return data
 }
 
 /* ── Session payload ───────────────────────────────────────────────────── */
@@ -457,6 +426,7 @@ async function getSessionSigningKey() {
 
 // deno-lint-ignore no-explicit-any
 async function mintToken(acc: any) {
+  if (!acc || acc.status !== 'active') throw new Error('An active account is required.')
   return createJwt({ alg: 'HS256', typ: 'JWT' }, {
     role: 'authenticated',
     aud: 'authenticated',
@@ -464,6 +434,7 @@ async function mintToken(acc: any) {
     account_id: acc.id,
     app_role: acc.role,
     barangay: acc.barangay,
+    session_version: acc.session_version ?? 0,
     exp: getNumericDate(SESSION_TTL_SECONDS),
   }, await getSessionSigningKey())
 }
@@ -548,6 +519,9 @@ serve(async (req) => {
         // Someone may have registered normally between step 1 and step 2.
         const { data: race } = await db.from('accounts').select('*').ilike('email', addr).maybeSingle()
         if (race) {
+          if (race.role !== 'resident' || race.status !== 'active' || race.mfa_enabled || !race.email_verified_at) {
+            return json({ error: 'Use your account sign-in method or contact CDRRMO.' }, 403)
+          }
           return json({ user: sessionOf(race), token: await mintToken(race) })
         }
 
@@ -580,6 +554,9 @@ serve(async (req) => {
       const { data: acc } = await db.from('accounts').select('*').ilike('email', profile.email).maybeSingle()
 
       if (acc) {
+        if (acc.role !== 'resident' || acc.mfa_enabled) {
+          return json({ error: 'Use password sign-in and your required verification step for this account.' }, 403)
+        }
         if (acc.status === 'suspended' || acc.status === 'inactive') {
           return json({ error: 'That account is not active. Contact CDRRMO.' }, 403)
         }
@@ -587,11 +564,11 @@ serve(async (req) => {
            and never confirmed. Honour that — it is strictly better evidence
            than the code we would otherwise have mailed. */
         if (!acc.email_verified_at) {
-          await db.from('accounts')
+          const { data: verified, error: verificationError } = await db.from('accounts')
             .update({ email_verified_at: new Date().toISOString(), status: acc.status === 'pending' ? 'active' : acc.status })
-            .eq('id', acc.id)
-          acc.email_verified_at = new Date().toISOString()
-          if (acc.status === 'pending') acc.status = 'active'
+            .eq('id', acc.id).in('status', ['active', 'pending']).select('*').single()
+          if (verificationError || !verified) return json({ error: 'This account cannot sign in.' }, 403)
+          Object.assign(acc, verified)
         }
         return json({ user: sessionOf(acc), token: await mintToken(acc) })
       }
@@ -649,7 +626,7 @@ serve(async (req) => {
       // 4. Field validation (mirrors the client, which cannot be trusted).
       const addr = String(email ?? '').trim().toLowerCase()
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) return json({ error: 'Please enter a valid email address.' }, 400)
-      if (String(password ?? '').length < 8) return json({ error: 'Password must be at least 8 characters long.' }, 400)
+      if (String(password ?? '').length < 8 || enc.encode(String(password ?? '')).length > 72) return json({ error: 'Password must have at least 8 characters and at most 72 UTF-8 bytes.' }, 400)
       if (!String(fullName ?? '').trim()) return json({ error: 'Please enter your name.' }, 400)
       if (!String(barangay ?? '').trim()) return json({ error: 'Please select your barangay.' }, 400)
       /* The mobile number is optional but validated when given: a typo here
@@ -668,14 +645,14 @@ serve(async (req) => {
       }
 
       const { data: existing } = await db
-        .from('accounts').select('id, email_verified_at').ilike('email', addr).maybeSingle()
+        .from('accounts').select('id, email_verified_at, role, status').eq('email', addr).maybeSingle()
 
       let accountId: number
       if (existing) {
         // An unverified account can be re-claimed — someone who mistyped and
         // never got the mail must not be permanently locked out of their own
         // address. A verified one cannot: that is somebody's account.
-        if (existing.email_verified_at) {
+        if (existing.email_verified_at || existing.role !== 'resident' || existing.status !== 'pending') {
           return json({ error: 'That email is already registered. Try signing in instead.' }, 409)
         }
         accountId = existing.id
@@ -719,54 +696,10 @@ serve(async (req) => {
       } catch (e) {
         if (!(e instanceof Undeliverable)) return json({ error: (e as Error).message }, 500)
 
-        /* NEITHER channel could carry the code.
-
-           The choice here is between two bad outcomes, and both are worth
-           naming. Refusing the registration leaves a real resident with an
-           account they can never open — which is exactly what happened to
-           three of them before this branch existed, silently, for weeks.
-           Activating it means an address nobody proved.
-
-           We activate, because the cost of the first failure lands on the
-           person this system exists to protect, and the cost of the second
-           lands on a barangay-scoped, read-only account. It is not hidden:
-           the response says so, the registration screen says so, and CDRRMO
-           gets a notification naming the account and the delivery error.
-
-           An administrator can close this door from System Configuration
-           (verificationFallback: false), at which point registration fails
-           loudly instead — the right setting once a verified sending domain
-           or an SMS provider key is actually in place. */
-        const fallbackOff = cfgRow?.value?.verificationFallback === false
-        if (fallbackOff) {
-          return json({
-            error: 'We could not send your verification code. Please contact the CDRRMO office.',
-            detail: e.detail,
-          }, 503)
-        }
-
-        await db.from('accounts').update({
-          status: 'active',
-          email_verified_at: new Date().toISOString(),
-          // Email 2FA would strand them again on their very next sign-in.
-          mfa_enabled: false,
-        }).eq('id', accountId)
-
-        await db.from('notifications').insert({
-          level: 'moderate',
-          title: 'Account activated without verification',
-          message: `${addr} registered but no verification code could be delivered (${e.detail}). The account was activated so the resident is not locked out. Fix the email sending domain, or add an SMS provider key.`,
-        })
-
-        const { data: acc } = await db.from('accounts').select('*').eq('id', accountId).single()
+        // Delivery failure must never manufacture proof of contact ownership.
         return json({
-          verified: true,
-          unverifiedFallback: true,
-          user: sessionOf(acc),
-          token: await mintToken(acc),
-          notice: 'We could not send a verification code — the messaging service is not fully set up yet. Your account has been activated so you are not locked out. Please let CDRRMO IT know.',
-          detail: e.detail,
-        })
+          error: 'We could not send your verification code. Your account remains pending. Please contact the CDRRMO office.',
+        }, 503)
       }
     }
 
@@ -797,7 +730,7 @@ serve(async (req) => {
 
       const { data: acc, error } = await db.from('accounts')
         .update({ status: 'active', email_verified_at: new Date().toISOString() })
-        .ilike('email', addr)
+        .eq('id', res.accountId).eq('email', addr).eq('status', 'pending').eq('role', 'resident')
         .select('*').single()
       if (error) return json({ error: error.message }, 500)
 
@@ -846,13 +779,10 @@ serve(async (req) => {
       })
       if (!identifier) return sameAnswer
 
-      const { data: acc } = await db.from('accounts')
-        .select('id, email, full_name, phone, status')
-        .or(`email.ilike.${identifier},username.ilike.${identifier}`)
-        .maybeSingle()
+      const { data: acc } = await db.rpc('app_recovery_account', { p_identifier: identifier })
 
       // Suspended accounts do not get to reset their way back in.
-      if (!acc?.email || acc.status === 'suspended') return sameAnswer
+      if (!acc?.email || acc.status !== 'active') return sameAnswer
 
       try {
         await issueCode(db, {
@@ -883,8 +813,8 @@ serve(async (req) => {
       const addr = String(body.email ?? '').trim().toLowerCase()
       const next = String(body.password ?? '')
 
-      if (next.length < 8) {
-        return json({ error: 'Choose a password of at least 8 characters.' }, 400)
+      if (next.length < 8 || enc.encode(next).length > 72) {
+        return json({ error: 'Password must have at least 8 characters and at most 72 UTF-8 bytes.' }, 400)
       }
 
       const res = await consumeCode(db, addr, 'reset_password', body.code)
@@ -898,7 +828,7 @@ serve(async (req) => {
           must_change_password: false,
           email_verified_at: new Date().toISOString(),
         })
-        .ilike('email', addr)
+        .eq('id', res.accountId).eq('email', addr).eq('status', 'active')
         .select('*').single()
       if (error) return json({ error: error.message }, 500)
 
@@ -914,7 +844,7 @@ serve(async (req) => {
       const { data: result, error } = await db.rpc('app_login', {
         p_identifier: identifier, p_password: String(body.password ?? ''),
       })
-      if (error) return json({ error: error.message }, 500)
+      if (error) return json({ error: error.message }, error.code === 'PT429' ? 429 : 500)
       if (!result) return json({ error: 'Invalid email/ID or password.' }, 401)
 
       if (result.unverified) {
@@ -922,9 +852,9 @@ serve(async (req) => {
         // fresh verification code rather than making them start over.
         try {
           const { data: pendingAcc } = await db.from('accounts')
-            .select('phone').ilike('email', result.email).maybeSingle()
+            .select('id, phone').eq('email', result.email).maybeSingle()
           await issueCode(db, {
-            accountId: null, email: result.email,
+            accountId: pendingAcc?.id, email: result.email,
             name: (result.fullName ?? '').split(' ')[0], purpose: 'verify_email',
             phone: pendingAcc?.phone,
           })
@@ -933,6 +863,7 @@ serve(async (req) => {
       }
 
       const { data: acc } = await db.from('accounts').select('*').eq('id', result.id).single()
+      if (!acc || acc.status !== 'active') return json({ error: 'This account is not active.' }, 403)
 
       // A device the resident already confirmed skips the second factor.
       const deviceToken = String(body.deviceToken ?? '')
@@ -946,23 +877,8 @@ serve(async (req) => {
         }
       }
 
-      /* Residents never get a second factor at sign-in.
-
-         They proved a phone number once, at registration, by receiving a text
-         on it — that is the check this system actually needs, because that
-         number is where a flood warning goes. Asking for a second code on
-         every later sign-in delivered it by EMAIL (there is no verified
-         sending domain, so mail is all that is left), to an address they
-         never proved and may not read. A citizen who signed up with their
-         phone was then locked behind their inbox.
-
-         Enforced here by ROLE rather than by clearing the column, because the
-         column cannot be cleared from the app: the password-column lock
-         revoked anon's UPDATE on `accounts`, so rows already carrying
-         mfa_enabled=true would otherwise keep prompting forever. Staff
-         accounts are untouched — an operator with the flag set still gets
-         challenged. */
-      if (acc.role === 'resident' || !acc.mfa_enabled) return json({ user: sessionOf(acc), token: await mintToken(acc) })
+      // An explicitly enabled second factor applies to every account role.
+      if (!acc.mfa_enabled) return json({ user: sessionOf(acc), token: await mintToken(acc) })
 
       try {
         const issued = await issueCode(db, {
@@ -993,7 +909,7 @@ serve(async (req) => {
       const res = await consumeCode(db, addr, 'login_mfa', body.code)
       if (!res.ok) return json({ error: res.error }, 400)
 
-      const { data: acc, error } = await db.from('accounts').select('*').ilike('email', addr).single()
+      const { data: acc, error } = await db.from('accounts').select('*').eq('id', res.accountId).eq('email', addr).single()
       if (error) return json({ error: error.message }, 500)
       if (acc.status !== 'active') return json({ error: 'This account is not active. Contact your administrator.' }, 403)
       await db.from('accounts').update({ last_login: new Date().toISOString() }).eq('id', acc.id)
