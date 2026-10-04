@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AdminDataProvider } from './context/AdminDataContext.jsx'
 import RequireAuth from './components/RequireAuth.jsx'
 import OfflineBanner from './components/OfflineBanner.jsx'
-import SimulationBanner from './components/SimulationBanner.jsx'
 import SkipLink from './components/SkipLink.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -85,7 +84,6 @@ export default function App() {
         and say how old the data on screen is. Stale information that looks
         live is the more dangerous failure. */}
     <OfflineBanner />
-    <SimulationBanner />
     <AdminDataProvider>
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />

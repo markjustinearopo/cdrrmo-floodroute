@@ -59,7 +59,6 @@ export default function OfflineBanner() {
         {stamp
           ? <>Showing information saved at {stamp}. It may have changed.</>
           : <>Only previously loaded resources may be available. Current safety data cannot be verified.</>}
-        {' '}Road conditions and reports include simulated records.
       </span>
     </div>
   )
