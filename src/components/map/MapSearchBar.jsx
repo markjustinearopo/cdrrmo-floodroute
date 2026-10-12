@@ -1,3 +1,4 @@
+import { parseCoordinates } from '../../utils/mapGeometry.js'
 /* ============================================================
    Floating Google-Maps-style search bar for the flood maps.
 
@@ -20,7 +21,7 @@ import {
 } from './searchTools.js'
 import './mapUpgrade.css'
 
-const DEBOUNCE_MS = 350
+const DEBOUNCE_MS = 1100
 
 /**
  * `collapsible` is opt-in — only the admin Flood Map passes it. Collapsed, the
@@ -43,7 +44,10 @@ export default function MapSearchBar({ localIndex, onSelect, collapsible = false
   const inputRef = useRef(null)
   const abortRef = useRef(null)
 
-  const localResults = useMemo(() => searchLocal(localIndex, q), [localIndex, q])
+  const localResults = useMemo(() => {
+    const point = parseCoordinates(q)
+    return point ? [{id:'coords-'+q,label:point.join(', '),sub:'Latitude, longitude',type:'place',lat:point[0],lng:point[1],zoom:17}] : searchLocal(localIndex,q)
+  }, [localIndex, q])
 
   // Merge: local first, then OSM rows the local set doesn't already cover.
   const results = useMemo(() => {
@@ -61,12 +65,13 @@ export default function MapSearchBar({ localIndex, onSelect, collapsible = false
 
   /* Debounced OSM lookup; each keystroke aborts the in-flight request. */
   useEffect(() => {
-    if (q.trim().length < 2) {
+    if (q.trim().length < 2 || parseCoordinates(q)) {
       setOsmResults([])
       setLoading(false)
       return undefined
     }
     setLoading(true)
+    setOsmResults([])
     const id = setTimeout(async () => {
       abortRef.current?.abort()
       const ctl = new AbortController()
@@ -77,7 +82,7 @@ export default function MapSearchBar({ localIndex, onSelect, collapsible = false
         setLoading(false)
       }
     }, DEBOUNCE_MS)
-    return () => clearTimeout(id)
+    return () => {clearTimeout(id);abortRef.current?.abort()}
   }, [q])
 
   /* Close on outside click. */
@@ -161,7 +166,7 @@ export default function MapSearchBar({ localIndex, onSelect, collapsible = false
         <input
           ref={inputRef}
           value={q}
-          placeholder="Search Barangay, Subdivision, Street, Landmark..."
+          placeholder="Search address, landmark, or latitude, longitude"
           onChange={(e) => {
             setQ(e.target.value)
             setOpen(true)

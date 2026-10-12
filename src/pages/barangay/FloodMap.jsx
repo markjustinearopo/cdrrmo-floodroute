@@ -1,3 +1,6 @@
+import CoordinatorObservations from '../../components/map/CoordinatorObservations.jsx'
+import { useMapLayers } from '../../hooks/useMapLayers.js'
+import MapLegend from '../../components/map/MapLegend.jsx'
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, Marker, Popup, GeoJSON } from 'react-leaflet'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
@@ -103,8 +106,9 @@ export default function FloodMap() {
   // v4: adds the two operational layers. A new key rather than a migration, so
   // an official who already has v3 stored gets them switched ON rather than
   // inheriting an object with the new keys missing (which reads as "off").
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-brgy-floodmap-v4', { noah: true, floodAreas: true, reports: true, inundation: true, barangays: true, evac: true, roads: true, incidents: true })
+  const [layers, setLayers] = useMapLayers('cdrrmo-layers-barangay-panel-v1', { noah: true, floodAreas: false, reports: false, inundation: false, barangays: false, evac: true, roads: true, incidents: false })
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-brgy-floodmap-intensity', 70)
+  useEffect(()=>{if(use3D)setLayers(v=>Object.fromEntries(Object.entries(v).map(([key,on])=>[key,LAYERS_IN_3D.has(key)&&on])))},[use3D,setLayers])
   const locked = view === 'mine' && Boolean(myBrgy)
 
   const barangays = useMemo(() => barangayRiskSamples(field), [field])
@@ -283,7 +287,7 @@ export default function FloodMap() {
 
               {/* Shared evacuation centres (city-wide) */}
               {layers.evac && evacMarkers.map((c) => (
-                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacPinIcon(c.status)}>
+                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacPinIcon(c.status==='open'&&c.capacity>0&&(c.occupancy||0)>=c.capacity?'full':c.status)}>
                   <Popup>
                     <strong>{c.name}</strong>
                     <div style={{ fontSize: '0.6875rem', color: '#7a7a7a' }}>
@@ -328,6 +332,7 @@ export default function FloodMap() {
               onOpacity={setIntensity}
             />
 
+            <MapLegend layers={layers} />
             <MapStatusLine updated={updated} coords={coords} />
           </div>
 
@@ -347,6 +352,7 @@ export default function FloodMap() {
             </div>
 
             <div className="panel-content">
+              <CoordinatorObservations areas={floodAreas}/>
               {panelTab === 'Overview' && (
                 <OverviewTab
                   stats={{ evacCounts, roadSummary, openIncidents }}

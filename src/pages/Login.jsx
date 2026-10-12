@@ -58,9 +58,9 @@ const BARANGAYS = [
   'San Isidro',
 ]
 
-export default function Login() {
+export default function Login({ portal = 'resident' }) {
   const navigate = useNavigate()
-  const [role, setRole] = useState('admin')
+  const [role, setRole] = useState(portal)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   /* Google sign-in. `googleSignup` holds the signed ten-minute ticket for a
@@ -142,7 +142,7 @@ export default function Login() {
       }
       finishLogin(res.user, role, brgy)
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.')
+      setError(/not active|suspended|inactive/i.test(err.message||'') ? 'Your account access is restricted. Contact your barangay or CDRRMO to confirm its status. You can still use the community map without logging in.' : err.message || 'Login failed. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -170,7 +170,7 @@ export default function Login() {
     if (group !== forRole) {
       authApi.logout()
       setChallenge(null)
-      setError(`This account is not a ${PANEL_LABEL[forRole]} account. Use the ${PANEL_LABEL[group] || 'correct'} tab to sign in.`)
+      setError(`This account is not a ${PANEL_LABEL[forRole]} account. Use the ${PANEL_LABEL[group] || 'correct'} login page to sign in.`)
       return
     }
 
@@ -301,8 +301,8 @@ export default function Login() {
               </svg>
             </div>
             <div className="header-text">
-              <h2>System Access</h2>
-              <p>Cabuyao CDRRMO Portal</p>
+              <h2>{portal === 'resident' ? 'Resident Login' : portal === 'admin' ? 'CDRRMO Admin Login' : 'Barangay Official Login'}</h2>
+              <p>{portal === 'resident' ? 'Sign in to manage your account and flood reports' : 'For authorized officials only'}</p>
             </div>
           </div>
 
@@ -313,19 +313,7 @@ export default function Login() {
             <LanguageToggle className="on-light" />
           </div>
 
-          {/* Role tabs */}
-          <div className="section-label">Access Role</div>
-          <div className="role-tabs">
-            <RoleTab active={role === 'admin'} onClick={() => switchRole('admin')}>
-              CDRRMO Admin
-            </RoleTab>
-            <RoleTab active={role === 'barangay'} onClick={() => switchRole('barangay')}>
-              Barangay Officials
-            </RoleTab>
-            <RoleTab active={role === 'resident'} onClick={() => switchRole('resident')}>
-              Resident
-            </RoleTab>
-          </div>
+          <p className="support-link"><Link to="/">View community map without signing in</Link></p>
 
           {/* Error message */}
           <div className={`error-msg ${error ? 'show' : ''}`} role="alert" aria-live="assertive">{error}</div>
@@ -488,6 +476,11 @@ export default function Login() {
               >
                 Contact CDRRMO IT Support
               </button>
+            </p>
+            <p className="support-link">
+              {portal !== 'resident' && <><Link to="/login">Resident login</Link> · </>}
+              {portal !== 'admin' && <><Link to="/admin/login">CDRRMO admin</Link> · </>}
+              {portal !== 'barangay' && <Link to="/barangay/login">Barangay officials</Link>}
             </p>
             <p className="system-version">Cabuyao City DRRMO © 2026 · v1</p>
           </div>

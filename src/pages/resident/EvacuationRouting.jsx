@@ -1,3 +1,6 @@
+import MapLegend from '../../components/map/MapLegend.jsx'
+import LocationLookup from '../../components/map/LocationLookup.jsx'
+import api from '../../services/api.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { MapContainer, TileLayer, ZoomControl, Polyline, Marker, Popup } from 'react-leaflet'
@@ -63,7 +66,7 @@ const youPinIcon = L.divIcon({
  */
 export default function EvacuationRouting() {
   const brgyLabel = residentBarangayLabel()
-  const myBrgy = getResidentBarangay()
+  const myBrgy = api.getUser() ? getResidentBarangay() : ''
   const { roads } = useCabuyaoRoads()
   const graph = useRouteGraph(roads)
   const { field } = useFloodRisk()
@@ -102,7 +105,9 @@ export default function EvacuationRouting() {
   // can be off by a block, so a manual pin that stays put is the source of truth
   // for "directions from where I am"). Find-my-location seeds it from GPS; they
   // can then drag it to the exact spot.
-  const [pin, setPin] = usePersistedState('cdrrmo-res-pin', null) // { lat, lng } | null
+  const routerLoc = useLocation()
+  const [pin, setPin] = usePersistedState('cdrrmo-res-pin', routerLoc.state?.origin || null) // { lat, lng } | null
+  useEffect(()=>{if(routerLoc.state?.origin){setPin(routerLoc.state.origin);setGen(null)}},[routerLoc.state?.origin])
   const [pinning, setPinning] = useState(false)
   const { locate, loading: locating } = useGeolocation()
 
@@ -128,7 +133,6 @@ export default function EvacuationRouting() {
   const rescue = useRescueTrigger()
   // The walkthrough opens by itself the first time, and stays one tap away.
   const [guideOpen, setGuideOpen] = useState(() => !hasSeenRoutingGuide())
-  const routerLoc = useLocation()
   const autoDestRef = useRef(null) // guards the one-shot "Directions" auto-route
 
   /**
@@ -264,10 +268,11 @@ export default function EvacuationRouting() {
     ...profileFor('evacuation'), // walking: one-way streets do not bind
   }
 
-  function generateRoute(targetId) {
+  function generateRoute(targetId, originOverride) {
     setGenMsg('')
     if (!routingReady) return setGenMsg('Current safety data is unavailable. Check with CDRRMO before travelling.')
-    if (!origin) return setGenMsg('Pin your location (or set your barangay) to generate a route.')
+    const routeOrigin = originOverride || origin
+    if (!routeOrigin) return setGenMsg('Choose your starting location with Find my location, an address, coordinates, or a map pin.')
     if (!graph || graph.size === 0) return setGenMsg('Road network unavailable.')
     /* Same eligibility rules as the dashboard card (src/data/shelters.js):
        'open' is an operator-set flag, so a centre at 499/500 still carries it.
@@ -289,7 +294,7 @@ export default function EvacuationRouting() {
        ALL of them are unreachable that way — and the same network can reach
        one when hazards are ignored, proving it is the water and not the map —
        does it report 'no-safe-route'. See components/admin/routeSafety.js. */
-    const verdict = findSafeRoute(graph, origin, candidates, routeOpts)
+    const verdict = findSafeRoute(graph, routeOrigin, candidates, routeOpts)
 
     if (verdict.verdict === 'unreachable') {
       // Not a flood problem: nothing connects here to a shelter at all. Same
@@ -306,7 +311,7 @@ export default function EvacuationRouting() {
       setGen(null)
       setSelectedId(null)
       setGenMsg('')
-      rescue.trigger(verdict, { origin, locate })
+      rescue.trigger(verdict, { origin: routeOrigin, locate })
       return undefined
     }
 
@@ -317,7 +322,7 @@ export default function EvacuationRouting() {
       segments: best.plan.safe.segments,
       centre: best.centre,
       distanceM: best.plan.safe.distanceM,
-      fromPin: Boolean(pin),
+      fromPin: Boolean(pin || originOverride),
       // Risk readout for the warning banner: how wet is this path really,
       // and did the safest option still have to cross flagged water?
       meanRisk: best.plan.safe.meanRisk,
@@ -327,16 +332,28 @@ export default function EvacuationRouting() {
     return undefined
   }
 
+  async function findNearest() {
+    setGenMsg('')
+    if (!routingReady) return setGenMsg('Current safety data is unavailable. Check with CDRRMO before travelling.')
+    if (pin) return generateRoute(routerLoc.state?.destId)
+    try {
+      const fix=await locate()
+      setPin({lat:fix.lat,lng:fix.lng})
+      generateRoute(routerLoc.state?.destId,[fix.lat,fix.lng])
+    } catch { setGenMsg('Location access unavailable. Enter an address or coordinates, or use Pin location on the map.') }
+  }
+
   // Arriving from the Evacuation finder's "Directions" button: auto-route from
   // the pinned location to that specific shelter, once the graph is ready.
   useEffect(() => {
     const destId = routerLoc.state?.destId
     if (!destId || autoDestRef.current === destId) return
     if (!routingReady || !graph || graph.size === 0 || evacuationCenters.length === 0) return
+    if (!pin) { setGenMsg('Choose your starting location to get directions to the selected shelter.'); return }
     autoDestRef.current = destId
     generateRoute(destId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routerLoc.state, graph, evacuationCenters.length, routingReady])
+  }, [routerLoc.state, graph, evacuationCenters.length, routingReady, pin])
 
   useEffect(() => {
     if (routingReady) return
@@ -347,6 +364,7 @@ export default function EvacuationRouting() {
   return (
     <ResidentLayout mainClassName="main--flush">
       <div className="route-plan">
+        <div className="rp-start-location"><LocationLookup point={pin?[pin.lat,pin.lng]:null} onPick={p=>{setPin({lat:p[0],lng:p[1]});setPinning(false);setGen(null)}}/></div>
         <div className="rp-toolbar">
           <div className="rp-title">
             <ShieldIcon />
@@ -382,10 +400,10 @@ export default function EvacuationRouting() {
             <button
               type="button"
               className={`rp-btn rp-btn--auto ${showGen ? 'on' : ''}`}
-              onClick={() => generateRoute()}
+              onClick={findNearest}
               title="Generate a flood-aware route from your location to the nearest open evacuation centre"
             >
-              <SparkIcon /> Generate safe route
+              <SparkIcon /> {locating ? 'Locating…' : 'Find nearest available shelter'}
             </button>
             <button
               type="button"
@@ -494,16 +512,17 @@ export default function EvacuationRouting() {
             )}
 
             {/* 2D only — the result layer draws through Leaflet. */}
-            {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
+            {!use3D && <MapSearchBar localIndex={localIndex} onSelect={r=>{setSearchResult(r);if(r&&r.type!=='evac'){setPin({lat:r.lat,lng:r.lng});setPinning(false)}}} />}
 
             {routes.length === 0 && !showGen && (
               <div className="rp-hint">
                 <ShieldIcon />
                 <span>No published evacuation routes yet</span>
-                <small>Tap "Generate safe route", or wait for CDRRMO / your barangay to publish one.</small>
+                <small>Tap "Find nearest available shelter", or wait for CDRRMO / your barangay to publish one.</small>
               </div>
             )}
 
+<MapLegend layers={{roads:true,evac:true}} route={{color,label:showGen?'Planned route':'Published route'}}/>
             <div className="rp-coords">
               {coords
                 ? `${coords.lat.toFixed(4)} N, ${coords.lng.toFixed(4)} E | Zoom: ${coords.zoom}`

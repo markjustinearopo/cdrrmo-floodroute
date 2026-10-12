@@ -11,7 +11,7 @@
 import { useEffect, useRef } from 'react'
 import { useMap, useMapEvents, CircleMarker, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
-import { barangayOuterRings, barangayBounds } from '../../data/cabuyaoBarangays.js'
+import { barangayOuterRings, barangayBounds, CABUYAO_LAND_BOUNDS } from '../../data/cabuyaoBarangays.js'
 import { useGeolocation } from '../../hooks/useGeolocation.js'
 import './locateControl.css'
 
@@ -147,7 +147,7 @@ export function CabuyaoLock() {
       maskLayer.on('click', (e) => L.DomEvent.stop(e))
 
       // Clamp panning/zoom to the city.
-      const bounds = outlineLayer.getBounds()
+      const bounds = L.latLngBounds(CABUYAO_LAND_BOUNDS)
       map.setMaxBounds(bounds.pad(0.12))
       map.options.maxBoundsViscosity = 1.0
       map.setMinZoom(Math.floor(map.getBoundsZoom(bounds)))

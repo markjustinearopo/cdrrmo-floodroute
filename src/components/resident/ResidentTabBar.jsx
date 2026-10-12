@@ -1,3 +1,4 @@
+import api from '../../services/api.js'
 import { NavLink } from 'react-router-dom'
 import './residentTabBar.css'
 
@@ -30,7 +31,7 @@ export default function ResidentTabBar() {
       {TABS.map(({ label, to, icon: Icon, accent }) => (
         <NavLink
           key={to}
-          to={to}
+          to={!api.getUser() && to === '/resident/dashboard' ? '/' : to}
           className={({ isActive }) =>
             `res-tab ${isActive ? 'active' : ''} ${accent ? 'accent' : ''}`.replace(/\s+/g, ' ').trim()
           }

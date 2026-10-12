@@ -1,3 +1,5 @@
+import { Fragment } from 'react'
+import { pointsFromGeometry } from '../../utils/mapGeometry.js'
 /* ============================================================
    FloodReportsLayer — the shared Leaflet overlay for VERIFIED
    resident flood reports.
@@ -11,7 +13,7 @@
    any photo evidence.
    ============================================================ */
 
-import { Marker, Tooltip, Popup } from 'react-leaflet'
+import { Marker, Tooltip, Popup, Polygon } from 'react-leaflet'
 import {
   FLOOD_LEVEL_META,
   floodLevelMeta,
@@ -51,6 +53,7 @@ export function FloodReportPopup({ report }) {
         />
       )}
       <div className="fa-popup-row"><b>Reported:</b> {report.reported}</div>
+      <div className="fa-popup-row"><b>Observation:</b> {Date.now()-(report.reportedAt||0)>=3600000 ? 'Older than one hour — recheck conditions.' : 'Reported within the last hour.'} {report.level==='none'?'No flood reported at the observation time.':'Flood clearance time is unconfirmed.'}</div>
       <div className="fa-popup-foot">
         Verified by {report.verifiedBy || 'CDRRMO'}{report.verified ? ` · ${report.verified}` : ''}
       </div>
@@ -72,10 +75,13 @@ export function FloodReportMarkers({ reports = [], only = null, interactive = tr
   ))
   return list.map((r) => {
     const meta = floodLevelMeta(r.level)
+    const points=pointsFromGeometry(r.geometry,r.coords)
     return (
-      <Marker
-        key={`fr-${r.id}`}
-        position={r.coords}
+      <Fragment key={r.id}>
+      {r.geometry?.type==='Polygon'&&points.length>=3&&<Polygon positions={points} pathOptions={{color:meta.color,fillOpacity:.2}}><Popup><FloodReportPopup report={r}/></Popup></Polygon>}
+      {points.map((point,index)=><Marker
+        key={`fr-${r.id}-${index}`}
+        position={point}
         icon={pinIcon({ color: meta.color, glyph: 'drop', size: REPORT_PIN_SIZE[r.level] || PIN_SIZE.low })}
       >
         {interactive
@@ -85,7 +91,8 @@ export function FloodReportMarkers({ reports = [], only = null, interactive = tr
               <b>{meta.label}</b>{formatReportDepth(r.depthFt) ? ` · ${formatReportDepth(r.depthFt)}` : ''}
             </Tooltip>
           )}
-      </Marker>
+      </Marker>)}
+      </Fragment>
     )
   })
 }

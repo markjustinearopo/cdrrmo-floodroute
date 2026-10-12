@@ -225,6 +225,7 @@ function floodReportFromDb(r, logs = []) {
     barangay: r.barangay || '',
     coords: r.lat != null && r.lng != null ? [Number(r.lat), Number(r.lng)] : null,
     level: r.flood_level || 'moderate',
+    geometry: r.reported_geometry || null,
     depthFt: r.water_depth_ft != null ? Number(r.water_depth_ft) : undefined,
     description: r.description || '',
     photo: r.photo || null,
@@ -250,6 +251,7 @@ function floodReportToDb(x) {
     out.lng = x.coords?.[1] ?? null
   }
   if ('level' in x) out.flood_level = x.level
+  if ('geometry' in x) out.reported_geometry = x.geometry
   if ('depthFt' in x) out.water_depth_ft = x.depthFt ?? null
   if ('description' in x) out.description = x.description || null
   if ('photo' in x) out.photo = x.photo || null
@@ -263,6 +265,10 @@ function floodReportToDb(x) {
 
 export const floodReportsDb = {
   async list() {
+    if (!localStorage.getItem('cdrrmo_token')) {
+      const rows = unwrap(await supabase.from('community_flood_reports').select('*').order('id', {ascending:false}))
+      return rows.map(r=>floodReportFromDb(r))
+    }
     const [rows, logs] = await Promise.all([
       supabase.from('flood_reports').select('*').order('id', { ascending: false }).then(unwrap),
       supabase.from('flood_report_logs').select('*').order('id', { ascending: true }).then(unwrap),

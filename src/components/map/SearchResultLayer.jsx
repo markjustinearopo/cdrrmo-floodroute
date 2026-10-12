@@ -25,10 +25,10 @@ const GLOW_COLORS = { safe: '#22C55E', low: '#EAB308', moderate: '#F97316', high
 const SAFE_BLUE = '#3B82F6'
 
 const RISK_ACTION = {
-  safe: 'Road is clear — safe to travel.',
+  safe: 'Low modelled depth. Check official road closures before travelling.',
   low: 'Minor flooding possible. Drive with care.',
   moderate: 'Flood-prone — avoid low sections, consider another route.',
-  high: 'Dangerous flooding — do not pass. Use the route planner for a safe path.',
+  high: 'High modelled flood risk. Avoid low sections and follow official warnings.',
 }
 
 /** Red teardrop pin (divIcon, so it inherits CSS animations). */
@@ -130,14 +130,14 @@ export default function SearchResultLayer({ result, barangays = [], navigateTo =
                 <b>{ctx.barangay || '—'}</b>
               </div>
               <div className="msr-card-row">
-                <span>Road status</span>
+                <span>Modelled area risk</span>
                 <b style={{ color: ctx.meta.color }}>
-                  {ctx.level === 'high' ? 'Avoid — flooded' : ctx.level === 'safe' ? 'Passable' : 'Use caution'}
+                  {ctx.level === 'high' ? 'High — avoid low sections' : ctx.level === 'safe' ? 'Low modelled depth' : 'Use caution'}
                 </b>
               </div>
               <div className="msr-card-row">
                 <span>Est. flood depth</span>
-                <b>{ctx.depth >= 0.05 ? `~${ctx.depth.toFixed(2)} m` : 'None reported'}</b>
+                <b>{ctx.depth >= 0.05 ? `~${ctx.depth.toFixed(2)} m` : 'Below 0.05 m (modelled)'}</b>
               </div>
             </div>
 
@@ -146,12 +146,12 @@ export default function SearchResultLayer({ result, barangays = [], navigateTo =
             <button
               type="button"
               className="msr-card-nav"
-              onClick={() => navigate(navigateTo)}
+              onClick={() => navigate(navigateTo, { state: result.type==='evac' && result.id?.startsWith('evac-') ? {destId: Number(result.id.slice(5)) || result.id.slice(5)} : {origin:{lat:result.lat,lng:result.lng}} })}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="3 11 22 2 13 21 11 13 3 11" />
               </svg>
-              Navigate safely
+              Get evacuation directions
             </button>
           </div>
         </Popup>

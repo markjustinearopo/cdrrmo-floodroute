@@ -34,7 +34,7 @@ export default function Incidents() {
   const brgyLabel = officialBarangayLabel()
   const myBrgy = getOfficialBarangay()
   const { incidents, addIncident, updateIncident, removeIncident } = useIncidents()
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('open')
   const [query, setQuery] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [toast, setToast] = useState('')
@@ -48,7 +48,7 @@ export default function Incidents() {
 
   const stats = useMemo(() => ({
     open: items.filter((i) => i.status !== 'resolved').length,
-    unassigned: items.filter((i) => !i.team).length,
+    unassigned: items.filter((i) => !i.team && i.status !== 'resolved').length,
     critical: items.filter((i) => i.priority === 'critical' && i.status !== 'resolved').length,
     resolved: items.filter((i) => i.status === 'resolved').length,
   }), [items])
@@ -57,8 +57,8 @@ export default function Incidents() {
     const q = query.trim().toLowerCase()
     return items.filter((i) => {
       if (filter === 'open' && i.status === 'resolved') return false
-      if (filter === 'unassigned' && i.team) return false
-      if (filter === 'critical' && i.priority !== 'critical') return false
+      if (filter === 'unassigned' && (i.team || i.status === 'resolved')) return false
+      if (filter === 'critical' && (i.priority !== 'critical' || i.status === 'resolved')) return false
       if (filter === 'resolved' && i.status !== 'resolved') return false
       if (q && !(`${i.type} ${i.location} ${i.team}`.toLowerCase().includes(q))) return false
       return true

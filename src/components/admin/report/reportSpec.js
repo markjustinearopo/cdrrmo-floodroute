@@ -100,6 +100,7 @@ export const COLUMN_CATALOGUE = {
     { key: 'name', label: 'Barangay', on: true },
     { key: 'level', label: 'Risk Level', on: true },
     { key: 'depth', label: 'Modelled Depth', on: true, num: true },
+    { key: 'riskDistance', label: 'Flagged Road Length (km)', on:true, num:true },
     { key: 'areas', label: 'Flood-Prone Areas', on: false, num: true },
     { key: 'roads', label: 'Roads Flagged', on: false, num: true },
     { key: 'evac', label: 'Evac Centres', on: false, num: true },

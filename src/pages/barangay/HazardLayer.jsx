@@ -1,3 +1,4 @@
+import MapLegend from '../../components/map/MapLegend.jsx'
 import { useEffect, useMemo, useState } from 'react'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip } from 'react-leaflet'
@@ -182,6 +183,7 @@ export default function HazardLayer() {
             </MapContainer>
             )}
 
+            <MapLegend layers={{inundation:visible.inundation,barangays:visible.barangays,evac:visible.evacuation}}/>
             {/* Floating smart search (2D view; the result layer is Leaflet-only) */}
             {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 

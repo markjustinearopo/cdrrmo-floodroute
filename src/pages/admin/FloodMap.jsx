@@ -1,3 +1,6 @@
+import CoordinatorObservations from '../../components/map/CoordinatorObservations.jsx'
+import { useMapLayers } from '../../hooks/useMapLayers.js'
+import MapLegend from '../../components/map/MapLegend.jsx'
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePersistedState } from '../../utils/usePersistedState.js'
 import { MapContainer, TileLayer, ZoomControl, Tooltip, Polyline, Marker, Popup, GeoJSON } from 'react-leaflet'
@@ -193,7 +196,9 @@ export default function FloodMap() {
   // to keep the toggle panel readable.)
   // v3 adds floodAreas — CDRRMO operators were the only portal that could not
   // see the flood-prone-area pins residents and barangay officials already get.
-  const [overlays, setOverlays] = usePersistedState('cdrrmo-layers-admin-floodmap-overlays-v4', { incidents: false, roads: false, evac: false, floodAreas: true, blindSpots: false })
+  const [allLayers, setAllLayers] = useMapLayers('cdrrmo-layers-admin-panel-v1', { noah: true, floodAreas: false, barangays: false, inundation: false, evac: true, roads: true, incidents: false, blindSpots: false })
+  const overlays = allLayers
+  const setOverlays = setAllLayers
   const [blindSummary, setBlindSummary] = useState(null)
   /* The cut-off layer answers a HYPOTHETICAL — "if the water rose this far,
      who would have no way out?" — so the operator sets the level directly
@@ -207,7 +212,9 @@ export default function FloodMap() {
   // Layer visibility + intensity (the on-map toggle control). Default: the
   // Project NOAH hazard zones on (the city's standing reference); barangay
   // classification + inundation heat off so the colours don't compete.
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-admin-floodmap-layers-v4', { noah: true, barangays: false, inundation: false })
+  useEffect(()=>{if(use3D)setAllLayers(v=>Object.fromEntries(Object.entries(v).map(([key,on])=>[key,['noah','inundation','barangays','evac','roads'].includes(key)&&on])))},[use3D,setAllLayers])
+  const layers = allLayers
+  const setLayers = setAllLayers
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-admin-floodmap-intensity', 85)
   const toggleLayer = (k) => setLayers((v) => ({ ...v, [k]: !v[k] }))
 
@@ -375,6 +382,8 @@ export default function FloodMap() {
                 barangays={barangays}
                 field={field}
                 layers={layers}
+                roads={roadNetwork}
+                roadStatus={roadStatus}
                 intensity={intensity}
                 selected={selected}
                 onSelect={setSelected}
@@ -469,7 +478,7 @@ export default function FloodMap() {
 
               {/* Evacuation centres: open = green, full = orange, closed = red */}
               {overlays.evac && evacuationCenters.filter((c) => Array.isArray(c.coords)).map((c) => (
-                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacIcon(c.status)}>
+                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacIcon(c.status==='open'&&c.capacity>0&&(c.occupancy||0)>=c.capacity?'full':c.status)}>
                   <Popup>
                     <div className="fm-popup">
                       <strong>{c.name}</strong>
@@ -538,7 +547,7 @@ export default function FloodMap() {
               })}
 
               {/* Closed SECTIONS, over the whole-road conditions. */}
-              <RoadBlocksLayer blocks={roadBlocks} audience="admin" />
+              {overlays.roads && <RoadBlocksLayer blocks={roadBlocks} audience="admin" />}
 
               {/* Searched location: flyTo + pin + glowing road highlight */}
               <SearchResultLayer result={searchResult} barangays={barangays} navigateTo="/admin/routing?tab=draw" />
@@ -581,7 +590,7 @@ export default function FloodMap() {
                 { key: 'incidents', label: 'Incidents', color: '#DC2626', on: overlays.incidents, onToggle: () => toggleOverlay('incidents') },
                 { key: 'roads', label: 'Flagged Roads', color: '#B45309', on: overlays.roads, onToggle: () => toggleOverlay('roads') },
                 { key: 'blindSpots', label: 'Cut-Off Areas', color: '#7F1D1D', on: overlays.blindSpots, onToggle: () => toggleOverlay('blindSpots') },
-              ]}
+              ].filter(l=>!use3D||['noah','inundation','barangays','evac','roads'].includes(l.key))}
             />
 
             {/* Flood-prone areas are managed here now, on the map that shows
@@ -667,6 +676,7 @@ export default function FloodMap() {
             {/* One bottom strip: live/forecast stamp, coordinates, risk ramp.
                 These were three separately-positioned boxes and the first two
                 overlapped each other from ~700px down — see MapStatusLine. */}
+            <MapLegend layers={allLayers} />
             <MapStatusLine
               updated={updated}
               coords={coords}
@@ -716,6 +726,7 @@ export default function FloodMap() {
             </div>
 
             <div className="panel-content">
+              <CoordinatorObservations areas={floodAreas}/>
               {panelTab === 'Overview' && (
                 <OverviewTab
                   stats={{ activeAlerts, flaggedRoads: flaggedRoadCount, highRisk: risk.counts.high, evacCounts }}
@@ -918,6 +929,8 @@ function FloodMap3DView({
   onSelect,
   weather,
   evac = [],
+  roads = null,
+  roadStatus = {},
   onViewChange,
 }) {
   const { onMapLoad, mapRef, ready } = useBarangayLayers({
@@ -929,6 +942,9 @@ function FloodMap3DView({
     // Barangay centroid markers ride with the risk layer (the separate
     // "Risk Markers" toggle was retired with the toggle-panel trim).
     markers: layers.barangays,
+    roads,
+    roadStatus,
+    roadsVisible: layers.roads,
     baseOpacity: intensity / 100,
     selected,
     onSelect,

@@ -60,19 +60,24 @@ export function MapLayerToggles({ layers, opacity, onOpacity, collapsible = fals
       ) : (
         <div className="map-toggles-title">Map Layers</div>
       )}
-      {layers.map((l) => (
+      <div className="map-layer-limit" role="status">{onCount}/3 layers · turn one off to add another</div>
+      {['Flood & hazard', 'Places & access', 'Operations'].map((group) => <div className="map-layer-group" key={group}>
+        <div className="map-layer-group-title">{group}</div>
+        {layers.filter((l) => (['noah', 'floodAreas', 'reports', 'inundation', 'barangays'].includes(l.key) ? 'Flood & hazard' : ['evac', 'roads'].includes(l.key) ? 'Places & access' : 'Operations') === group).map((l) => (
         <button
           type="button"
           key={l.key}
           className={`map-toggle ${l.on ? 'on' : ''}`}
           onClick={l.onToggle}
+          disabled={!l.on && onCount >= 3}
+          title={!l.on && onCount >= 3 ? 'Turn off a layer first (maximum 3)' : l.label}
           aria-pressed={l.on}
         >
           <span className="mt-sw"><span className="mt-knob" /></span>
           <span className="mt-dot" style={{ background: l.color }} />
           <span className="mt-label">{l.label}</span>
         </button>
-      ))}
+      ))}</div>)}
       {onOpacity && (
         <div className="map-toggle-op">
           <div className="mt-op-head">

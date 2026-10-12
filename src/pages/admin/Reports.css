@@ -783,3 +783,5 @@
   .rb-block-on { min-width: 44px; min-height: 44px; }
   .rs-zoom button { min-height: 44px; }
 }
+
+.rd-observation-period{font-size:11px;line-height:1.5;color:#666;margin:8px 0;}

@@ -8,7 +8,7 @@ import { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import { useFloodRisk } from './floodRisk.js'
 import { floodStatus, floodBannerText } from '../../services/floodBanner.js'
-import { useAlerts, useRescueRequests, useAdminData } from '../../context/AdminDataContext.jsx'
+import { useAlerts, useFloodReports, useRescueRequests, useAdminData } from '../../context/AdminDataContext.jsx'
 import { useRealTimeSync } from '../../hooks/useRealTimeSync.js'
 import { useSystemConfig, loadSystemConfigRemote } from '../../services/systemConfig.js'
 import { useT } from '../../services/i18n.js'
@@ -52,7 +52,7 @@ const NAV = [
          officer's eye lands on when something is in it. */
       { label: 'Rescue Requests', to: '/admin/rescue', icon: LifebuoyIcon, badge: 'rescue' },
       { label: 'Alerts', to: '/admin/alerts', icon: BellIcon },
-      { label: 'Flood Reports', to: '/admin/flood-reports', icon: FloodReportIcon },
+      { label: 'Flood Reports', to: '/admin/flood-reports', icon: FloodReportIcon, badge: 'flood' },
       { label: 'Incidents', to: '/admin/incidents', icon: TriangleIcon },
       // Road Status sat under Routing, but nobody opens it to plan a trip —
       // they open it because a road just went under. That is response.
@@ -120,6 +120,8 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   /* People currently waiting on a rescue. Drives the sidebar badge, so the
      count is visible from every admin screen — the point of a badge here is
      that nobody has to be on the rescue page to know somebody is stranded. */
+  const { floodReports } = useFloodReports()
+  const pendingFloods=floodReports.filter(r=>r.status==='pending').length
   const { rescueRequests } = useRescueRequests()
   const openRescues = useMemo(
     () => rescueRequests.filter((r) => r.status === 'pending' || r.status === 'responding').length,
@@ -359,6 +361,7 @@ export default function AdminLayout({ children, mainClassName = '' }) {
                   {t(label)}
                   {/* Only rendered when somebody is actually waiting — a badge
                       showing "0" is noise that teaches the eye to skip it. */}
+                  {badge === 'flood' && pendingFloods > 0 && <span className="nav-badge" aria-label={pendingFloods+' flood reports awaiting verification'}>{pendingFloods}</span>}
                   {badge === 'rescue' && openRescues > 0 && (
                     <span className="nav-badge" aria-label={`${openRescues} awaiting rescue`}>
                       {openRescues}

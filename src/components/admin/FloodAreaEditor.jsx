@@ -1,5 +1,9 @@
-import { useState } from 'react'
-import { MapContainer, TileLayer, ZoomControl, Marker, CircleMarker } from 'react-leaflet'
+import { barangayForPoint } from '../../data/cabuyaoBarangays.js'
+import LocationLookup from '../map/LocationLookup.jsx'
+import GeometryControls from '../map/GeometryControls.jsx'
+import { geometryFromPoints, geometryError, pointsFromGeometry } from '../../utils/mapGeometry.js'
+import { useEffect, useState } from 'react'
+import { MapContainer, TileLayer, ZoomControl, Marker, CircleMarker, Polygon, Polyline, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock, CoordReadout } from './mapHelpers.jsx'
 import { ClickToAddWaypoint } from './routingHelpers.jsx'
@@ -36,7 +40,11 @@ const editPinIcon = L.divIcon({
 })
 
 export default function FloodAreaEditor({ area, onClose, onSave }) {
-  const [pin, setPin] = useState(Array.isArray(area?.coords) ? area.coords : null)
+  const [points, setPoints] = useState(()=>pointsFromGeometry(area?.geometry,area?.coords))
+  const [mode,setMode]=useState(area?.geometry?.type==='Polygon'?'area':area?.geometry?.type==='MultiPoint'?'points':'point')
+  const pin=points[0]||null
+  const setPin=p=>setPoints(previous=>mode==='point'?[p]:previous.length<30?[...previous,p]:previous)
+  const invalid=geometryError(points,mode)||(!points.every(p=>barangayForPoint(p[0],p[1]))?'Select points inside Cabuyao City.':'')
   const [type, setType] = useState(area?.type || 'flood')
   // Existing records may still carry the pre-migration `depthFt`.
   const [depthM, setDepthM] = useState(() => {
@@ -44,6 +52,7 @@ export default function FloodAreaEditor({ area, onClose, onSave }) {
     return m == null ? '' : String(+m.toFixed(2))
   })
   const [causes, setCauses] = useState(Array.isArray(area?.causes) ? area.causes : [])
+  const [formError,setFormError]=useState('')
   const [mapCoords, setMapCoords] = useState(null)
 
   const draft = { type, depthM: depthM === '' ? null : Number(depthM) }
@@ -57,8 +66,11 @@ export default function FloodAreaEditor({ area, onClose, onSave }) {
 
   function handleSave(e) {
     e.preventDefault()
-    if (!pin) return
+    if (invalid) return
     const f = new FormData(e.currentTarget)
+    if (f.get('observation')!=='unknown' && !f.get('observedAt')) {setFormError('Record when this coordinator observation was made.');return}
+    if (f.get('expectedClearAt') && (f.get('observation')==='unknown' || !f.get('observedAt') || Date.parse(f.get('expectedClearAt')+'+08:00') <= Date.parse(f.get('observedAt')+'+08:00'))) {setFormError('A clearance estimate needs an observation and a later estimated time.');return}
+    setFormError('')
     const data = {
       name: f.get('name').trim(),
       barangay: f.get('barangay'),
@@ -70,6 +82,10 @@ export default function FloodAreaEditor({ area, onClose, onSave }) {
       sourceStorms: f.get('sourceStorms').trim(),
       notes: f.get('notes').trim(),
       coords: pin,
+      geometry: geometryFromPoints(points,mode),
+      observation: f.get('observation'),
+      expectedClearAt: f.get('expectedClearAt') ? Date.parse(f.get('expectedClearAt')+'+08:00') : null,
+      observedAt: f.get('observation')==='unknown'?null:f.get('observedAt') ? Date.parse(f.get('observedAt') + '+08:00') : area?.observedAt || null,
       reportedBy: area?.reportedBy || 'CDRRMO',
     }
     onSave(data, area?.id)
@@ -100,11 +116,14 @@ export default function FloodAreaEditor({ area, onClose, onSave }) {
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.9} />
                 <ZoomControl position="bottomright" />
                 <CabuyaoLock />
+                <FlyToEditPoint point={points[points.length-1]}/>
                 <ClickToAddWaypoint onAdd={setPin} />
+                {mode==='area'&&points.length>=3&&<Polygon positions={points} pathOptions={{color:sevMeta.color,fillOpacity:.18}}/>}
+                {mode!=='point'&&points.map((p,i)=><CircleMarker key={i} center={p} radius={6} pathOptions={{color:sevMeta.color}}><Tooltip permanent>{i+1}</Tooltip></CircleMarker>)}
                 {pin && (
                   <>
                     <CircleMarker center={pin} radius={11} pathOptions={{ color: '#fff', weight: 2, fillColor: sevMeta.color, fillOpacity: 0.9 }} />
-                    <Marker position={pin} icon={editPinIcon} draggable eventHandlers={{ dragend: (e) => { const ll = e.target.getLatLng(); setPin([ll.lat, ll.lng]) } }} />
+                    <Marker position={pin} icon={editPinIcon} draggable={mode==='point'} eventHandlers={{ dragend: (e) => { const ll = e.target.getLatLng(); setPin([ll.lat, ll.lng]) } }} />
                   </>
                 )}
                 <CoordReadout onChange={setMapCoords} />
@@ -119,6 +138,12 @@ export default function FloodAreaEditor({ area, onClose, onSave }) {
 
           {/* Form */}
           <form className="mng-form" onSubmit={handleSave}>
+            <LocationLookup point={points[points.length-1]} onPick={setPin}/>
+            <GeometryControls mode={mode} onMode={setMode} points={points} onPoints={setPoints}/>
+            <label>Coordinator observation<select name="observation" defaultValue={area?.observation||'unknown'}><option value="unknown">Not assessed</option><option value="rising">Water rising</option><option value="steady">Water steady</option><option value="receding">Water receding</option><option value="cleared">Water cleared (observed)</option></select></label>
+            <label>Observation time (Philippine time)<input name="observedAt" type="datetime-local" max={new Date(Date.now()+8*3600000).toISOString().slice(0,16)} defaultValue={area?.observedAt?new Date(area.observedAt+8*3600000).toISOString().slice(0,16):''}/></label>
+            <label>Expected clearance (coordinator estimate, optional)<input name="expectedClearAt" type="datetime-local" defaultValue={area?.expectedClearAt?new Date(area.expectedClearAt+8*3600000).toISOString().slice(0,16):''}/></label>
+            <p className="geometry-help">Observations need rechecking after one hour. Receding water does not confirm a safe road or predict when flooding ends.</p>
             <label>
               Area / Road Name
               <input name="name" type="text" defaultValue={area?.name || ''} placeholder="e.g. NIA Road (Mamatid → Sala)" required />
@@ -186,9 +211,10 @@ export default function FloodAreaEditor({ area, onClose, onSave }) {
               {pin ? `Location pinned at ${pin[0].toFixed(5)}, ${pin[1].toFixed(5)}` : 'Pin the location on the map to enable saving.'}
             </div>
 
+            {formError&&<div className="fr-error" role="alert">{formError}</div>}
             <div className="mng-form-actions">
               <button type="button" className="mng-btn mng-btn-ghost" onClick={onClose}>Cancel</button>
-              <button type="submit" className="mng-btn" disabled={!pin}>{area ? 'Save Changes' : 'Add Area'}</button>
+              <button type="submit" className="mng-btn" disabled={Boolean(invalid)}>{area ? 'Save Changes' : 'Add Area'}</button>
             </div>
           </form>
         </div>
@@ -196,3 +222,5 @@ export default function FloodAreaEditor({ area, onClose, onSave }) {
     </DialogOverlay>
   )
 }
+
+function FlyToEditPoint({point}){const map=useMap();const lat=point?.[0],lng=point?.[1];useEffect(()=>{if(lat!=null&&lng!=null)map.setView([lat,lng],Math.max(map.getZoom(),16))},[lat,lng,map]);return null}

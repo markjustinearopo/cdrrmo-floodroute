@@ -300,3 +300,14 @@ export function haversineKm(a, b) {
     Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
   return 2 * R * Math.asin(Math.sqrt(s))
 }
+
+export async function reverseGeocode(point, signal) {
+ if(!point) return ''
+ const url='https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+point[0]+'&lon='+point[1]+'&zoom=18&addressdetails=1'
+ try {
+  const response=await fetch(url,{signal,headers:{Accept:'application/json'}})
+  if(!response.ok) return ''
+  const data=await response.json()
+  return data.display_name || ''
+ } catch { return '' }
+}

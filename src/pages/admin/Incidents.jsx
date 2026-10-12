@@ -28,9 +28,9 @@ const STATUS_LABEL = {
 }
 
 const FILTERS = [
-  { key: 'all', label: 'All' },
   { key: 'open', label: 'Open', test: (i) => i.status !== 'resolved' },
-  { key: 'unassigned', label: 'Unassigned', test: (i) => !i.team },
+  { key: 'all', label: 'All' },
+  { key: 'unassigned', label: 'Unassigned', test: (i) => !i.team && i.status !== 'resolved' },
   { key: 'critical', label: 'Critical', test: (i) => i.priority === 'critical' },
   { key: 'resolved', label: 'Resolved', test: (i) => i.status === 'resolved' },
 ]
@@ -67,7 +67,9 @@ function compressImage(file) {
  */
 export default function Incidents({ embedded = false }) {
   const Shell = embedded ? Fragment : AdminLayout
-  const { incidents: items, addIncident, updateIncident, removeIncident } = useIncidents()
+  const { incidents: allItems, addIncident, updateIncident, removeIncident } = useIncidents()
+  const [barangayFilter,setBarangayFilter]=useState('')
+  const items=useMemo(()=>allItems.filter(i=>!barangayFilter||i.barangay===barangayFilter),[allItems,barangayFilter])
   const [, { addRoute }] = useSavedRoutes()
   const [roadStatusMap] = useRoadStatus()
   const [trafficMap] = useTrafficStatus()
@@ -263,6 +265,7 @@ export default function Incidents({ embedded = false }) {
 
         <RecordList
           rows={items}
+          toolbarExtra={<label>Barangay <select aria-label="Filter incidents by barangay" value={barangayFilter} onChange={e=>setBarangayFilter(e.target.value)}><option value="">All barangays</option>{BARANGAYS.map(b=><option key={b}>{b}</option>)}</select></label>}
           rowLabel={(i) => i.type}
           stats={stats}
           filters={FILTERS}

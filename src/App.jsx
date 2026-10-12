@@ -86,10 +86,14 @@ export default function App() {
     <OfflineBanner />
     <AdminDataProvider>
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<ResidentFloodMap />} />
+      <Route path="/community" element={<ResidentFloodMap />} />
 
       {/* Shared authentication pages */}
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<Login key="resident" portal="resident" />} />
+      <Route path="/resident/login" element={<Login key="resident" portal="resident" />} />
+      <Route path="/admin/login" element={<Login key="admin" portal="admin" />} />
+      <Route path="/barangay/login" element={<Login key="barangay" portal="barangay" />} />
       <Route path="/register" element={<Register />} />
 
       {/* CDRRMO Administrator portal — guarded (admin/staff roles). */}
@@ -142,21 +146,27 @@ export default function App() {
         <Route path="/barangay/operations" element={<BarangayOperations />} />
       </Route>
 
-      {/* Resident portal — guarded, read-only, scoped to the resident's barangay. */}
+      <Route path="/resident/road-status" element={<ResidentRoadStatus />} />
+      <Route path="/resident/evacuation-routing" element={<ResidentEvacuationRouting />} />
+      <Route path="/resident/alerts" element={<ResidentAlerts />} />
+      <Route path="/resident/evacuation" element={<ResidentEvacuation />} />
+      <Route path="/resident/hazard-layer" element={<Navigate to="/resident/flood-map" replace />} />
+      <Route path="/resident/flood-map" element={<ResidentFloodMap />} />
+      {/* Resident accounts are needed only for personal information and submissions. */}
       <Route element={<RequireAuth group="resident" />}>
         <Route path="/resident/dashboard" element={<ResidentDashboard />} />
-        <Route path="/resident/flood-map" element={<ResidentFloodMap />} />
+
         {/* Hazard Layer was this map with three of its overlays; what was
             unique to it is the Flood Map's Hazard tab now. */}
-        <Route path="/resident/hazard-layer" element={<Navigate to="/resident/flood-map" replace />} />
-        <Route path="/resident/road-status" element={<ResidentRoadStatus />} />
+
+
         <Route path="/resident/flood-reports" element={<ResidentFloodReports />} />
-        <Route path="/resident/evacuation-routing" element={<ResidentEvacuationRouting />} />
-        <Route path="/resident/alerts" element={<ResidentAlerts />} />
-        <Route path="/resident/evacuation" element={<ResidentEvacuation />} />
+
+
+
       </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </AdminDataProvider>
     </Suspense>

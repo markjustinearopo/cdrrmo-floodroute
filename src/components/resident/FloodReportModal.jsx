@@ -1,5 +1,8 @@
+import LocationLookup from '../map/LocationLookup.jsx'
+import GeometryControls from '../map/GeometryControls.jsx'
+import { geometryFromPoints, geometryError } from '../../utils/mapGeometry.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polygon, Tooltip, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import {
   CABUYAO_CENTER,
@@ -83,13 +86,18 @@ export default function FloodReportModal({ onClose, onSubmitted }) {
   const { locate, loading: locating, error: geoError } = useGeolocation()
 
   const user = api.getUser?.()
-  const [point, setPoint] = useState(null) // [lat, lng]
+  const [points,setPoints]=useState([])
+  const [mode,setMode]=useState('point')
+  const point=points[0]||null
+  const setPoint=p=>setPoints(previous=>mode==='point'?[p]:previous.length<30&&!previous.some(x=>x[0]===p[0]&&x[1]===p[1])?[...previous,p]:previous)
+  const invalid=geometryError(points,mode)||(!points.every(p=>barangayForPoint(p[0],p[1]))?'Choose locations inside Cabuyao City.':'')
   const [level, setLevel] = useState('moderate')
   const [depth, setDepth] = useState('')
   const [description, setDescription] = useState('')
   const [photo, setPhoto] = useState(null)
   const [photoError, setPhotoError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [submitError,setSubmitError]=useState('')
   const [stamp, setStamp] = useState(formatPHT())
 
   // Live "reported at" stamp so the resident sees the time being recorded.
@@ -124,15 +132,18 @@ export default function FloodReportModal({ onClose, onSubmitted }) {
     }
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (!point || submitting) return
+    if (invalid || submitting) return
     setSubmitting(true)
-    submitFloodReport({
+    setSubmitError('')
+    try {
+    await submitFloodReport({
       userId: user?.id ?? null,
       reporter: user?.fullName || user?.username || user?.email || 'Resident',
       barangay,
       coords: point,
+      geometry: geometryFromPoints(points,mode),
       level,
       depthFt: depth === '' ? null : Number(depth),
       description: description.trim(),
@@ -140,6 +151,7 @@ export default function FloodReportModal({ onClose, onSubmitted }) {
     })
     onSubmitted?.()
     onClose?.()
+    } catch(error) { setSubmitError(error.message || 'Report could not be saved. Please try again.');setSubmitting(false) }
   }
 
   return (
@@ -169,6 +181,8 @@ export default function FloodReportModal({ onClose, onSubmitted }) {
                 {locating ? 'Locating…' : 'Use my location'}
               </button>
             </div>
+            <LocationLookup point={points[points.length-1]} onPick={setPoint}/>
+            <GeometryControls mode={mode} onMode={setMode} points={points} onPoints={setPoints}/>
             <div className="fr-map">
               <MapContainer
                 center={point || CABUYAO_CENTER}
@@ -179,8 +193,9 @@ export default function FloodReportModal({ onClose, onSubmitted }) {
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.9} />
                 <ClickToPlace onPick={setPoint} />
-                <FlyTo coords={point} />
-                {point && <Marker position={point} icon={pinIcon} />}
+                <FlyTo coords={points[points.length-1]} />
+                {mode==='area'&&points.length>=3&&<Polygon positions={points} pathOptions={{color:'#c0181b',fillOpacity:.18}}/>}
+                {points.map((p,i)=><Marker key={i} position={p} icon={pinIcon}><Tooltip permanent>{i+1}</Tooltip></Marker>)}
               </MapContainer>
               {!point && <div className="fr-map-hint">Tap the map or use your location to drop a pin</div>}
             </div>
@@ -257,9 +272,10 @@ export default function FloodReportModal({ onClose, onSubmitted }) {
 
           <div className="fr-stamp">Date &amp; time: <b>{stamp} PHT</b> · today</div>
 
+          {submitError&&<div className="fr-error" role="alert">{submitError}</div>}
           <div className="fr-actions">
             <button type="button" className="fr-btn ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="fr-btn" disabled={!point || submitting}>
+            <button type="submit" className="fr-btn" disabled={Boolean(invalid) || submitting}>
               {submitting ? 'Submitting…' : 'Submit Report'}
             </button>
           </div>

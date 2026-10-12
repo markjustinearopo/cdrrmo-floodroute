@@ -1,3 +1,7 @@
+import CoordinatorObservations from '../../components/map/CoordinatorObservations.jsx'
+import api from '../../services/api.js'
+import { useMapLayers } from '../../hooks/useMapLayers.js'
+import MapLegend from '../../components/map/MapLegend.jsx'
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, ZoomControl, CircleMarker, Tooltip, Marker, Popup, GeoJSON, useMap } from 'react-leaflet'
 import { useNavigate } from 'react-router-dom'
@@ -56,7 +60,9 @@ function MapBridge({ apiRef }) {
   const map = useMap()
   useEffect(() => {
     apiRef.current = map
-    return () => { apiRef.current = null }
+    const observer=new ResizeObserver(()=>map.invalidateSize({pan:false}))
+    observer.observe(map.getContainer())
+    return () => {observer.disconnect();apiRef.current = null}
   }, [map, apiRef])
   return null
 }
@@ -102,8 +108,9 @@ const FLOOD_LAYERS = [
 ]
 
 export default function FloodMap() {
-  const brgyLabel = residentBarangayLabel()
-  const myBrgy = getResidentBarangay()
+  const guest = api.getUser()?.role !== 'resident'
+  const brgyLabel = guest ? 'Cabuyao City' : residentBarangayLabel()
+  const myBrgy = guest ? '' : getResidentBarangay()
 
   const { weather } = useLiveWeather()
   const { field } = useFloodRisk()
@@ -146,7 +153,7 @@ export default function FloodMap() {
   const [showReport, setShowReport] = useState(false)
   // v4 adds the road-conditions layer; a new key so an existing reader gets it
   // switched ON rather than inheriting a stored object that lacks the field.
-  const [layers, setLayers] = usePersistedState('cdrrmo-layers-res-floodmap-v4', { noah: true, floodAreas: true, reports: true, inundation: true, barangays: true, evac: true, roads: true })
+  const [layers, setLayers] = useMapLayers('cdrrmo-layers-resident-panel-v1', { noah: true, floodAreas: false, reports: false, inundation: false, barangays: false, evac: true, roads: true })
   const [intensity, setIntensity] = usePersistedState('cdrrmo-layers-res-floodmap-intensity', 70)
 
   /* ── Modern GIS chrome: search, dark mode, FABs, skeleton, emergency ── */
@@ -221,7 +228,8 @@ export default function FloodMap() {
       lng: c.coords[1],
       zoom: 17,
     })
-  }, [])
+    navigate('/resident/evacuation-routing', { state: { destId: c.id } })
+  }, [navigate])
 
   // Show permanent barangay name labels once the camera is close enough.
   const showBrgyLabels = (coords?.zoom ?? CABUYAO_ZOOM) >= 14
@@ -281,13 +289,13 @@ export default function FloodMap() {
           <button
             type="button"
             className="report-flood-btn"
-            onClick={() => setShowReport(true)}
+            onClick={() => guest ? navigate('/login') : setShowReport(true)}
           >
             <ReportIcon />
             Report Flood Status
           </button>
-          <span className={`risk-badge ${officialStatus.source === 'alert' ? officialStatus.tone : myLevel}`} style={{ alignSelf: 'center' }}>
-            Brgy. {brgyLabel}: {officialStatus.source === 'alert' || (safetyReady && field?.meta?.live) ? riskLabel[officialStatus.source === 'alert' ? officialStatus.level : myLevel] : 'Conditions unverified'}
+          <span className={`risk-badge ${officialStatus.source === 'alert' ? officialStatus.tone : safetyReady && field?.meta?.live ? myLevel : 'unknown'}`} style={{ alignSelf: 'center' }}>
+            {guest ? 'City status' : `Brgy. ${brgyLabel}`}: {officialStatus.source === 'alert' || (safetyReady && field?.meta?.live) ? riskLabel[officialStatus.source === 'alert' ? officialStatus.level : myLevel] : 'Conditions unverified'}
           </span>
         </div>
 
@@ -364,7 +372,7 @@ export default function FloodMap() {
                   The occupancy line matters most to the person deciding where
                   to go: a centre marked FULL will turn them away at the gate. */}
               {layers.evac && evacMarkers.map((c) => (
-                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacPinIcon(c.status)}>
+                <Marker key={`evac-${c.id}`} position={c.coords} icon={evacPinIcon(c.status==='open'&&c.capacity>0&&(c.occupancy||0)>=c.capacity?'full':c.status)}>
                   <Popup>
                     <strong>{c.name}</strong>
                     <div style={{ fontSize: '0.6875rem', color: '#7a7a7a' }}>
@@ -387,7 +395,7 @@ export default function FloodMap() {
 
               {/* Searched location: smooth flyTo + pin + glow highlight + popup */}
               {/* The exact closed stretch — never the whole road. */}
-              <RoadBlocksLayer blocks={roadBlocks} audience="resident" />
+              {layers.roads && <RoadBlocksLayer blocks={roadBlocks} audience="resident" />}
               <SearchResultLayer result={searchResult} barangays={barangays} />
 
               {/* Live "you are here" from the My Location FAB */}
@@ -437,16 +445,19 @@ export default function FloodMap() {
                 controlsRef.current?.scrollIntoView({ block: 'nearest' })
               }}
               layersOn={showLayers}
-              onReport={() => setShowReport(true)}
+              onReport={() => guest ? navigate('/login') : setShowReport(true)}
               dark={dark}
               onToggleDark={() => setDark((v) => !v)}
               onReset={handleReset}
             />
+            <MapLegend layers={layers} />
             <MapStatusLine updated={updated} coords={coords} />
           </div>
 
           <div className="right-panel">
             <div className="resident-map-controls" ref={controlsRef}>
+              <p className="map-first-help">View hazards, find an open shelter, or check road closures. No login needed. Choose up to 3 layers.</p>
+              <button type="button" className="resident-evac-action" onClick={() => navigate('/resident/evacuation-routing')}>Find an evacuation route</button>
               <EmergencyPanel
                 evacCenters={evacuationCenters}
                 origin={emergencyOrigin}
@@ -487,6 +498,7 @@ export default function FloodMap() {
             </div>
 
             <div className="panel-content">
+              <CoordinatorObservations areas={floodAreas}/>
               {panelTab === 'Overview' && (
                 <OverviewTab
                   stats={{ evacCounts, roadSummary }}

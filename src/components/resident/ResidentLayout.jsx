@@ -6,7 +6,7 @@ import ConfirmDialog from '../ConfirmDialog.jsx'
 import { Avatar } from '../Avatar.jsx'
 import { residentBarangayLabel } from '../../data/resident.js'
 import { getOfficialBarangay } from '../../data/barangay.js'
-import { authApi } from '../../services/api.js'
+import api, { authApi } from '../../services/api.js'
 import { useLiveWeather, formatRain, formatWind } from '../../services/weather.js'
 import { useFloodRisk } from '../admin/floodRisk.js'
 import { floodStatus, floodBannerText } from '../../services/floodBanner.js'
@@ -63,6 +63,10 @@ import DataHealthNotice from '../DataHealthNotice.jsx'
 
 export default function ResidentLayout({ children, mainClassName = '' }) {
   const navigate = useNavigate()
+  const guest = api.getUser()?.role !== 'resident'
+  const { users } = useAdminData()
+  const account = users.find((u) => String(u.id) === String(api.getUser()?.id))
+  const restricted = account?.status && account.status !== 'active'
   const t = useT()
   const { weather } = useLiveWeather()
   const [clock, setClock] = useState('--:-- PHT')
@@ -84,7 +88,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
   }, [navOpen])
 
   const brgyLabel = residentBarangayLabel()
-  const myBrgy = getOfficialBarangay()
+  const myBrgy = guest ? '' : getOfficialBarangay()
 
   // Flood status for the resident's own barangay. An alert CDRRMO issued for it
   // outranks the model — see services/floodBanner.js for why that matters.
@@ -137,7 +141,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
   return (
     <>
       {/* Residents are who an evacuation order is actually for. */}
-      <EmergencyAlert />
+      {!guest && <EmergencyAlert />}
 
       {/* ── Alert banner ── */}
       <div className={`alert-banner lvl-${level}`}>
@@ -147,7 +151,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
         <span className="lbl">{elevated ? 'Flood Alert Active:' : 'Flood Status:'}</span>
-        <span>{floodBannerText(status, { barangay: brgyLabel, audience: 'resident' })}</span>
+        <span>{floodBannerText(status, { barangay: guest ? '' : brgyLabel, audience: 'resident' })}</span>
       </div>
 
       {/* ── Topbar ── */}
@@ -158,7 +162,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
           </div>
           <div className="logo-text">
             <strong>CDRRMO FloodRoute</strong>
-            <span>Resident · Brgy. {brgyLabel}</span>
+            <span>{guest ? 'Community · Cabuyao City' : `Resident · Brgy. ${brgyLabel}`}</span>
           </div>
         </div>
 
@@ -191,6 +195,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
             Wind: <b>{formatWind(weather.current.windKmh)}</b>
           </div>
           <div className="time-chip">{clock}</div>
+          {guest ? <a className="nav-item" href="/login">Resident login</a> : <>
           <button
             type="button"
             className={`icon-btn ${menu === 'notif' ? 'active' : ''}`}
@@ -226,7 +231,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
             }}
           >
             <Avatar initials="RS" />
-          </button>
+          </button></>}
         </div>
       </div>
 
@@ -261,32 +266,32 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
               {group.items.map(({ label, to, icon: Icon }) => (
                 <NavLink
                   key={label}
-                  to={to}
+                  to={guest && to === '/resident/dashboard' ? '/' : to}
                   className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                   onClick={() => setNavOpen(false)}
                 >
                   <Icon />
-                  {t(label)}
+                  {guest && label === 'Dashboard' ? 'Community Map' : t(label)}
                 </NavLink>
               ))}
             </div>
           ))}
 
           <div className="signout">
-            <a className="nav-item" href="/login" onClick={handleSignout}>
+            <a className="nav-item" href="/login" onClick={guest ? undefined : handleSignout}>
               <svg viewBox="0 0 24 24">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Signout
+              {guest ? 'Resident login' : 'Signout'}
             </a>
           </div>
         </aside>
 
         {/* `main--restabs` reserves the height the bottom tab bar occupies, so
             content is never parked underneath it (see residentTabBar.css). */}
-        <main className={`main ${mainClassName} main--restabs`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">My Safety Info</h1><DataHealthNotice />{children}</main>
+        <main className={`main ${mainClassName} main--restabs`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">My Safety Info</h1><DataHealthNotice />{restricted && <div className="account-status-notice" role="status">Your account is {account.status}. Contact your barangay or CDRRMO to restore account access. Community maps and evacuation information remain available.</div>}{children}</main>
       </div>
 
       <ResidentTabBar />

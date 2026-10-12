@@ -1,3 +1,5 @@
+import { Fragment } from 'react'
+import { pointsFromGeometry } from '../../utils/mapGeometry.js'
 /* ============================================================
    FloodAreasLayer — the shared Leaflet overlay for the city's
    documented flood-prone areas (depth in metres).
@@ -12,7 +14,7 @@
    was recorded under, and the CDRRMO note.
    ============================================================ */
 
-import { Marker, Tooltip, Popup } from 'react-leaflet'
+import { Marker, Tooltip, Popup, Polygon } from 'react-leaflet'
 import {
   FLOOD_SEVERITY_META,
   FLOOD_TYPE_LABEL,
@@ -65,6 +67,8 @@ export function FloodAreaPopup({ area, onEdit }) {
       {area.sourceStorms && (
         <div className="fa-popup-row"><b>Recorded under:</b> {area.sourceStorms}</div>
       )}
+      {area.observation && <div className="fa-popup-row"><b>Coordinator observation:</b> {area.observation}{area.observedAt ? ' · '+nowLabel(area.observedAt) : ' · time not recorded'}{!area.observedAt || Date.now()-area.observedAt>=3600000 ? ' · needs recheck' : ' · reported within the last hour'}. This does not predict clearance.</div>}
+      {area.expectedClearAt&&<div className="fa-popup-row"><b>Coordinator estimate:</b> {nowLabel(area.expectedClearAt)} PHT · {area.expectedClearAt>Date.now()&&area.expectedClearAt-Date.now()<=3600000?'within one hour — estimate only':'needs confirmation'}. Official warnings remain in force.</div>}
       {area.notes && <div className="fa-popup-notes">{area.notes}</div>}
       <div className="fa-popup-foot">
         {area.reportedBy || 'CDRRMO'}{area.updatedAt ? ` · ${nowLabel(area.updatedAt)}` : ''}
@@ -92,10 +96,13 @@ export function FloodAreaMarkers({ areas = [], only = null, onSelect, interactiv
     .map((a) => {
       const sev = floodSeverity(a)
       const meta = FLOOD_SEVERITY_META[sev]
+      const points=pointsFromGeometry(a.geometry,a.coords)
       return (
-        <Marker
-          key={a.id}
-          position={a.coords}
+        <Fragment key={a.id}>
+        {a.geometry?.type==='Polygon'&&points.length>=3&&<Polygon positions={points} pathOptions={{color:meta.color,fillOpacity:.18}}>{interactive&&<Popup><FloodAreaPopup area={a} onEdit={onSelect}/></Popup>}</Polygon>}
+        {points.map((point,index)=><Marker
+          key={`${a.id}-${index}`}
+          position={point}
           icon={pinIcon({
             color: meta.color,
             glyph: a.type === 'flash_flood' ? 'alert' : 'drop',
@@ -112,7 +119,8 @@ export function FloodAreaMarkers({ areas = [], only = null, onSelect, interactiv
               <FloodAreaPopup area={a} onEdit={onSelect} />
             </Popup>
           )}
-        </Marker>
+        </Marker>)}
+        </Fragment>
       )
     })
 }

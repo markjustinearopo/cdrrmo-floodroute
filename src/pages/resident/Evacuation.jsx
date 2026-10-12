@@ -1,3 +1,4 @@
+import { usableShelters } from '../../data/shelters.js'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
@@ -48,7 +49,7 @@ export default function Evacuation() {
     const q = query.trim().toLowerCase()
     return centers
       .filter((c) => {
-        if (filter === 'open' && c.status !== 'open') return false
+        if (filter === 'open' && !usableShelters([c]).length) return false
         if (filter === 'mine' && c.barangay !== myBrgy) return false
         if (q && !(`${c.name} ${c.barangay}`.toLowerCase().includes(q))) return false
         return true
@@ -149,9 +150,9 @@ export default function Evacuation() {
                   </div>
                   <div className="res-shelter-foot">
                     <span className="res-shelter-meta">{capacity ? `${Math.max(capacity - occupancy, 0).toLocaleString()} spaces left` : 'Capacity —'}</span>
-                    <button type="button" className="res-dir-btn" onClick={() => navigate('/resident/evacuation-routing', { state: { destId: c.id } })}>
+                    <button type="button" className="res-dir-btn" disabled={!usableShelters([c]).length} onClick={() => navigate('/resident/evacuation-routing', { state: { destId: c.id } })}>
                       <svg viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
-                      Directions
+                      {usableShelters([c]).length ? 'Directions' : 'Not accepting'}
                     </button>
                   </div>
                 </div>

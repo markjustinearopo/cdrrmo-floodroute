@@ -1,3 +1,7 @@
+import { inDateRange } from '../../utils/mapGeometry.js'
+import {riskDistanceByBarangay} from '../../utils/riskDistance.js'
+import {getGraph} from '../../components/admin/routeEngine.js'
+import {buildBlockIndex} from '../../components/admin/roadBlocks.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
@@ -12,7 +16,7 @@ import { levelFromDepth } from '../../components/admin/mapHelpers.jsx'
 import { useFloodRisk, barangayRiskSamples } from '../../components/admin/floodRisk.js'
 import { getCabuyaoRoads, useRoadStatus } from '../../components/admin/routingHelpers.jsx'
 import {
-  useFloodAreas, useEvacCenters, useAlerts, useIncidents, useRoadReports, nowLabel,
+  useRoadBlocks, useFloodAreas, useEvacCenters, useAlerts, useIncidents, useRoadReports, nowLabel,
 } from '../../context/AdminDataContext.jsx'
 import { barangayAt } from '../../data/cabuyaoBarangays.js'
 import { depthMeters, formatMeters } from '../../services/depth.js'
@@ -48,6 +52,8 @@ export default function Reports() {
   const { roadReports } = useRoadReports()
   const [roadStatus] = useRoadStatus()
   const roadNetwork = useMemo(() => getCabuyaoRoads(), [])
+  const {roadBlocks}=useRoadBlocks()
+  const riskDistance=useMemo(()=>{const graph=getGraph(roadNetwork);return riskDistanceByBarangay(graph,roadStatus,buildBlockIndex(graph,roadBlocks),barangayAt)},[roadNetwork,roadStatus,roadBlocks])
   const samples = useMemo(() => barangayRiskSamples(field), [field])
 
   /* The spec IS the report. A SITREP link always starts from the standard
@@ -196,7 +202,7 @@ export default function Reports() {
     [scopeKey], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
-  const fAreas = useMemo(() => floodAreas.filter((a) => inScope(a.barangay)), [floodAreas, inScope])
+  const fAreas = useMemo(() => floodAreas.filter((a) => inScope(a.barangay) && inDateRange(a.observedAt, spec.observationFrom, spec.observationTo)), [floodAreas, inScope, spec.observationFrom, spec.observationTo])
   const evac = useMemo(() => evacuationCenters.filter((c) => inScope(c.barangay)), [evacuationCenters, inScope])
   const activeAlerts = useMemo(
     () => alerts.filter((a) => a.status === 'active' && (scope.length === 0 || inScope(a.barangay) || a.barangay === 'All')),
@@ -236,7 +242,7 @@ export default function Reports() {
         }
       })
       .filter(Boolean)
-      .filter((r) => scope.length === 0 || !r.barangay || scope.includes(r.barangay))
+      .filter((r) => scope.length === 0 || !r.barangay || scope.includes(r.barangay) || r.latlngs.some((p,i)=>i>0&&scope.includes(barangayAt((r.latlngs[i-1][0]+p[0])/2,(r.latlngs[i-1][1]+p[1])/2))))
   }, [roadNetwork, roadStatus, roadReports, scopeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Everything the document needs, in one bundle ─────────────────────── */
@@ -258,6 +264,7 @@ export default function Reports() {
 
     return {
       generatedAt,
+      observationPeriod: spec.observationFrom || spec.observationTo ? (spec.observationFrom||'Any date')+' through '+(spec.observationTo||'Today')+' (PHT); flood observations only. Current road/model data are a snapshot.' : 'All dated and undated flood-area observations; current road/model snapshot.',
       scopeLabel: scope.length === 0
         ? 'City-wide — all 18 barangays'
         : `${scope.length} barangay${scope.length > 1 ? 's' : ''}: ${scope.join(', ')}`,
@@ -269,6 +276,7 @@ export default function Reports() {
       samples: scopedSamples.map((b) => ({
         ...b,
         areaCount: areaBy[b.name] || 0,
+        flaggedRoadKm: riskDistance[b.name] || 0,
         roadCount: roadBy[b.name] || 0,
         evacCount: evacBy[b.name] || 0,
       })),
@@ -286,7 +294,7 @@ export default function Reports() {
         deepest: deepestLabel,
       },
     }
-  }, [fAreas, evac, activeAlerts, openIncidents, roadLines, scopedSamples, generatedAt, scopeKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fAreas, evac, activeAlerts, openIncidents, roadLines, scopedSamples, generatedAt, scopeKey, spec.observationFrom, spec.observationTo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeCount = spec.blocks.filter((b) => b.on).length
   const sheetWidth = sheetPx(spec.page).totalPx

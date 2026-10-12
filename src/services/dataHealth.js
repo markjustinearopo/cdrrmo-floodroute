@@ -8,9 +8,9 @@ export function safetyDataReady(health, now = Date.now()) {
 
 export function collectionNamesForRole(role, allNames) {
   if (role === 'admin' || role === 'staff') return allNames
-  const publicNames = [...SAFETY_COLLECTIONS, 'savedRoutes', 'floodAreas']
+  const publicNames = [...SAFETY_COLLECTIONS, 'savedRoutes', 'floodAreas', 'floodReports']
   if (!role) return publicNames
-  const ownNames = [...publicNames, 'floodReports', 'rescueRequests', 'users', 'notifications', 'barangayAssignments']
+  const ownNames = [...publicNames, 'rescueRequests', 'users', 'notifications', 'barangayAssignments']
   return role === 'barangay' ? [...ownNames, 'incidents', 'roadChangeRequests'] : ownNames
 }
 

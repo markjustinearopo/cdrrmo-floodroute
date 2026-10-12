@@ -63,6 +63,14 @@ export function useRescueTrigger() {
     if (inFlight.current) return null
     inFlight.current = true
     const user = api.getUser?.() || null
+    if (!user) {
+      setAlert({location:{coords:origin||null,accuracyM:null,barangay:'',label:'Your selected location'},evidence:verdict?.evidence||{roads:[],maxDepthM:0},summary:describeBlockage(verdict?.evidence||{roads:[],maxDepthM:0})})
+      setRequest(null)
+      setFiling(false)
+      setLocalError('No rescue request was sent. Call CDRRMO or use the resident login to submit an identified request.')
+      inFlight.current=false
+      return null
+    }
     const barangay = getResidentBarangay() || user?.barangay || ''
     const evidence = verdict?.evidence || { roads: [], maxDepthM: 0 }
     const summary = describeBlockage(evidence)

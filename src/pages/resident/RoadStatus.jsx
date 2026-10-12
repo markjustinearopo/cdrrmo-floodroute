@@ -1,3 +1,4 @@
+import MapLegend from '../../components/map/MapLegend.jsx'
 import { useMemo, useState } from 'react'
 import { MapContainer, TileLayer, ZoomControl } from 'react-leaflet'
 import ResidentLayout from '../../components/resident/ResidentLayout.jsx'
@@ -173,6 +174,7 @@ export default function RoadStatus() {
             {/* 2D only — the result layer draws through Leaflet. */}
             {!use3D && <MapSearchBar localIndex={localIndex} onSelect={setSearchResult} />}
 
+            <MapLegend layers={{roads:true}}/>
             <div className="rs-coords">
               {coords
                 ? `${coords.lat.toFixed(4)} N, ${coords.lng.toFixed(4)} E | Zoom: ${coords.zoom}`

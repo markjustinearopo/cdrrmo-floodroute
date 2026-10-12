@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker } from 'react-leaflet'
+import { inDateRange, pointsFromGeometry } from '../../utils/mapGeometry.js'
+import { useEffect, useMemo, useState } from 'react'
+import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip, useMap } from 'react-leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import RecordList from '../../components/admin/RecordList.jsx'
@@ -53,6 +54,7 @@ function nearestWay(coords) {
     const d = haversineMeters(coords, [e.mlat, e.mlng])
     if (d < bestD) { bestD = d; best = e }
   }
+  if (bestD > 60) return null
   const info = graph.wayInfo.get(best.wayId)
   return { wayId: best.wayId, name: info?.name || '' }
 }
@@ -61,6 +63,8 @@ export default function FloodReports() {
   const { floodReports, verifyFloodReport, updateFloodReport, removeFloodReport } = useFloodReports()
   const { reportRoad } = useRoadReports()
 
+  const [from,setFrom]=useState('')
+  const [to,setTo]=useState('')
   const [detailId, setDetailId] = useState(null)
   const [notesDraft, setNotesDraft] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null) // report pending deletion
@@ -90,26 +94,13 @@ export default function FloodReports() {
   function approve(report) {
     verifyFloodReport(report.id, 'approved', { verifiedBy: official, officialNotes: notesDraft.trim() })
 
-    // Routing hand-off: a verified Severe/Impassable report flags the nearest
-    // road (flooded/closed) so the flood-aware route planner steers around it.
-    const painted = roadStatusForLevel(report.level)
-    if (painted && Array.isArray(report.coords)) {
-      const way = nearestWay(report.coords)
-      if (way?.wayId != null) {
-        reportRoad({
-          wayId: way.wayId,
-          name: way.name || `Near Brgy. ${report.barangay}`,
-          barangay: report.barangay,
-          status: painted === 'blocked' ? 'closed' : 'caution',
-          depthFt: report.depthFt,
-          reason: `Verified flood report — ${floodLevelMeta(report.level).label}`,
-          reportedBy: official,
-        })
-        setDetailId(null)
-        flash(`Approved — published to map and flagged ${way.name || 'the nearest road'} for routing.`)
-        return
-      }
+    const painted=roadStatusForLevel(report.level)
+    const ways=new Map()
+    if(painted) for(const point of pointsFromGeometry(report.geometry,report.coords)) {
+      const way=nearestWay(point)
+      if(way?.wayId!=null) ways.set(way.wayId,{...way,barangay:report.barangay})
     }
+    for(const way of ways.values()) reportRoad({wayId:way.wayId,name:way.name||'Reported flood location',barangay:way.barangay,status:painted==='blocked'?'closed':'caution',depthFt:report.depthFt,reason:'Verified flood report — '+floodLevelMeta(report.level).label,reportedBy:official})
     setDetailId(null)
     flash('Approved — now visible on the public flood map.')
   }
@@ -159,6 +150,7 @@ export default function FloodReports() {
         )
       },
     },
+    { key: 'points', header:'Plot',render:r=>`${pointsFromGeometry(r.geometry,r.coords).length} point(s)${r.geometry?.type==='Polygon'?' · boundary':''}` },
     { key: 'barangay', header: 'Barangay', render: (r) => r.barangay || '—' },
     { key: 'reporter', header: 'Reported By', className: 'mng-muted', render: (r) => r.reporter || 'Resident' },
     { key: 'reported', header: 'Reported', className: 'mng-muted mng-num', render: (r) => r.reported },
@@ -190,9 +182,10 @@ export default function FloodReports() {
         </div>
 
         <RecordList
-          rows={floodReports}
+          rows={floodReports.filter(r=>inDateRange(r.reportedAt,from,to))}
           rowLabel={(r) => `${floodLevelMeta(r.level).label} report`}
           stats={stats}
+          toolbarExtra={<div className="report-date-filter"><label>From<input type="date" value={from} max={to||undefined} onChange={e=>setFrom(e.target.value)}/></label><label>Through<input type="date" value={to} min={from||undefined} onChange={e=>setTo(e.target.value)}/></label><button type="button" className="mng-btn mng-btn-ghost" onClick={()=>{setFrom('');setTo('')}}>Clear dates</button></div>}
           filters={FILTERS}
           searchKeys={(r) => `${FLOOD_LEVEL_META[r.level]?.label} ${r.barangay} ${r.reporter} ${r.description}`}
           searchPlaceholder="Search level, barangay, reporter or description…"
@@ -253,11 +246,10 @@ export default function FloodReports() {
                     style={{ width: '100%', height: '100%' }}
                   >
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.9} />
-                    <CircleMarker
-                      center={detail.coords}
-                      radius={9}
-                      pathOptions={{ color: '#fff', weight: 2, fillColor: floodLevelMeta(detail.level).color, fillOpacity: 0.95 }}
-                    />
+                    <FitReportGeometry points={pointsFromGeometry(detail.geometry,detail.coords)}/>
+                    {detail.geometry?.type==='Polygon'&&<Polygon positions={pointsFromGeometry(detail.geometry,detail.coords)} pathOptions={{color:floodLevelMeta(detail.level).color,fillOpacity:.2}}/>}
+                    {pointsFromGeometry(detail.geometry,detail.coords).map((point,index)=><CircleMarker key={index} center={point} radius={7} pathOptions={{color:'#fff',weight:2,fillColor:floodLevelMeta(detail.level).color,fillOpacity:.95}}><Tooltip permanent>{index+1}</Tooltip></CircleMarker>)}
+
                   </MapContainer>
                 </div>
               )}
@@ -265,6 +257,7 @@ export default function FloodReports() {
                 {Array.isArray(detail.coords) ? `${detail.coords[0].toFixed(5)}, ${detail.coords[1].toFixed(5)}` : 'No coordinates recorded'}
               </div>
 
+              {pointsFromGeometry(detail.geometry,detail.coords).length>1&&<div className="mng-muted" style={{fontSize:'0.72rem'}}>Affected locations: {pointsFromGeometry(detail.geometry,detail.coords).map((p,i)=>'#'+(i+1)+' '+p[0].toFixed(5)+', '+p[1].toFixed(5)).join(' · ')}</div>}
               {detail.description && <div className="mng-detail-notes">{detail.description}</div>}
 
               {detail.photo && (
@@ -353,3 +346,5 @@ function CameraIcon() {
     <svg className="mng-cam" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
   )
 }
+
+function FitReportGeometry({points}) {const map=useMap();const key=JSON.stringify(points);useEffect(()=>{if(points.length)map.fitBounds(points,{padding:[24,24],maxZoom:17})},[map,key]);return null}

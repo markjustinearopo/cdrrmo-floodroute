@@ -27,7 +27,7 @@ export default function EmergencyPanel({ evacCenters = [], origin, originLabel, 
      overflow — but it is ranked below every shelter that can actually take
      them, and it says so. */
   const nearest = useMemo(() => {
-    if (!origin) return []
+
     const withDistance = evacCenters
       .filter((c) => Array.isArray(c.coords) && c.status !== 'closed')
       .map((c) => {
@@ -36,7 +36,7 @@ export default function EmergencyPanel({ evacCenters = [], origin, originLabel, 
         const slots = capacity ? Math.max(0, capacity - occupancy) : null
         return {
           ...c,
-          km: haversineKm(origin, { lat: c.coords[0], lng: c.coords[1] }),
+          km: origin ? haversineKm(origin, { lat: c.coords[0], lng: c.coords[1] }) : null,
           slots,
           accepting: c.status !== 'full' && (capacity === 0 || occupancy < capacity),
         }
@@ -62,9 +62,10 @@ export default function EmergencyPanel({ evacCenters = [], origin, originLabel, 
         <div className="emg-body">
           <div className="emg-sec">
             <div className="emg-sec-title">
-              Nearest evacuation centres
-              {originLabel && <small> · from {originLabel}</small>}
+              {origin ? 'Nearby shelters · straight-line distance' : 'Open evacuation centres'}
+              {origin && originLabel && <small> · from {originLabel}</small>}
             </div>
+            {!origin&&<div className="emg-empty">Choose a centre, then enter your starting location for directions.</div>}
             {nearest.length === 0 && (
               <div className="emg-empty">No open evacuation centre found. Call the hotline below.</div>
             )}
@@ -73,7 +74,9 @@ export default function EmergencyPanel({ evacCenters = [], origin, originLabel, 
                 type="button"
                 key={c.id}
                 className={`emg-row ${c.accepting ? '' : 'emg-row--full'}`}
+                disabled={!c.accepting}
                 onClick={() => onGoto?.(c)}
+                title={c.accepting?'Get directions to '+c.name:'Full — choose another shelter'}
               >
                 <span className="emg-row-dot" data-status={c.accepting ? 'open' : 'full'} />
                 <span className="emg-row-txt">
@@ -85,7 +88,7 @@ export default function EmergencyPanel({ evacCenters = [], origin, originLabel, 
                       : ' · FULL — not accepting'}
                   </small>
                 </span>
-                <span className="emg-row-km">{c.km < 1 ? `${Math.round(c.km * 1000)} m` : `${c.km.toFixed(1)} km`}</span>
+                <span className="emg-row-km" title="Straight-line distance, not walking distance">{c.km == null ? 'Directions' : c.km < 1 ? `${Math.round(c.km * 1000)} m` : `${c.km.toFixed(1)} km`}</span>
               </button>
             ))}
           </div>

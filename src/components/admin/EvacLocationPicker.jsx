@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import LocationLookup from '../map/LocationLookup.jsx'
 /* ============================================================
    EvacLocationPicker — "drop the pin" map for an evacuation centre.
 
@@ -12,7 +14,7 @@
    ============================================================ */
 
 import { useState } from 'react'
-import { MapContainer, TileLayer, ZoomControl, Marker } from 'react-leaflet'
+import { MapContainer, TileLayer, ZoomControl, Marker, useMap } from 'react-leaflet'
 import { CABUYAO_CENTER, CABUYAO_ZOOM, CabuyaoLock, CoordReadout } from './mapHelpers.jsx'
 import { ClickToAddWaypoint } from './routingHelpers.jsx'
 import { pinIcon, PIN_SIZE } from '../map/pinIcons.js'
@@ -30,10 +32,13 @@ export function evacPinIcon(status = 'open') {
  * @param {(latlng:[number,number]) => void} onChange  called on map click
  * @param {string} status  centre status, tints the pin
  */
+function FlyToLocation({point}) {const map=useMap();useEffect(()=>{if(point)map.setView(point,Math.max(map.getZoom(),16))},[point,map]);return null}
 export default function EvacLocationPicker({ value, onChange, status = 'open' }) {
   const [coords, setCoords] = useState(null)
 
   return (
+    <div>
+    <LocationLookup point={value} onPick={onChange}/>
     <div className="evac-picker">
       <MapContainer
         center={value || CABUYAO_CENTER}
@@ -45,6 +50,7 @@ export default function EvacLocationPicker({ value, onChange, status = 'open' })
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" opacity={0.9} />
         <ZoomControl position="bottomright" />
         <CabuyaoLock />
+        <FlyToLocation point={value}/>
         <ClickToAddWaypoint onAdd={onChange} />
         {value && <Marker position={value} icon={evacPinIcon(status)} />}
         <CoordReadout onChange={setCoords} />
@@ -64,6 +70,7 @@ export default function EvacLocationPicker({ value, onChange, status = 'open' })
             ? `${coords.lat.toFixed(4)} N, ${coords.lng.toFixed(4)} E`
             : 'No location set'}
       </div>
+    </div>
     </div>
   )
 }

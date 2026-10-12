@@ -97,6 +97,7 @@ export default function ReportDocument({
           )}
         </div>
 
+        <p className="rd-observation-period">{data.observationPeriod}</p>
         <MetaTable spec={spec} data={data} editing={editing} onMetaChange={onMetaChange} />
 
         {visible.map((b) => (
@@ -206,6 +207,7 @@ function Block({ block, number, spec, data, editing, onBlockChange, onOptsChange
       {type === 'signatories' && <Signatories opts={opts} editing={editing}
         onOptsChange={(p) => onOptsChange(block.id, p)} />}
 
+      {type==='barangays' && <p className="rd-observation-period">Flagged road length counts mapped closed/flooded segments, including partial closures, once per segment and assigns them by midpoint barangay. It is distance along the road, not a flood radius or a travel-safety guarantee.</p>}
       {rows && (
         <>
           <DataTable type={type} rows={rows} opts={opts} />
@@ -443,6 +445,7 @@ function cell(type, key, r) {
       case 'name': return <span className="rd-strong">{r.name}</span>
       case 'level': return <Tag tone={r.level}>{RISK_META[r.level].label}</Tag>
       case 'depth': return <span className="rd-fig">{r.floodDepth.toFixed(2)} m</span>
+      case 'riskDistance': return Number(r.flaggedRoadKm||0).toFixed(2)
       case 'areas': return r.areaCount
       case 'roads': return r.roadCount
       case 'evac': return r.evacCount

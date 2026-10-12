@@ -31,7 +31,7 @@ export default function RequireAuth({ group }) {
      request actually succeeds against Postgres is decided server-side by RLS
      (see supabase/PENDING_MIGRATIONS.sql, 2026-08-30 section) — this guard is
      only ever a client-side routing convenience, never enforcement. */
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to={group === 'admin' ? '/admin/login' : group === 'barangay' ? '/barangay/login' : '/login'} replace />
 
   const userGroup = ROLE_GROUP[user.role]
   if (!userGroup) return <Navigate to="/login" replace />

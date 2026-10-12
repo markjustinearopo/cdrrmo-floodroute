@@ -506,26 +506,18 @@ export function AdminDataProvider({ children }) {
      public map until an official approves it. Approve/reject/notes go through
      verifyFloodReport and every step is appended to the report's history (the
      flood_report_logs trail), mirroring the incidents timeline. */
-  const submitFloodReport = useCallback((report) => {
-    const now = Date.now()
-    const saved = {
-      id: `tmp-${now}`,
-      status: 'pending',
-      reported: nowLabel(now),
-      reportedAt: now,
-      history: [{ time: nowLabel(now), label: 'Report submitted · awaiting verification', note: '' }],
-      ...report,
+  const submitFloodReport = useCallback(async (report) => {
+    let saved
+    try { saved = await db.floodReports.create(report) }
+    catch (error) {
+      setSaveError({collection:'floodReports',message:error.message||'Report could not be saved.',at:Date.now()})
+      throw error
     }
-    optimistic('floodReports', [saved, ...stateRef.current.floodReports])
-    notify(
-      saved.level === 'severe' || saved.level === 'impassable' ? 'high' : 'moderate',
-      'Flood report submitted',
-      `${FLOOD_LEVEL_LABEL[saved.level] || saved.level} — ${saved.barangay || 'Cabuyao City'}`
-        + `${saved.reporter ? ` (by ${saved.reporter})` : ''} · awaiting verification`,
-    )
-    persist('floodReports', () => db.floodReports.create(report))
+    optimistic('floodReports',[saved,...stateRef.current.floodReports])
+    setSaveError(error=>error?.collection==='floodReports'?null:error)
+    notify(saved.level==='severe'||saved.level==='impassable'?'high':'moderate','Flood report submitted', (saved.barangay||'Cabuyao City')+' · awaiting verification')
     return saved
-  }, [optimistic, persist, notify])
+  }, [optimistic,notify])
 
   /**
    * Official verification decision. `decision` is one of:

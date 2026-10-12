@@ -223,6 +223,11 @@ function CoverageTab({ spec, onChange, onMetaListChange, onMetaChange }) {
         )}
       </Group>
 
+      <Group label="Observation dates" hint="Filters flood-area observations only. Undated records are excluded when dates are selected; current road and model data remain a snapshot.">
+        <label>From<input type="date" value={spec.observationFrom||''} max={spec.observationTo||undefined} onChange={e=>onChange({observationFrom:e.target.value})}/></label>
+        <label>Through<input type="date" value={spec.observationTo||''} min={spec.observationFrom||undefined} onChange={e=>onChange({observationTo:e.target.value})}/></label>
+        <button type="button" className="rb-link" onClick={()=>onChange({observationFrom:'',observationTo:''})}>Clear dates</button>
+      </Group>
       <Group
         label="Reference block"
         hint="The bordered details under the title. Switch rows off, rename them, or add your own — the values are typed on the page."

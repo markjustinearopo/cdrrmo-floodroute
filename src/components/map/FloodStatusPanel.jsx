@@ -1,3 +1,5 @@
+import { useFloodRisk } from '../admin/floodRisk.js'
+import { useAdminData } from '../../context/AdminDataContext.jsx'
 /* ============================================================
    Live flood status panel — the per-area monitoring dashboard.
 
@@ -21,7 +23,7 @@ import { formatPHT } from '../admin/mapHelpers.jsx'
 import './mapUpgrade.css'
 
 const BAND = {
-  safe: { label: 'Safe', tone: 'green' },
+  safe: { label: 'Low depth', tone: 'green' },
   warning: { label: 'Warning', tone: 'yellow' },
   critical: { label: 'Critical', tone: 'red' },
 }
@@ -34,6 +36,9 @@ export function statusBand(level) {
 }
 
 export default function FloodStatusPanel({ barangays = [], roadReports = [], myBrgy }) {
+  const {field}=useFloodRisk()
+  const {safetyReady}=useAdminData()
+  const verified=safetyReady&&field?.meta?.live
   const [updated, setUpdated] = useState(formatPHT())
 
   // Heartbeat: re-stamp when the live field lands a new snapshot.
@@ -71,20 +76,20 @@ export default function FloodStatusPanel({ barangays = [], roadReports = [], myB
       </div>
 
       <div className="fsp-chips">
-        <span className="fsp-chip fsp-chip--red">{counts.critical} Critical</span>
-        <span className="fsp-chip fsp-chip--yellow">{counts.warning} Warning</span>
-        <span className="fsp-chip fsp-chip--green">{counts.safe} Safe</span>
+        <span className="fsp-chip fsp-chip--red">{verified?counts.critical:'—'} Critical</span>
+        <span className="fsp-chip fsp-chip--yellow">{verified?counts.warning:'—'} Warning</span>
+        <span className="fsp-chip fsp-chip--green">{verified?counts.safe:'—'} Low depth</span>
       </div>
 
       <div className="fsp-summary">
-        {affected.length === 0
+        {!verified ? 'Current model inputs are unavailable. Conditions need verification.' : affected.length === 0
           ? 'No elevated flood risk in the current model.'
           : `${affected.length} area${affected.length > 1 ? 's' : ''} with modeled flood risk${closedRoads ? ` · ${closedRoads} road${closedRoads > 1 ? 's' : ''} closed` : ''}`}
       </div>
 
       <div className="fsp-list">
         {rows.map((r) => {
-          const meta = BAND[r.band]
+          const meta = verified?BAND[r.band]:{label:'Unverified',tone:'unknown'}
           const mine = r.name === myBrgy
           return (
             <div className={`fsp-row ${mine ? 'mine' : ''}`} key={r.name}>
@@ -94,7 +99,7 @@ export default function FloodStatusPanel({ barangays = [], roadReports = [], myB
                 {mine && <em> · YOU</em>}
               </span>
               <span className="fsp-row-depth" title="Modeled water level">
-                {r.floodDepth >= 0.05 ? `${r.floodDepth.toFixed(2)} m` : '—'}
+                {verified && r.floodDepth >= 0.05 ? `${r.floodDepth.toFixed(2)} m` : '—'}
               </span>
               <span className={`fsp-badge fsp-badge--${meta.tone}`}>{meta.label}</span>
             </div>

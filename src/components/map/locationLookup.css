@@ -1,0 +1,78 @@
+.location-lookup {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  min-width: 0;
+  font-size: 12px;
+}
+.location-input-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+.location-input-row input {
+  min-width: 0;
+  flex: 1;
+  padding: 9px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.location-input-row button,
+.location-result {
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 8px;
+  border-radius: 6px;
+  color: #333;
+  cursor: pointer;
+}
+.location-result {
+  text-align: left;
+}
+.location-result small,
+.location-address span {
+  display: block;
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+}
+.location-address {
+  overflow-wrap: anywhere;
+}
+.geometry-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.geometry-tools button {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 7px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+}
+.geometry-tools button[aria-pressed='true'] {
+  border-color: #c0181b;
+  color: #c0181b;
+  background: #fff1f2;
+}
+.geometry-help {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #666;
+}
+.geometry-points {
+  max-height: 120px;
+  overflow: auto;
+  padding-left: 20px;
+  font-size: 11px;
+}
+.geometry-points button {
+  margin-left: 5px;
+  border: 0;
+  background: transparent;
+  color: #b91c1c;
+  cursor: pointer;
+}
