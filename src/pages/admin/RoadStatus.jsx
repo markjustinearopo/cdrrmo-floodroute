@@ -734,6 +734,7 @@ export default function RoadStatus() {
                           </span>
                           {b.reason && <span className="rbs-reason">{b.reason}</span>}
                         </span>
+                        <span className="rbs-controls">
                         {b.scope === 'partial' && b.lengthM != null && (
                           <span className="rbs-len">{b.lengthM} m</span>
                         )}
@@ -768,6 +769,7 @@ export default function RoadStatus() {
                           >
                             ×
                           </button>
+                        </span>
                         </span>
                       </li>
                     ))}

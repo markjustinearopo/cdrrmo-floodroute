@@ -965,11 +965,15 @@
   gap: 4px 8px;
 }
 .road-status .rbs-row {
-  flex-wrap: wrap;
-  gap: 6px 8px;
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 10px;
 }
 .road-status .rbs-main {
-  flex: 1 1 calc(100% - 24px);
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
 }
 .road-status .rbs-name,
 .road-status .rbs-meta,
@@ -979,9 +983,19 @@
   line-height: 1.45;
 }
 .road-status .rbs-len {
-  margin-left: 17px;
+  margin-left: 0;
 }
 .road-status .rbs-acts {
   margin-left: auto;
   flex-wrap: wrap;
+}
+
+.road-status .rbs-dot { margin-top: 5px; }
+.road-status .rbs-controls {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
 }
