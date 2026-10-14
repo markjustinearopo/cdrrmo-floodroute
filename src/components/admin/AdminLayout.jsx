@@ -114,7 +114,8 @@ export default function AdminLayout({ children, mainClassName = '' }) {
   // when there is real wetness (rain / elevated discharge) — so a dry day reads
   // "no active flood issue" even though the lowland barangays stay coloured.
   const { alerts } = useAlerts()
-  const { safetyReady } = useAdminData()
+  const { safetyReady, notifications } = useAdminData()
+  const unreadNotifications = notifications.filter(notification => !notification.read).length
   const status = useMemo(() => floodStatus(alerts, field, null, safetyReady), [alerts, field, safetyReady])
 
   /* People currently waiting on a rescue. Drives the sidebar badge, so the
@@ -285,14 +286,16 @@ export default function AdminLayout({ children, mainClassName = '' }) {
           <div className="time-chip">{clock}</div>
           <button
             type="button"
-            className={`icon-btn ${menu === 'notif' ? 'active' : ''}`}
+            className={`icon-btn icon-btn--notifications ${menu === 'notif' ? 'active' : ''}`}
             title="Notifications"
+            aria-label={unreadNotifications > 0 ? `Notifications, ${unreadNotifications} unread` : 'Notifications'}
             onClick={() => setMenu(menu === 'notif' ? null : 'notif')}
           >
             <svg viewBox="0 0 24 24">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
+            {unreadNotifications > 0 && <span className="notification-unread-badge" aria-hidden="true">{unreadNotifications > 99 ? '99+' : unreadNotifications}</span>}
           </button>
           <button
             type="button"
