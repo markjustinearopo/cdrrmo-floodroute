@@ -242,3 +242,19 @@
   font-size: 11px;
   color: #666;
 }
+
+/* Match legend symbols to the actual map pins. */
+.flood-map-key .legend-marker {
+  position: relative;
+  display: inline-block;
+  width: 20px;
+  height: 24px;
+  margin-left: 3px;
+  flex: none;
+}
+.flood-map-key .legend-marker .cd-pin {
+  box-shadow: none;
+}
+.flood-map-key .legend-marker .cd-pin-shadow {
+  display: none;
+}

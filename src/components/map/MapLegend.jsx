@@ -1,4 +1,10 @@
 import './mapLegend.css'
+import { pinIcon } from './pinIcons.js'
+
+function LegendPin({ color, glyph }) {
+  const html = pinIcon({ color, glyph, size: 18 }).options.html
+  return <span className="legend-marker" aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />
+}
 const RISK = [
   ['#EAB308', 'Low'],
   ['#F97316', 'Moderate'],
@@ -49,22 +55,22 @@ export default function MapLegend({ layers = {}, route = null }) {
           <div>
             <b>Verified reports</b>
             <span>
-              <i style={{ background: '#22c55e' }} />
-              No flood <i style={{ background: '#eab308' }} />
-              Low <i style={{ background: '#F97316' }} />
-              Moderate <i style={{ background: '#EF4444' }} />
-              Severe <i style={{ background: '#7f1d1d' }} />
+              <LegendPin color="#22c55e" glyph="drop" />
+              No flood <LegendPin color="#eab308" glyph="drop" />
+              Low <LegendPin color="#F97316" glyph="drop" />
+              Moderate <LegendPin color="#EF4444" glyph="drop" />
+              Severe <LegendPin color="#7f1d1d" glyph="drop" />
               Impassable
             </span>
           </div>
         )}
         {layers.evac && (
           <div>
-            <b>Shelters</b>
+            <b>Evacuation centers</b>
             <span>
-              <i style={{ background: '#16a34a' }} />
-              Open <i style={{ background: '#f97316' }} />
-              Full <i style={{ background: '#dc2626' }} />
+              <LegendPin color="#16a34a" glyph="home" />
+              Open <LegendPin color="#f97316" glyph="home" />
+              Full <LegendPin color="#dc2626" glyph="home" />
               Closed
             </span>
           </div>
@@ -83,7 +89,7 @@ export default function MapLegend({ layers = {}, route = null }) {
           <div>
             <b>Incidents</b>
             <span>
-              <i style={{ background: '#dc2626' }} />
+              <LegendPin color="#dc2626" glyph="alert" />
               Active response
             </span>
           </div>
