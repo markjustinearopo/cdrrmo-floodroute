@@ -953,3 +953,35 @@
 .rbs-act.danger:hover { background: #fef2f2; }
 
 .rbs-empty { padding: 14px 4px; font-size: 0.75rem; color: #9ca3af; }
+/* Keep sidebar sections in normal flow and give closure names their own row. */
+.road-status .rs-panel > .rs-section {
+  flex-shrink: 0;
+}
+.road-status .rs-panel > .rs-section--grow {
+  flex: 0 0 auto;
+}
+.road-status .rs-flagged-head {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.road-status .rbs-row {
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.road-status .rbs-main {
+  flex: 1 1 calc(100% - 24px);
+}
+.road-status .rbs-name,
+.road-status .rbs-meta,
+.road-status .rbs-reason {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.road-status .rbs-len {
+  margin-left: 17px;
+}
+.road-status .rbs-acts {
+  margin-left: auto;
+  flex-wrap: wrap;
+}
