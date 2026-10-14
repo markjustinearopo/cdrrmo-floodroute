@@ -992,3 +992,61 @@
   }
   .msb-go svg { width: 17px; height: 17px; }
 }
+/* Keep emergency information inside narrow map and sidebar panels. */
+.emg,
+.emg-body,
+.emg-row {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.emg-body {
+  container-type: inline-size;
+}
+.emg-row {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  gap: 6px 9px;
+  min-height: 44px;
+  padding: 8px 6px;
+}
+.emg-row--call {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.emg-row-txt b {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.emg-row-txt small {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.emg-empty {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.emg-sec-title {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.emg-row-km,
+.emg-call {
+  font-size: 0.75rem;
+}
+@container (max-width: 280px) {
+  .emg-row:not(.emg-row--call) {
+    grid-template-columns: 9px minmax(0, 1fr);
+  }
+  .emg-row-km {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
