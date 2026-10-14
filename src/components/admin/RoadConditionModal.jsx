@@ -38,20 +38,25 @@ export default function RoadConditionModal({
   onPartial,
   partialCount = 0,
 }) {
-  const [status, setStatus] = useState(road.status === 'blocked' ? 'blocked' : road.status === 'flooded' ? 'flooded' : 'flooded')
+  const [status, setStatus] = useState(road.status === 'open' ? 'open' : road.status === 'blocked' ? 'blocked' : road.status === 'flooded' ? 'flooded' : 'flooded')
   const [depthM, setDepthM] = useState(() => {
     const m = ftToM(road.depthFt)
     return m == null ? '' : String(+m.toFixed(2))
   })
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [reason, setReason] = useState(road.reason || '')
 
   const feetHint = formatFeetHint(depthM === '' ? null : Number(depthM))
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault()
     // Store feet: the column is feet, the operator thinks in metres.
     const depthFt = depthM === '' ? '' : +mToFt(Number(depthM)).toFixed(2)
-    onSave({ ...road, status, depthFt, reason })
+    if (saving) return
+    setSaving(true); setSaveError('')
+    try { await onSave({ ...road, status, depthFt, reason }) }
+    catch (error) { setSaveError(error.message || 'Could not save.'); setSaving(false) }
   }
 
   return (
@@ -68,6 +73,7 @@ export default function RoadConditionModal({
         </div>
 
         <form className="mng-form" onSubmit={handleSave} style={{ padding: '16px 18px' }}>
+          {saveError && <p role="alert" style={{ color: '#991b1b' }}>{saveError}</p>}
           <label>
             Condition
             <div className="rcm-status">
@@ -148,7 +154,7 @@ export default function RoadConditionModal({
 
           <div className="mng-form-actions">
             <button type="button" className="mng-btn mng-btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="mng-btn">
+            <button type="submit" className="mng-btn" disabled={saving}>
               {saveLabel || (status === 'open' ? 'Set Passable' : 'Save Condition')}
             </button>
           </div>

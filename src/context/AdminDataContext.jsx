@@ -722,6 +722,52 @@ export function AdminDataProvider({ children }) {
     persist('roadReports', () => (report?.wayId != null ? db.roadStatus.removeWay(report.wayId) : Promise.resolve()))
   }, [optimistic, persist])
 
+  // Multiple selected roads reuse the existing storage and approval queue.
+  // Save before closing the dialog; a failed batch reports its partial progress.
+  const saveRoadAreaConditions = useCallback(async ({ roads, status, reason, geometry }, { proposal = false, barangay = '' } = {}) => {
+    if (!roads.length || !['flooded', 'blocked', 'open'].includes(status)) throw new Error('Choose roads and a valid condition.')
+    let saved = 0
+    try {
+      if (proposal) {
+        const current = await db.appSettings.get('road_change_requests', [])
+        const now = Date.now()
+        const requests = roads.map((road, index) => ({
+          id: 'rcr-' + now + '-' + index + '-' + Math.random().toString(36).slice(2, 7),
+          wayId: road.wayId, roadName: road.name, barangay,
+          requestedStatus: status, reason, selectionGeometry: geometry,
+          requestedBy: 'Brgy. ' + barangay,
+          status: 'pending', requestedAt: now, requestedLabel: nowLabel(now),
+        }))
+        await db.appSettings.set('road_change_requests', [...requests, ...current])
+        optimistic('roadChangeRequests', [...requests, ...current])
+        saved = requests.length
+      } else {
+        if (status === 'open') {
+          const ids = new Set(roads.map(r => String(r.wayId)))
+          const active = await db.roadBlocks.list()
+          if (active.some(b => b.status !== 'resolved' && ids.has(String(b.wayId)))) throw new Error('Reopen existing section closures first; they are still active.')
+        }
+        for (const road of roads) {
+          if (status === 'open') await db.roadStatus.removeWay(road.wayId)
+          else await db.roadStatus.setWay(road.wayId, status, {
+            name: road.name, barangay: road.barangay, reason,
+            reportedBy: 'CDRRMO',
+            depthFt: road.depthFt === '' ? null : (road.depthFt ?? stateRef.current.roadReports.find(r => String(r.wayId) === String(road.wayId))?.depthFt),
+          })
+          saved++
+        }
+        await refetch('roadReports', true)
+      }
+      setSaveError(error => error?.collection === 'roadReports' || error?.collection === 'roadChangeRequests' ? null : error)
+      notify('moderate', proposal ? 'Road changes submitted for approval' : 'Road conditions saved', saved + ' roads · ' + status)
+    } catch (error) {
+      if (!proposal) await refetch('roadReports', true)
+      const message = saved + ' of ' + roads.length + ' road changes saved. ' + (error.message || 'Please retry.')
+      setSaveError({ collection: proposal ? 'roadChangeRequests' : 'roadReports', message, batch: true, at: Date.now() })
+      throw new Error(message)
+    }
+  }, [optimistic, refetch, notify])
+
   /* ── Road blocks — selective (partial) closures ───────────────────────────
      A closure of a SECTION of a road, with its own geometry. Several may exist
      on one way. Kept separate from reportRoad above, which owns the way-keyed
@@ -837,9 +883,12 @@ export function AdminDataProvider({ children }) {
 
     // Paint the road into the shared road-status store — optimistic mirror now,
     // Supabase persist below — so it appears on every map (admin/barangay/resident).
-    if (req.wayId != null) {
+    if (req.wayId != null && meta.apply !== false) {
       const statusMap = readJSON(ROAD_STATUS_KEY, {})
-      writeJSON(ROAD_STATUS_KEY, { ...statusMap, [req.wayId]: req.requestedStatus })
+      const nextStatus = { ...statusMap }
+      if (req.requestedStatus === 'open') delete nextStatus[req.wayId]
+      else nextStatus[req.wayId] = req.requestedStatus
+      writeJSON(ROAD_STATUS_KEY, nextStatus)
     }
     notify(
       req.requestedStatus === 'blocked' ? 'high' : 'moderate',
@@ -849,8 +898,8 @@ export function AdminDataProvider({ children }) {
 
     persist('roadChangeRequests', () => Promise.all([
       db.appSettings.set('road_change_requests', next),
-      req.wayId != null
-        ? db.roadStatus.setWay(req.wayId, req.requestedStatus, {
+      req.wayId != null && meta.apply !== false
+        ? req.requestedStatus === 'open' ? db.roadStatus.removeWay(req.wayId) : db.roadStatus.setWay(req.wayId, req.requestedStatus, {
             name: req.roadName, barangay: req.barangay, reason: req.reason, reportedBy: req.requestedBy,
           })
         : Promise.resolve(),
@@ -921,7 +970,7 @@ export function AdminDataProvider({ children }) {
     addEvacCenter, updateEvacCenter, removeEvacCenter,
     addUser, addUsers, updateUser, removeUser,
     assignBarangay,
-    reportRoad, removeRoadReport,
+    reportRoad, removeRoadReport, saveRoadAreaConditions,
     addRoadBlock, updateRoadBlock, resolveRoadBlock, removeRoadBlock,
     submitRoadRequest, approveRoadRequest, rejectRoadRequest, removeRoadRequest,
     addFloodArea, updateFloodArea, removeFloodArea,
@@ -936,7 +985,7 @@ export function AdminDataProvider({ children }) {
     submitFloodReport, verifyFloodReport, updateFloodReport, removeFloodReport,
     addEvacCenter, updateEvacCenter, removeEvacCenter,
     addUser, addUsers, updateUser, removeUser,
-    assignBarangay, reportRoad, removeRoadReport,
+    assignBarangay, reportRoad, removeRoadReport, saveRoadAreaConditions,
     addRoadBlock, updateRoadBlock, resolveRoadBlock, removeRoadBlock,
     submitRoadRequest, approveRoadRequest, rejectRoadRequest, removeRoadRequest,
     addFloodArea, updateFloodArea, removeFloodArea,

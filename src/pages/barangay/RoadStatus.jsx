@@ -1,3 +1,5 @@
+import RoadAreaConditionModal from '../../components/admin/RoadAreaConditionModal.jsx'
+import { useAdminData } from '../../context/AdminDataContext.jsx'
 import { useMemo, useState } from 'react'
 import { MapContainer, TileLayer, ZoomControl } from 'react-leaflet'
 import BarangayLayout from '../../components/barangay/BarangayLayout.jsx'
@@ -47,6 +49,8 @@ const BRUSHES = [
 const REQ_BADGE = { pending: 'Pending', approved: 'Approved', rejected: 'Declined' }
 
 export default function RoadStatus() {
+  const [areaOpen, setAreaOpen] = useState(false)
+  const { saveRoadAreaConditions } = useAdminData()
   const brgyLabel = officialBarangayLabel()
   const myBrgy = getOfficialBarangay()
   const { roads } = useCabuyaoRoads()
@@ -153,6 +157,8 @@ export default function RoadStatus() {
               </button>
             ))}
           </div>
+
+          <button type="button" className="rs-area-button" onClick={() => setAreaOpen(true)}>Multiple points / compound</button>
 
           <div className="rs-source">
             <span className="rs-source-dot" />
@@ -348,6 +354,8 @@ export default function RoadStatus() {
           </aside>
         </div>
       </div>
+
+      {areaOpen && <RoadAreaConditionModal roads={roads} blocks={roadBlocks} barangay={myBrgy} proposal onClose={() => setAreaOpen(false)} onConfirm={data => saveRoadAreaConditions(data, { proposal: true, barangay: myBrgy })} />}
 
       {confirmSend && (
         <ConfirmDialog

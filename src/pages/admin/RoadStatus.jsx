@@ -1,3 +1,5 @@
+import RoadAreaConditionModal from '../../components/admin/RoadAreaConditionModal.jsx'
+import { useAdminData } from '../../context/AdminDataContext.jsx'
 import { useMemo, useState } from 'react'
 import { MapContainer, TileLayer, ZoomControl } from 'react-leaflet'
 import AdminLayout from '../../components/admin/AdminLayout.jsx'
@@ -58,6 +60,8 @@ const TRAFFIC_BRUSHES = Object.entries(TRAFFIC_STATUS).map(([key, m]) => ({
 }))
 
 export default function RoadStatus() {
+  const [areaOpen, setAreaOpen] = useState(false)
+  const { saveRoadAreaConditions } = useAdminData()
   const { roads } = useCabuyaoRoads()
   const [statusMap, { setStatus, clearAll }] = useRoadStatus()
   const [trafficMap, { setTraffic, clearAllTraffic }] = useTrafficStatus()
@@ -369,6 +373,8 @@ export default function RoadStatus() {
                   </button>
                 ))}
           </div>
+
+          {!isTraffic && <button type="button" className="rs-area-button" onClick={() => setAreaOpen(true)}>Multiple points / compound</button>}
 
           <div className="rs-source">
             <span className="rs-source-dot" />
@@ -782,6 +788,8 @@ export default function RoadStatus() {
         </div>
       </div>
 
+      {areaOpen && <RoadAreaConditionModal roads={roads} blocks={roadBlocks} onClose={() => setAreaOpen(false)} onConfirm={data => saveRoadAreaConditions(data)} />}
+
       {rejectId && (
         <ConfirmDialog
           title="Reject this road request?"
@@ -869,12 +877,9 @@ export default function RoadStatus() {
             reason: approving.reason || '',
           }}
           onClose={() => setApproving(null)}
-          onSave={(data) => {
-            // Mark the request decided first, then write the operator's actual
-            // call — approveRoadRequest paints the REQUESTED status, so saving
-            // second is what lets the operator override it.
-            approveRoadRequest(approving.id)
-            saveCondition(data)
+          onSave={async (data) => {
+            await saveRoadAreaConditions({ roads: [{ wayId: data.wayId, name: data.name, barangay: data.barangay, depthFt: data.depthFt }], status: data.status, reason: data.reason })
+            approveRoadRequest(approving.id, { apply: false })
             setApproving(null)
           }}
         />

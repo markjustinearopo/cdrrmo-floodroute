@@ -33,7 +33,7 @@ const WHAT = {
 
 export default function SaveErrorToast({ error, onDismiss }) {
   if (!error) return null
-  const title = WHAT[error.collection] || 'That change was not saved'
+  const title = error.batch ? 'Road changes were not all saved' : WHAT[error.collection] || 'That change was not saved'
 
   return (
     <div className="save-err" role="alert" aria-live="assertive">
@@ -48,7 +48,9 @@ export default function SaveErrorToast({ error, onDismiss }) {
         <b>{title}</b>
         <small>{error.message}</small>
         <small className="save-err-hint">
-          It was rolled back and is NOT in the database. Try again, or contact CDRRMO IT support.
+          {error.batch
+            ? 'Check the saved count above and the current road list before retrying. Completed road changes remain saved.'
+            : 'It was rolled back and is NOT in the database. Try again, or contact CDRRMO IT support.'}
         </small>
       </span>
       <button type="button" className="save-err-x" onClick={onDismiss} aria-label="Dismiss">×</button>
