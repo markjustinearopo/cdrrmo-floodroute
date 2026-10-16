@@ -117,3 +117,27 @@ test('current account status and role override JWT or body claims', async () => 
   assert.equal(await authorizeOperator(req, db({ role: 'admin', status: 'active', session_version: 1 }), ['admin']), null)
   assert.equal(await authorizeOperator(req, db({ role: 'admin', status: 'active', barangay: 'Casile' }), ['admin']), null)
 })
+import { accountStatus } from '../supabase/functions/_shared/accountStatus.ts'
+
+test('suspended callers can read only their status after private records are blocked', async () => {
+  const req = new Request('https://example.test', { headers: { authorization: `Bearer ${signed(claims)}` } })
+  let lookedUp
+  const db = (data, error = null) => ({ from: (table) => {
+    assert.equal(table, 'accounts')
+    return { select: () => ({ eq: (column, id) => {
+      assert.equal(column, 'id'); lookedUp = id
+      return { maybeSingle: async () => ({ data, error }) }
+    } }) }
+  } })
+  assert.deepEqual(await accountStatus(req, db({ status: 'suspended', role: 'admin', email: 'must-not-leak' }), secret),
+    { code: 200, body: { status: 'suspended', sessionCurrent: false } })
+  assert.equal(lookedUp, 7)
+  assert.deepEqual((await accountStatus(req, db({ status: 'active', role: 'admin' }), secret)).body,
+    { status: 'active', sessionCurrent: true })
+  for (const row of [null, { status: 'active', role: 'resident' }, { status: 'active', role: 'admin', session_version: 1 }]) {
+    assert.equal((await accountStatus(req, db(row), secret)).body.sessionCurrent, false)
+  }
+  assert.equal((await accountStatus(req, db(null, { message: 'unavailable' }), secret)).code, 503)
+  const forged = new Request('https://example.test', { headers: { authorization: `Bearer ${signed(claims, 'wrong')}` } })
+  assert.equal((await accountStatus(forged, { from() { throw new Error('must not query') } }, secret)).code, 401)
+})

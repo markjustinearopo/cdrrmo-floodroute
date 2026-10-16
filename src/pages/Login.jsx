@@ -18,6 +18,7 @@ import GoogleBarangayStep from '../components/GoogleBarangayStep.jsx'
 import { OFFICIAL_BRGY_KEY } from '../data/barangay.js'
 import './auth.css'
 import './Login.css'
+import { accountNotice } from '../services/accountStatus.js'
 import '../components/auth/codeVerification.css'
 
 /**
@@ -61,7 +62,7 @@ const BARANGAYS = [
 export default function Login({ portal = 'resident' }) {
   const navigate = useNavigate()
   const [role, setRole] = useState(portal)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(accountNotice)
   const [submitting, setSubmitting] = useState(false)
   /* Google sign-in. `googleSignup` holds the signed ten-minute ticket for a
      first-time resident who still has to name a barangay; null the rest of

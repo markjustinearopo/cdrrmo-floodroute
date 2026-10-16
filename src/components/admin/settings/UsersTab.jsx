@@ -126,6 +126,8 @@ export default function UsersTab({ onToast }) {
   const { users, addUser, addUsers, updateUser, removeUser } = useUsers()
 
   /* ── Accounts ── */
+  const [savingUser, setSavingUser] = useState(false)
+  const [updatingUser, setUpdatingUser] = useState(null)
   const [editing, setEditing] = useState(null) // user object, {} for new, or null
   const [importing, setImporting] = useState(false)
   const [importPreview, setImportPreview] = useState(null) // { valid, errors, fileName }
@@ -173,7 +175,7 @@ export default function UsersTab({ onToast }) {
   const role = roles.find((r) => r.value === selected)
   const locked = selected === 'admin'
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     const data = {
@@ -184,8 +186,14 @@ export default function UsersTab({ onToast }) {
       status: f.get('status'),
     }
     if (editing.id) {
-      updateUser(editing.id, data)
-      onToast(`${data.name} updated.`)
+      setSavingUser(true)
+      try {
+        await updateUser(editing.id, data)
+        onToast(`${data.name} updated.`)
+      } catch (error) {
+        onToast(`Account was not saved: ${error.message}`)
+        return
+      } finally { setSavingUser(false) }
     } else {
       // The form collects no password, so the server generates a one-time one
       // and hands it back once. Shown in a dialog rather than a toast because
@@ -196,12 +204,18 @@ export default function UsersTab({ onToast }) {
     setEditing(null)
   }
 
-  function toggleStatus(id) {
+  async function toggleStatus(id) {
+    if (updatingUser != null) return
     const u = users.find((x) => x.id === id)
     if (!u) return
     const status = u.status === 'suspended' ? 'active' : 'suspended'
-    updateUser(id, { status })
-    onToast(status === 'suspended' ? `${u.name} suspended.` : `${u.name} reactivated.`)
+    setUpdatingUser(id)
+    try {
+      await updateUser(id, { status })
+      onToast(status === 'suspended' ? `${u.name} suspended.` : `${u.name} reactivated.`)
+    } catch (error) {
+      onToast(`Account status was not saved: ${error.message}`)
+    } finally { setUpdatingUser(null) }
   }
   function remove(user) {
     removeUser(user.id)
@@ -388,6 +402,7 @@ export default function UsersTab({ onToast }) {
         rowActions={(u) => [{
           label: u.status === 'suspended' ? 'Activate' : 'Suspend',
           onClick: () => toggleStatus(u.id),
+          disabled: updatingUser != null,
           subtle: true,
         }]}
         onDelete={remove}
@@ -689,7 +704,7 @@ export default function UsersTab({ onToast }) {
               </label>
               <div className="mng-form-actions">
                 <button type="button" className="mng-btn mng-btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
-                <button type="submit" className="mng-btn">{editing.id ? 'Save Changes' : 'Add User'}</button>
+                <button type="submit" className="mng-btn" disabled={savingUser}>{editing.id ? 'Save Changes' : 'Add User'}</button>
               </div>
             </form>
           </div>

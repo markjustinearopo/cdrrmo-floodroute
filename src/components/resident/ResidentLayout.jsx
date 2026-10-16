@@ -60,6 +60,7 @@ const NAV = [
 ]
 
 import DataHealthNotice from '../DataHealthNotice.jsx'
+import { accountNotice } from '../../services/accountStatus.js'
 
 export default function ResidentLayout({ children, mainClassName = '' }) {
   const navigate = useNavigate()
@@ -294,7 +295,7 @@ export default function ResidentLayout({ children, mainClassName = '' }) {
 
         {/* `main--restabs` reserves the height the bottom tab bar occupies, so
             content is never parked underneath it (see residentTabBar.css). */}
-        <main className={`main ${mainClassName} main--restabs`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">My Safety Info</h1><DataHealthNotice />{restricted && <div className="account-status-notice" role="status">Your account is {account.status}. Contact your barangay or CDRRMO to restore account access. Community maps and evacuation information remain available.</div>}{children}</main>
+        <main className={`main ${mainClassName} main--restabs`.trim()} id="main-content" tabIndex={-1}><h1 className="sr-only">My Safety Info</h1><DataHealthNotice />{accountNotice() && <div className="account-status-notice" role="status">{accountNotice()}</div>}{restricted && <div className="account-status-notice" role="status">Your account is {account.status}. Contact your barangay or CDRRMO to restore account access. Community maps and evacuation information remain available.</div>}{children}</main>
       </div>
 
       <ResidentTabBar />

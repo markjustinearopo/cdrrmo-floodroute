@@ -141,3 +141,19 @@ npm run dev
 ```
 Then add an evacuation centre under **/admin/evacuation** and watch the row
 appear in the Supabase Table Editor.
+
+
+## Account suspension status checks
+
+The `account-status` Edge Function verifies the existing signed session and
+returns only the caller's current account status and whether the session remains
+valid. It uses the existing `SESSION_JWT_SECRET`; no additional frontend keys
+are required. Private-table RLS remains unchanged.
+
+The frontend checks on sign-in, every 15 seconds while visible, and when the
+page regains focus or connectivity. Suspension ends private access and takes
+residents to the public map with a status message. After reactivation, the
+resident signs in again. Network errors do not imply account suspension.
+
+Deploy this function alongside the frontend when deploying to another project.
+The usual `npm run deploy:functions` command includes it.

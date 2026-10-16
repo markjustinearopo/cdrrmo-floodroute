@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AdminDataProvider } from './context/AdminDataContext.jsx'
 import RequireAuth from './components/RequireAuth.jsx'
+import AccountStatusMonitor from './components/AccountStatusMonitor.jsx'
 import OfflineBanner from './components/OfflineBanner.jsx'
 import SkipLink from './components/SkipLink.jsx'
 import Login from './pages/Login.jsx'
@@ -84,6 +85,7 @@ export default function App() {
         and say how old the data on screen is. Stale information that looks
         live is the more dangerous failure. */}
     <OfflineBanner />
+    <AccountStatusMonitor />
     <AdminDataProvider>
     <Routes>
       <Route path="/" element={<ResidentFloodMap />} />

@@ -11,6 +11,7 @@ import db from './db.js'
 import * as otp from './authOtp.js'
 import { TOKEN_KEY } from './supabase.js'
 import { clearPrivateOfflineData } from './offline.js'
+import { ACCOUNT_NOTICE_KEY } from './accountStatus.js'
 
 const api = {
   getToken() {
@@ -38,6 +39,7 @@ const api = {
     }
   },
   setUser(user) {
+    sessionStorage.removeItem(ACCOUNT_NOTICE_KEY)
     localStorage.setItem('cdrrmo_user', JSON.stringify(user))
     window.dispatchEvent(new Event('cdrrmo-session'))
   },

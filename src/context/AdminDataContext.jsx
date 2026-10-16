@@ -640,10 +640,17 @@ export function AdminDataProvider({ children }) {
     return stamped
   }, [optimistic, persist])
 
-  const updateUser = useCallback((id, updates) => {
-    optimistic('users', stateRef.current.users.map((u) => (u.id === id ? { ...u, ...updates } : u)))
-    persist('users', () => db.users.update(id, updates))
-  }, [optimistic, persist])
+  const updateUser = useCallback(async (id, updates) => {
+    try {
+      const saved = await db.users.update(id, updates)
+      optimistic('users', stateRef.current.users.map((u) => String(u.id) === String(id) ? saved : u))
+      setSaveError((error) => error?.collection === 'users' ? null : error)
+      return saved
+    } catch (error) {
+      setSaveError({ collection: 'users', message: error.message || 'Account could not be updated.', at: Date.now() })
+      throw error
+    }
+  }, [optimistic])
 
   const removeUser = useCallback((id) => {
     optimistic('users', stateRef.current.users.filter((u) => u.id !== id))

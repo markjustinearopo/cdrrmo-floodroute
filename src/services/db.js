@@ -445,7 +445,10 @@ export const usersDb = {
     return unwrap(await supabase.from('accounts').insert(rows).select(ACCOUNT_COLUMNS)).map(userFromDb)
   },
   async update(id, updates) {
-    unwrap(await supabase.from('accounts').update(userToDb(updates)).eq('id', id))
+    const row = unwrap(await supabase.from('accounts').update(userToDb(updates))
+      .eq('id', id).select(ACCOUNT_COLUMNS).maybeSingle())
+    if (!row) throw new Error('Account was not updated. Refresh and confirm you have permission to manage this account.')
+    return userFromDb(row)
   },
   async remove(id) {
     unwrap(await supabase.from('accounts').delete().eq('id', id))
